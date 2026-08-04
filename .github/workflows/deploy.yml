@@ -41,9 +41,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # From `.nvmrc`, so this matches whoever generated the lockfile.
+      # See the note in `ci.yml` for what a mismatch cost.
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version-file: ".nvmrc"
           cache: npm
 
       - run: npm ci

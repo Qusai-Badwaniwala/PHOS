@@ -18,10 +18,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Read from `.nvmrc` rather than pinned here, so CI and whoever
+      # generated `package-lock.json` are always the same major version.
+      #
+      # They were not, and it cost two failed deploys. The lockfile is
+      # written by npm 11 (Node 24); CI ran Node 20, whose npm 10 records
+      # optional platform dependencies differently and reported
+      # `@emnapi/core` and `@emnapi/runtime` as "Missing from lock file".
+      # The lockfile was fine — the two npms simply disagreed about it.
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20.x"
+          node-version-file: ".nvmrc"
           cache: "npm"
 
       - name: Install dependencies

@@ -1,0 +1,58 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+
+# Build output
+dist/
+build/
+
+# Environment variables (never commit secrets/config)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Personal data — never commit.
+#
+# PHOS no longer creates any of this: `database/` is left over from the
+# SQLite era, and holds the old `phos.db` plus the export taken before
+# Prisma was removed in Phase 9. Both contain real memorization data.
+#
+# The Phase 9 rewrite of this file dropped these rules along with the
+# rest of the Prisma entries, which would have published one user's Hifz
+# record the first time the repository was pushed to GitHub Pages — a
+# public repo, in a privacy-first application. Restored deliberately;
+# do not remove while the folder exists.
+database/
+*.db
+*.db-journal
+phos-export-*.json
+
+# Logs
+logs/
+*.log
+
+# Testing
+coverage/
+
+# IDEs and editors
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+Thumbs.db
+*.swp
+
+# TypeScript
+*.tsbuildinfo

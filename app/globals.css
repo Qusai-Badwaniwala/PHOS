@@ -1,0 +1,328 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * PHOS Design System — Color Palette
+ * Primary palette: #322D29 / #72383D / #AC9C8D / #D1C7BD / #D9D9D9 / #EFE9E1
+ *
+ * Converted to HSL for use with Tailwind/shadcn HSL variable system:
+ * #322D29 → hsl(24, 9%, 18%)     — darkest, sidebar bg / headings
+ * #72383D → hsl(356, 32%, 33%)   — accent / primary action
+ * #AC9C8D → hsl(28, 16%, 62%)    — muted text / subtle borders
+ * #D1C7BD → hsl(31, 17%, 80%)    — secondary/disabled states
+ * #D9D9D9 → hsl(0, 0%, 85%)      — dividers / input borders
+ * #EFE9E1 → hsl(36, 27%, 92%)    — light background / card surface
+ */
+
+@layer base {
+  :root {
+    /* Surfaces */
+    --background: 36 27% 96%;
+    --card: 0 0% 100%;
+    --popover: 0 0% 100%;
+
+    /* Text */
+    --foreground: 24 15% 16%;
+    --card-foreground: 24 15% 16%;
+    --popover-foreground: 24 15% 16%;
+
+    /* Muted text & surfaces */
+    --muted: 36 20% 93%;
+    --muted-foreground: 28 12% 50%;
+
+    /* Primary action — PHOS dark rose */
+    --primary: 356 32% 33%;
+    --primary-foreground: 36 27% 96%;
+
+    /* Secondary — warm sand */
+    --secondary: 36 20% 88%;
+    --secondary-foreground: 24 15% 22%;
+
+    /* Accent — slightly deeper sand for hovers */
+    --accent: 31 17% 85%;
+    --accent-foreground: 24 15% 20%;
+
+    /* Destructive */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+
+    /* Borders & inputs */
+    --border: 31 14% 82%;
+    --input: 31 14% 82%;
+    --ring: 356 32% 33%;
+
+    /*
+     * Gold — authorship and quiet honours only.
+     *
+     * Sits at hue 39, deliberately between the warm sand surfaces
+     * (hue 24-36) and the maroon primary (356), and next to the
+     * bronze/tan already in the PHOS logo. It reads as a member of the
+     * existing palette rather than a decoration dropped on top.
+     *
+     * Reserved for attribution. Using it for status or emphasis would
+     * cost it the only thing it is for.
+     */
+    --gold: 39 42% 46%;
+    --gold-foreground: 36 27% 96%;
+
+    /* Border radius */
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* Surfaces — deep warm dark */
+    --background: 24 12% 10%;
+    --card: 24 10% 14%;
+    --popover: 24 10% 14%;
+
+    /* Text */
+    --foreground: 36 20% 90%;
+    --card-foreground: 36 20% 90%;
+    --popover-foreground: 36 20% 90%;
+
+    /* Muted */
+    --muted: 24 10% 18%;
+    --muted-foreground: 28 10% 55%;
+
+    /* Primary — lighter rose for dark mode */
+    --primary: 356 32% 55%;
+    --primary-foreground: 24 12% 10%;
+
+    /* Secondary */
+    --secondary: 24 10% 20%;
+    --secondary-foreground: 36 20% 85%;
+
+    /* Accent */
+    --accent: 24 10% 22%;
+    --accent-foreground: 36 20% 88%;
+
+    /* Destructive */
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 98%;
+
+    /* Borders */
+    --border: 24 10% 22%;
+    --input: 24 10% 22%;
+    --ring: 356 32% 55%;
+
+    /* Lifted and slightly desaturated so it stays legible on the deep
+       warm dark ground without turning brassy. */
+    --gold: 39 46% 62%;
+    --gold-foreground: 24 12% 10%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply scroll-smooth;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1,
+      "ss01" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family:
+      var(--font-inter),
+      system-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      sans-serif;
+  }
+
+  /* Arabic text — rendered with Noto Naskh */
+  [lang="ar"] {
+    font-family: "Noto Naskh Arabic", "Traditional Arabic", serif;
+    line-height: 2;
+    letter-spacing: 0;
+  }
+
+  /* Focus ring — visible keyboard navigation */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* Heading rhythm */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply tracking-tight;
+    font-feature-settings: "salt" 1;
+  }
+}
+
+@layer utilities {
+  /* Scrollbar styling — minimal, on-brand */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border));
+    border-radius: 3px;
+  }
+
+  /* Animation utilities */
+  .animate-fade-in {
+    animation: fade-in 0.25s ease-out;
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /*
+   * Reduced Motion — set from Settings by `SettingsProvider`, which
+   * toggles `.reduce-motion` on the root element.
+   *
+   * Durations are collapsed to ~0 rather than set to `none`, because
+   * `animation: none` cancels an animation mid-flight and can leave an
+   * element stuck at its start keyframe (an entrance animation would
+   * never reach `opacity: 1`). Running instantly ends at the final
+   * frame, so content is always in its settled state.
+   *
+   * The `@media (prefers-reduced-motion)` rule below applies the same
+   * treatment for users who asked the operating system for it, so the
+   * app respects that preference without them finding this setting.
+   */
+  .reduce-motion *,
+  .reduce-motion *::before,
+  .reduce-motion *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /*
+   * Compact Mode — reduces the vertical rhythm between stacked blocks
+   * and tightens card padding. Scoped to PHOS's own layout primitives
+   * (`.page-content`, `.content-card`) rather than to every utility
+   * class, so it changes page density without disturbing spacing inside
+   * individual components.
+   *
+   * The selector is written to out-specify Tailwind's `space-y-*`, which
+   * compiles to `.space-y-5 > :not([hidden]) ~ :not([hidden])` — three
+   * class-level components. Matching that shape and anchoring it at
+   * `:root` gives four, so this reliably wins instead of depending on
+   * declaration order.
+   */
+  :root.compact .page-content > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 1rem;
+  }
+  :root.compact .content-card {
+    padding: 1rem;
+  }
+
+  /*
+   * Keeps the bottom navigation clear of a phone's home indicator.
+   *
+   * `components/layout/mobile-nav.tsx` has applied this class since the
+   * layout was first written, but it was never defined — not here, not
+   * in `tailwind.config.ts`. It was silently doing nothing.
+   *
+   * Stated precisely, because the fix is partial: this is inert today.
+   * `env(safe-area-inset-*)` only becomes non-zero under
+   * `viewport-fit=cover`, which PHOS does not set, so the browser
+   * already insets the whole viewport and the navigation clears the
+   * gesture bar on its own. Nothing is broken now.
+   *
+   * It is defined anyway so the class means what it says, and so that
+   * adding `viewportFit: "cover"` later — which an installed PWA wants,
+   * to fill the screen rather than sit in letterbox bars — does not
+   * immediately push the navigation under the home indicator. That
+   * change also needs a matching top inset for the sticky `TopNav`, and
+   * a real device to verify on, so it is deliberately not made here.
+   */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /*
+   * Attribution sheen — used only by the "By Qusai" credit.
+   *
+   * A slow highlight sweeping across gold text, rather than a glow or a
+   * pulse: it reads as light catching an engraved surface, which suits
+   * a colophon. The gradient is painted into the text itself
+   * (`background-clip: text`), so there is no box, border or badge
+   * around it competing with the navigation below.
+   *
+   * `.reduce-motion` and the `prefers-reduced-motion` media query above
+   * both collapse the animation duration, at which point this settles
+   * as static gold text — still legible, still correct, just still.
+   */
+  .phos-shimmer {
+    color: hsl(var(--gold));
+    background-image: linear-gradient(
+      100deg,
+      hsl(var(--gold)) 0%,
+      hsl(var(--gold)) 40%,
+      hsl(var(--gold) / 0.55) 50%,
+      hsl(var(--gold)) 60%,
+      hsl(var(--gold)) 100%
+    );
+    background-size: 300% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: phos-sheen 6s ease-in-out infinite;
+  }
+
+  @keyframes phos-sheen {
+    0%,
+    100% {
+      background-position: 150% 0;
+    }
+    50% {
+      background-position: -50% 0;
+    }
+  }
+
+  /* Step counter (preserved from original) */
+  .step {
+    counter-increment: step;
+  }
+  .step:before {
+    @apply absolute flex h-8 w-8 items-center justify-center rounded-full border-4 border-background bg-muted -indent-px text-xs font-medium text-muted-foreground;
+    content: counter(step);
+    left: -2.25rem;
+    top: -0.15rem;
+  }
+}

@@ -1,0 +1,88 @@
+# Builds PHOS and publishes it to GitHub Pages.
+#
+# The result is the thing this whole phase was for: a link anyone can
+# open on any device, install as an app, and use offline, with their
+# Hifz record kept on their own device and sent nowhere.
+#
+# SETTING THIS UP, ONCE
+# ---------------------
+# In the repository: Settings → Pages → Build and deployment → Source →
+# "GitHub Actions". Nothing else. There is no server to provision, no
+# secret to add, and no database to host — PHOS has none of those any
+# more.
+#
+# The site then appears at https://<owner>.github.io/<repository>/
+name: Deploy PHOS
+
+on:
+  push:
+    branches: [main]
+  # So a deploy can be re-run from the Actions tab without an empty commit.
+  workflow_dispatch:
+
+# Read the repository, write a Pages deployment, and prove the artifact's
+# origin. Nothing wider: this workflow has no reason to touch anything
+# else in the account.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time. `cancel-in-progress: false` so a running publish
+# finishes rather than being killed half-way and leaving the site in a
+# partially-updated state.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # The same gates that must pass locally. A deploy is not a reason
+      # to skip them — it is the moment they matter most, because what
+      # lands here is what other people install.
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test
+
+      - uses: actions/configure-pages@v5
+        id: pages
+
+      - name: Build
+        env:
+          # GitHub Pages serves a project site from /<repository>/, so
+          # every URL needs that prefix. Derived from the repository name
+          # rather than hardcoded, so a fork or a rename deploys
+          # correctly without anyone remembering to edit this file.
+          PHOS_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+        run: npm run build
+
+      # GitHub Pages serves files literally and will not serve a path
+      # beginning with an underscore, which is where Next puts every
+      # compiled asset (`_next/`). Without this the page loads with no
+      # JavaScript and no styling at all.
+      - run: touch out/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment

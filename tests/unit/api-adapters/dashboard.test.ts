@@ -1,0 +1,271 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ReportingPeriod, WorkloadCategory } from "@/shared/types";
+import {
+  dailyPlan,
+  dashboardMetrics,
+  engineSettings,
+  historicalReport,
+  sessionStatistics,
+  studyItem,
+} from "../../support/adapterFixtures";
+
+/**
+ * `lib/api/dashboard.ts` is the largest piece of mapping logic in the
+ * application and, until now, the only one with no tests at all.
+ *
+ * It is also where the worst defect in PHOS's history lived:
+ * `workloadCategory` was absent from the DTO while three adapters
+ * filtered on it, so every scheduled page fell into Revision and the
+ * Session card was permanently empty. Every engine test passed and
+ * TypeScript said nothing. The first test below is the one that would
+ * have caught it.
+ */
+const ops = vi.hoisted(() => ({
+  getDashboard: vi.fn(),
+  getHistoricalReport: vi.fn(),
+  getTodayPlan: vi.fn(),
+  getSettings: vi.fn(),
+}));
+
+vi.mock("@/client/operations", () => ({
+  analyticsOps: { getDashboard: ops.getDashboard, getHistoricalReport: ops.getHistoricalReport },
+  sessionOps: { getTodayPlan: ops.getTodayPlan },
+  settingsOps: { getSettings: ops.getSettings },
+  backupOps: { DATA_RESET_CONFIRMATION: "DELETE" },
+}));
+
+const { getDashboardData } = await import("@/lib/api/dashboard");
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  ops.getSettings.mockResolvedValue(engineSettings());
+  ops.getDashboard.mockResolvedValue(dashboardMetrics());
+  ops.getHistoricalReport.mockResolvedValue(historicalReport([]));
+  ops.getTodayPlan.mockResolvedValue(dailyPlan([]));
+});
+
+describe("the Session card", () => {
+  it("counts only new-memorization work, never revision", async () => {
+    ops.getTodayPlan.mockResolvedValue(
+      dailyPlan([
+        studyItem({ pageNumber: 10, workloadCategory: WorkloadCategory.OverdueRevision }),
+        studyItem({ pageNumber: 20, workloadCategory: WorkloadCategory.NewMemorization }),
+        studyItem({ pageNumber: 21, workloadCategory: WorkloadCategory.NewMemorization }),
+      ]),
+    );
+
+    const data = await getDashboardData();
+
+    expect(data.session?.progress.total).toBe(2);
+    expect(data.session?.assignment?.startPage).toBe(20);
+    expect(data.session?.assignment?.endPage).toBe(21);
+  });
+
+  it("is null when nothing new is scheduled today", async () => {
+    ops.getTodayPlan.mockResolvedValue(
+      dailyPlan([studyItem({ workloadCategory: WorkloadCategory.RecentRevision })]),
+    );
+
+    expect((await getDashboardData()).session).toBeNull();
+  });
+
+  it("sums estimated time across the assignment, rounded to whole minutes", async () => {
+    ops.getTodayPlan.mockResolvedValue(
+      dailyPlan([
+        studyItem({ pageNumber: 1, estimatedDuration: 90 }),
+        studyItem({ pageNumber: 2, estimatedDuration: 90 }),
+      ]),
+    );
+
+    expect((await getDashboardData()).session?.estimatedTime).toBe("3 min");
+  });
+});
+
+describe("the Revision card is scoped to one session type", () => {
+  /*
+   * A session is started with exactly one `SessionType`, and the
+   * Learning Engine scopes its plan to that type's categories. The
+   * Dashboard must scope its preview the same way, or it advertises an
+   * assignment the session would refuse to accept.
+   */
+  it("takes only Recovery work when recovery is the highest priority", async () => {
+    ops.getTodayPlan.mockResolvedValue(
+      dailyPlan([
+        studyItem({ pageNumber: 1, workloadCategory: WorkloadCategory.Recovery }),
+        studyItem({ pageNumber: 2, workloadCategory: WorkloadCategory.OverdueRevision }),
+        studyItem({ pageNumber: 3, workloadCategory: WorkloadCategory.LongTermRevision }),
+      ]),
+    );
+
+    const data = await getDashboardData();
+
+    expect(data.revision?.assignment?.type).toBe("recovery");
+    expect(data.revision?.assignment?.pages).toEqual(["Page 1"]);
+  });
+
+  it("groups overdue and recent revision into one Sabqi assignment", async () => {
+    ops.getTodayPlan.mockResolvedValue(
+      dailyPlan([
+        studyItem({ pageNumber: 1, workloadCategory: WorkloadCategory.OverdueRevision }),
+        studyItem({ pageNumber: 2, workloadCategory: WorkloadCategory.RecentRevision }),
+        studyItem({ pageNumber: 3, workloadCategory: WorkloadCategory.LongTermRevision }),
+      ]),
+    );
+
+    const data = await getDashboardData();
+
+    expect(data.revision?.assignment?.type).toBe("sabqi");
+    // Long-term work belongs to Manzil and must not be swept in.
+    expect(data.revision?.assignment?.totalPages).toBe(2);
+  });
+
+  it("reports every scheduled revision page in the queue stat, not just this assignment", async () => {
+    // `revisionQueue` is labelled "Pages scheduled for today", so it
+    // deliberately counts across all categories while the card above
+    // shows one assignment. Narrowing this to match the card would make
+    // the number quietly wrong.
+    ops.getTodayPlan.mockResolvedValue(
+      dailyPlan([
+        studyItem({ pageNumber: 1, workloadCategory: WorkloadCategory.Recovery }),
+        studyItem({ pageNumber: 2, workloadCategory: WorkloadCategory.OverdueRevision }),
+        studyItem({ pageNumber: 3, workloadCategory: WorkloadCategory.LongTermRevision }),
+        studyItem({ pageNumber: 4, workloadCategory: WorkloadCategory.NewMemorization }),
+      ]),
+    );
+
+    const data = await getDashboardData();
+
+    expect(data.revision?.assignment?.totalPages).toBe(1);
+    expect(data.stats.revisionQueue).toBe(3);
+  });
+});
+
+describe("Memory Health and Retention Quality are withheld without evidence", () => {
+  /*
+   * Found by the product owner running the app: the dashboard showed
+   * "Memory Health 45%" after onboarding and before a single recall.
+   * That number was computed entirely from values PHOS had *assumed*
+   * from the user's own estimate, presented as a measurement on the
+   * screen they trust most.
+   */
+  it("omits both scores when no recall has ever been recorded", async () => {
+    ops.getDashboard.mockResolvedValue(
+      dashboardMetrics({
+        memoryHealth: { score: 45, calculatedAt: new Date().toISOString(), assessedPages: 604 },
+        retentionQuality: {
+          score: 80,
+          calculatedAt: new Date().toISOString(),
+          assessedRecallEvents: 0,
+        },
+      }),
+    );
+
+    const data = await getDashboardData();
+
+    expect(data.memoryHealth).toBeUndefined();
+    expect(data.retentionQuality).toBeUndefined();
+  });
+
+  it("reports both once a single recall exists", async () => {
+    ops.getDashboard.mockResolvedValue(
+      dashboardMetrics({
+        memoryHealth: { score: 62, calculatedAt: new Date().toISOString(), assessedPages: 604 },
+        retentionQuality: {
+          score: 71,
+          calculatedAt: new Date().toISOString(),
+          assessedRecallEvents: 1,
+        },
+      }),
+    );
+
+    const data = await getDashboardData();
+
+    expect(data.memoryHealth).toBe(62);
+    expect(data.retentionQuality).toBe(71);
+  });
+});
+
+describe("the weekly strip", () => {
+  it("marks the day a session was started, not the day the report was fetched", async () => {
+    const twoDaysAgo = new Date();
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+
+    ops.getHistoricalReport.mockResolvedValue(
+      historicalReport([sessionStatistics({ startedAt: twoDaysAgo.toISOString() })]),
+    );
+
+    const data = await getDashboardData();
+
+    expect(data.weeklyProgress).toHaveLength(7);
+    // The strip runs oldest-first and ends on today, so two days ago is
+    // the fifth of seven.
+    expect(data.weeklyProgress[4]?.completed).toBe(true);
+    expect(data.weeklyProgress[6]?.completed).toBe(false);
+  });
+
+  it("ignores sessions that were started but never completed", async () => {
+    ops.getHistoricalReport.mockResolvedValue(
+      historicalReport([
+        sessionStatistics({ startedAt: new Date().toISOString(), completed: false }),
+      ]),
+    );
+
+    const data = await getDashboardData();
+
+    expect(data.weeklyProgress[6]?.completed).toBe(false);
+    expect(data.stats.weeklyProgress).toBe(0);
+  });
+});
+
+describe("the plan's own explanation", () => {
+  it("passes the engine's wording through without rewording it", async () => {
+    // Requirement 4: explanations must match actual adaptive-engine
+    // decisions. Any rephrasing here would be a second, unverified
+    // account of why the plan looks as it does.
+    ops.getTodayPlan.mockResolvedValue(
+      dailyPlan([], {
+        explanation: {
+          headline: "Lighter today, because your recall slipped.",
+          details: ["Two pages held back.", "Revision comes first."],
+        },
+      }),
+    );
+
+    const data = await getDashboardData();
+
+    expect(data.planExplanation.headline).toBe("Lighter today, because your recall slipped.");
+    expect(data.planExplanation.details).toEqual(["Two pages held back.", "Revision comes first."]);
+  });
+
+  it("surfaces a workload warning when the engine raised one, and null otherwise", async () => {
+    expect((await getDashboardData()).workloadWarning).toBeNull();
+
+    ops.getTodayPlan.mockResolvedValue(
+      dailyPlan([], {
+        workloadWarning: {
+          estimatedMinutes: 95,
+          availableMinutes: 45,
+          deferrablePages: 4,
+          message: "Today is heavier than usual.",
+        },
+      }),
+    );
+
+    expect((await getDashboardData()).workloadWarning).toBe("Today is heavier than usual.");
+  });
+});
+
+describe("the study budget", () => {
+  it("plans within the minutes the user chose during onboarding", async () => {
+    ops.getSettings.mockResolvedValue(
+      engineSettings({
+        onboarding: { ...engineSettings().onboarding, dailyAvailableMinutes: 20 },
+      }),
+    );
+
+    await getDashboardData();
+
+    expect(ops.getTodayPlan).toHaveBeenCalledWith(20);
+    expect(ops.getHistoricalReport).toHaveBeenCalledWith(ReportingPeriod.Weekly);
+  });
+});

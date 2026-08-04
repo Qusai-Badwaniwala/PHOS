@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PHOS is not running</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 2rem;
+        background: #f5f1eb;
+        color: #2b2422;
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+        line-height: 1.6;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: #1a1614;
+          color: #efe9e1;
+        }
+      }
+      main {
+        max-width: 32rem;
+        text-align: center;
+      }
+      img {
+        width: 88px;
+        height: 88px;
+        margin-bottom: 1.5rem;
+      }
+      h1 {
+        font-size: 1.35rem;
+        font-weight: 600;
+        margin: 0 0 0.75rem;
+      }
+      p {
+        margin: 0 0 0.75rem;
+        opacity: 0.85;
+      }
+      code {
+        background: rgba(128, 110, 100, 0.18);
+        padding: 0.15rem 0.4rem;
+        border-radius: 0.25rem;
+        font-size: 0.9em;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      Shown when a navigation cannot reach the PHOS server.
+
+      The wording is deliberate. PHOS is local-first: its data lives in a
+      SQLite database served by a Node process on this machine, so the
+      cause is almost never "no internet" — it is that PHOS itself is not
+      running. Saying "you are offline" would send the user to check
+      their wi-fi, which has nothing to do with it.
+    -->
+    <main>
+      <img src="/icons/icon-192.png" alt="" />
+      <h1>PHOS is not running</h1>
+      <p>
+        Your memorization data is stored on this machine and is served by the PHOS application. It
+        looks like that application is not currently running.
+      </p>
+      <p>Start PHOS again, then reload this page.</p>
+      <p><code>npm start</code></p>
+      <p style="margin-top: 1.5rem; font-size: 0.9rem; opacity: 0.7">
+        Nothing has been lost. Your progress is saved in the database on this machine.
+      </p>
+    </main>
+  </body>
+</html>

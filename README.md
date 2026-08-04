@@ -1,5 +1,12 @@
 # PHOS — Personal Hifz Operating System
 
+**Live at https://qusai-badwaniwala.github.io/PHOS/**
+
+> Picking this project up after a gap, or opening it for the first
+> time? Start with **[`docs/HANDOFF.md`](docs/HANDOFF.md)** — one page,
+> covering the deployed state, how to run and ship it, and what is
+> deliberately not done.
+
 ## What is this?
 
 PHOS is a Personal Hifz Operating System: an offline-first,

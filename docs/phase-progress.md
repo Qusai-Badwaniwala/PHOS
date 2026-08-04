@@ -5,6 +5,12 @@ first when resuming work in a new session** — it records what is done, what
 is mid-flight, and why decisions were made, none of which is derivable from
 the code alone.
 
+> **Resuming after a long gap? Read [`docs/HANDOFF.md`](HANDOFF.md)
+> first.** It is one page and covers the current deployed state, how to
+> run and ship the project, and the gaps that are known. This file is
+> the full historical record behind it — read it second, for _why_
+> things are the way they are.
+
 ## ▶ Resuming in a fresh session — start here
 
 1. Read this file top to bottom, then `docs/product-guide-source.md`.

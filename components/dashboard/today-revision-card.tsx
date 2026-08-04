@@ -53,8 +53,18 @@ export function TodayRevisionCard({ revision, className }: TodayRevisionCardProp
         {revision?.assignment?.type && (
           <p className="text-sm text-muted-foreground">
             <span className="capitalize">{revision.assignment.type.replace("_", " ")}</span>
+            {/*
+              `surah` and `juzNumber` are present only when the pages are
+              genuinely consecutive. For a scattered assignment — the
+              normal case — the Juz list is the honest summary, because
+              a range would name pages the user has not been asked to
+              revise. The exact page numbers are on the Revision page.
+            */}
             {revision.assignment.surah ? ` · ${revision.assignment.surah}` : ""}
             {revision.assignment.juzNumber ? ` · Juz ${revision.assignment.juzNumber}` : ""}
+            {!revision.assignment.surah && revision.assignment.juzCovered?.length
+              ? ` · Juz ${revision.assignment.juzCovered.join(", ")}`
+              : ""}
           </p>
         )}
       </div>

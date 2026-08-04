@@ -119,6 +119,66 @@ describe("the Revision card is scoped to one session type", () => {
     expect(data.revision?.assignment?.totalPages).toBe(2);
   });
 
+  it("refuses to name a surah range for pages that are not consecutive", async () => {
+    /*
+     * Revision is scheduled by memory priority, so an assignment is
+     * routinely scattered and arrives in priority order. Labelling
+     * 345/346/400 as "Al-Anbiya – Al-Furqan" would name a fifty-page
+     * span the user was never asked to revise — and taking the range
+     * ends from the unsorted list could even print it backwards.
+     */
+    ops.getTodayPlan.mockResolvedValue(
+      dailyPlan([
+        studyItem({
+          pageNumber: 400,
+          juzNumber: 20,
+          workloadCategory: WorkloadCategory.RecentRevision,
+        }),
+        studyItem({
+          pageNumber: 345,
+          juzNumber: 17,
+          workloadCategory: WorkloadCategory.RecentRevision,
+        }),
+        studyItem({
+          pageNumber: 346,
+          juzNumber: 17,
+          workloadCategory: WorkloadCategory.RecentRevision,
+        }),
+      ]),
+    );
+
+    const data = await getDashboardData();
+
+    expect(data.revision?.assignment?.surah).toBeUndefined();
+    expect(data.revision?.assignment?.juzNumber).toBeUndefined();
+    // The honest summary: which Juz the work actually touches.
+    expect(data.revision?.assignment?.juzCovered).toEqual([17, 20]);
+    // Listed in page order, as someone holding a Mushaf would work.
+    expect(data.revision?.assignment?.pages).toEqual(["Page 345", "Page 346", "Page 400"]);
+  });
+
+  it("names the surah range when the pages really are consecutive", async () => {
+    ops.getTodayPlan.mockResolvedValue(
+      dailyPlan([
+        studyItem({
+          pageNumber: 3,
+          juzNumber: 1,
+          workloadCategory: WorkloadCategory.RecentRevision,
+        }),
+        studyItem({
+          pageNumber: 2,
+          juzNumber: 1,
+          workloadCategory: WorkloadCategory.RecentRevision,
+        }),
+      ]),
+    );
+
+    const data = await getDashboardData();
+
+    expect(data.revision?.assignment?.surah).toBeTruthy();
+    expect(data.revision?.assignment?.juzNumber).toBe(1);
+  });
+
   it("reports every scheduled revision page in the queue stat, not just this assignment", async () => {
     // `revisionQueue` is labelled "Pages scheduled for today", so it
     // deliberately counts across all categories while the card above

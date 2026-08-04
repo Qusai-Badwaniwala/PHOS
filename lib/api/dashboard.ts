@@ -118,19 +118,48 @@ export async function getDashboardData(): Promise<DashboardDTO> {
         }
       : null;
 
+  /*
+   * Revision pages are chosen by memory priority, not by where they sit
+   * in the Mushaf, so an assignment is routinely scattered — 345, 346,
+   * 400 — and arrives in priority order rather than page order.
+   *
+   * The card used to label that with `surahLabelForRange(first, last)`
+   * taken from the *unsorted* list. Two things were wrong with it: a
+   * range implies every page between its ends, and the "ends" were
+   * whichever pages happened to rank first and last by priority, so the
+   * label could even run backwards.
+   *
+   * A range is only honest when the pages really are consecutive.
+   * Otherwise the truthful summary is which Juz the work touches.
+   */
+  const revisionPages = revisionItems.map((item) => item.pageNumber).sort((a, b) => a - b);
+  const firstPage = revisionPages[0];
+  const lastPage = revisionPages[revisionPages.length - 1];
+  const isConsecutive =
+    firstPage !== undefined &&
+    lastPage !== undefined &&
+    lastPage - firstPage + 1 === revisionPages.length;
+  const juzCovered = [...new Set(revisionItems.map((item) => item.juzNumber))].sort(
+    (a, b) => a - b,
+  );
+
   const revision = firstRevision
     ? {
         id: firstRevision.pageId,
         status: "not_started" as const,
         assignment: {
           type: toRevisionType(firstRevision.workloadCategory),
-          pages: revisionItems.map((item) => `Page ${item.pageNumber}`),
+          // Listed in page order, which is how someone holding a Mushaf
+          // would work through them.
+          pages: revisionPages.map((pageNumber) => `Page ${pageNumber}`),
           totalPages: revisionItems.length,
-          surah: surahLabelForRange(
-            revisionItems[0]?.pageNumber ?? firstRevision.pageNumber,
-            revisionItems[revisionItems.length - 1]?.pageNumber ?? firstRevision.pageNumber,
-          ),
-          juzNumber: firstRevision.juzNumber,
+          ...(isConsecutive
+            ? {
+                surah: surahLabelForRange(firstPage, lastPage),
+                juzNumber: firstRevision.juzNumber,
+              }
+            : {}),
+          juzCovered,
         },
         progress: { current: 0, total: revisionItems.length },
         estimatedTime: formatEstimatedTime(

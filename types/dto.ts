@@ -78,10 +78,20 @@ export interface TodayRevisionDTO {
     type: RevisionType;
     pages?: string[];
     totalPages?: number;
-    /** Transliterated surah name or range covered by this assignment. */
+    /**
+     * A surah name or range — set **only** when the assignment's pages
+     * are genuinely consecutive.
+     *
+     * Revision is scheduled by memory priority, not by position in the
+     * Mushaf, so an assignment is routinely scattered: 345, 346, 400.
+     * Labelling that "Al-Anbiya – Al-Furqan" would name a fifty-page
+     * span the user has not been asked to revise.
+     */
     surah?: string;
-    /** Which of the 30 Juz the assignment starts in. */
+    /** Which of the 30 Juz the assignment starts in. Set only alongside `surah`. */
     juzNumber?: number;
+    /** Every Juz the assignment touches, ascending — the honest summary for a scattered set. */
+    juzCovered?: number[];
     notes?: string;
   };
   progress: {

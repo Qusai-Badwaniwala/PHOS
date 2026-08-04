@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>PHOS is not running</title>
+    <title>This page isn't available offline</title>
     <style>
       :root {
         color-scheme: light dark;
@@ -58,25 +58,35 @@
   </head>
   <body>
     <!--
-      Shown when a navigation cannot reach the PHOS server.
+      The last resort when a navigation fails offline.
 
-      The wording is deliberate. PHOS is local-first: its data lives in a
-      SQLite database served by a Node process on this machine, so the
-      cause is almost never "no internet" — it is that PHOS itself is not
-      running. Saying "you are offline" would send the user to check
-      their wi-fi, which has nothing to do with it.
+      REWRITTEN IN PHASE 9. This page used to say "PHOS is not running"
+      and tell the reader to run `npm start`, because PHOS's data then
+      lived in a SQLite database behind a local Node process. None of
+      that is true any more: the engines and the database run in the
+      browser, so PHOS works with no network at all and the service
+      worker precaches every screen.
+
+      Reaching this page therefore means something narrow — a route that
+      was never visited and never cached — not that PHOS is unavailable.
+      The old wording would have sent someone to restart a server that
+      does not exist.
+
+      The image path is relative, not "/icons/...". This file is copied
+      verbatim into the build, so Next never rewrites it; served from
+      /PHOS/ on GitHub Pages an absolute path resolves to the domain
+      root and 404s.
     -->
     <main>
-      <img src="/icons/icon-192.png" alt="" />
-      <h1>PHOS is not running</h1>
+      <img src="icons/icon-192.png" alt="" />
+      <h1>This page isn't available offline</h1>
       <p>
-        Your memorization data is stored on this machine and is served by the PHOS application. It
-        looks like that application is not currently running.
+        PHOS works without an internet connection, but this particular screen hasn't been opened on
+        this device yet, so there was no copy of it saved.
       </p>
-      <p>Start PHOS again, then reload this page.</p>
-      <p><code>npm start</code></p>
+      <p>Go back, or reconnect briefly and open it once — after that it will work offline too.</p>
       <p style="margin-top: 1.5rem; font-size: 0.9rem; opacity: 0.7">
-        Nothing has been lost. Your progress is saved in the database on this machine.
+        Nothing has been lost. Your memorization progress is stored on this device and is untouched.
       </p>
     </main>
   </body>

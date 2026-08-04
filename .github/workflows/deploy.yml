@@ -71,6 +71,17 @@ jobs:
           PHOS_BASE_PATH: ${{ steps.pages.outputs.base_path }}
         run: npm run build
 
+      # Every URL Next does not rewrite itself — the manifest link, the
+      # favicons, hand-written image sources — must carry the base path
+      # or it 404s once deployed. The first deploy shipped 47 that did
+      # not, including the manifest, which silently made PHOS
+      # uninstallable. Checked against the artifact, because the mistake
+      # only exists after a build with a base path set.
+      - name: Verify every URL carries the base path
+        env:
+          PHOS_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+        run: node scripts/verify-base-path.mjs
+
       # GitHub Pages serves files literally and will not serve a path
       # beginning with an underscore, which is where Next puts every
       # compiled asset (`_next/`). Without this the page loads with no

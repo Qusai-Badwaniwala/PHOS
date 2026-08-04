@@ -9,6 +9,7 @@ import { AuthorCredit } from "@/components/about/author-credit";
 import { GuideFaq } from "@/components/about/guide-faq";
 import { InstallGuide } from "@/components/shared/install-guide";
 import { GUIDE_SECTIONS, VISION_QUOTE } from "@/components/about/guide-content";
+import { withBasePath } from "@/shared/constants";
 import { Heart, Shield, HardDrive, User } from "lucide-react";
 
 export const metadata = {
@@ -36,8 +37,13 @@ export default function AboutPage() {
 
       {/* Masthead */}
       <ContentCard className="text-center">
+        {/*
+          `withBasePath` because `next/image` leaves a plain string src
+          alone under `unoptimized: true` — served from /PHOS/ this
+          pointed at the domain root and rendered as a broken image.
+        */}
         <Image
-          src="/icons/icon-192.png"
+          src={withBasePath("/icons/icon-192.png")}
           alt=""
           width={88}
           height={88}

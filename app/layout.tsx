@@ -5,6 +5,7 @@ import { SettingsProvider } from "@/providers/settings-provider";
 import { AppShell } from "@/components/layout/app-shell";
 import { ServiceWorkerRegistration } from "@/components/layout/service-worker-registration";
 import { StorageBootstrap } from "@/components/layout/storage-bootstrap";
+import { withBasePath } from "@/shared/constants";
 import "./globals.css";
 
 const inter = Inter({
@@ -30,12 +31,28 @@ export const metadata: Metadata = {
     title: "PHOS",
     statusBarStyle: "default",
   },
+  /*
+   * Every URL here goes through `withBasePath()`.
+   *
+   * Next rewrites the links *it* generates — `next/link`, and the app's
+   * own routes — but not the strings inside `metadata`, and not the
+   * manifest link it injects from `app/manifest.ts`. Served from
+   * `/PHOS/` on GitHub Pages, all of these resolved to the domain root
+   * and 404'd: the favicons, the touch icon, and — worst — the
+   * manifest, without which a browser will not offer to install PHOS as
+   * an app at all.
+   *
+   * Found on a phone, where the About page showed a broken-image icon.
+   * `scripts/verify-base-path.mjs` now checks the built output for this
+   * whole class of mistake.
+   */
+  manifest: withBasePath("/manifest.webmanifest"),
   icons: {
     icon: [
-      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: withBasePath("/favicon-32x32.png"), sizes: "32x32", type: "image/png" },
+      { url: withBasePath("/favicon-16x16.png"), sizes: "16x16", type: "image/png" },
     ],
-    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    apple: [{ url: withBasePath("/apple-touch-icon.png"), sizes: "180x180", type: "image/png" }],
   },
 };
 

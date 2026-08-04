@@ -32,8 +32,30 @@ jobs:
           node-version-file: ".nvmrc"
           cache: "npm"
 
+      # `npm install`, not `npm ci`, and that is a deliberate trade.
+      #
+      # `npm ci` refuses to install unless the lockfile matches its own
+      # resolution exactly. That check is worth having when everyone
+      # builds on the same platform and npm version — and actively
+      # harmful when they do not. PHOS's lockfile is written on Windows
+      # by npm 11; three separate deploys failed here on `EUSAGE`,
+      # disagreeing about optional platform packages that were never
+      # actually needed to build anything.
+      #
+      # `npm install` reads the same committed lockfile and honours the
+      # versions in it, but resolves platform-specific packages for the
+      # machine it is running on instead of demanding they were
+      # predicted correctly in advance.
+      #
+      # What is given up, stated plainly: `npm ci` guarantees the
+      # installed tree is byte-identical to the lockfile, and `npm
+      # install` does not — it may silently pick a newer patch for
+      # something the lockfile left loose. For an application with no
+      # runtime dependencies beyond React and Next, and whose entire
+      # test suite runs on every push, that is a cost worth paying to
+      # have deploys that work.
       - name: Install dependencies
-        run: npm ci
+        run: npm install --no-audit --no-fund
 
       - name: Check Formatting
         run: npx prettier --check .

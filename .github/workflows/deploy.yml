@@ -48,7 +48,9 @@ jobs:
           node-version-file: ".nvmrc"
           cache: npm
 
-      - run: npm ci
+      # See the note in `ci.yml` for why this is `npm install` and not
+      # `npm ci`, and what that trades away.
+      - run: npm install --no-audit --no-fund
 
       # The same gates that must pass locally. A deploy is not a reason
       # to skip them — it is the moment they matter most, because what

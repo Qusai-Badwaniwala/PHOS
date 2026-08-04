@@ -1,14 +1,28 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import sharp from "sharp";
 
 /**
  * Generates the PWA icon set from the PHOS logo.
  *
- * Run with `npm run icons`. Committed output lives in `public/icons/`,
- * so a normal build and deploy never needs `sharp` — it is a
- * devDependency used by this script alone.
+ * Run with `npm run icons`. The output is committed under
+ * `public/icons/`, so building and deploying PHOS never needs `sharp`.
+ *
+ * WHY SHARP IS NOT A DEPENDENCY
+ * -----------------------------
+ * It used to be a devDependency, and it broke CI. `sharp` ships
+ * per-platform native binaries; the lockfile generated on Windows
+ * omitted `@emnapi/core` and `@emnapi/runtime`, which npm only reaches
+ * through `@img/sharp-wasm32`. `npm ci` then failed on Linux with
+ * "Missing: @emnapi/runtime from lock file" — a known npm
+ * optional-dependency bug (npm/cli#4828).
+ *
+ * Rather than fight the lockfile, the dependency is gone: every install
+ * in CI was pulling a native image library to build a set of icons that
+ * were already committed. It is now installed on demand, by the one
+ * person regenerating icons, on the rare occasion the logo changes.
+ *
+ *     npm install --no-save sharp && npm run icons
  *
  * Two families are produced, because they are used differently:
  *
@@ -20,6 +34,25 @@ import sharp from "sharp";
  *   area filled with the logo's own cream, letting any mask shape cut
  *   cleanly without clipping the arch or the wordmark.
  */
+
+/**
+ * Loaded on demand so this file can be read, linted and formatted
+ * without `sharp` installed — and so someone running it without the
+ * dependency gets an instruction rather than a module-resolution stack
+ * trace.
+ */
+async function loadSharp() {
+  try {
+    return (await import("sharp")).default;
+  } catch {
+    console.error(
+      "This script needs `sharp`, which is deliberately not a project dependency.\n" +
+        "Install it just for this run:\n\n" +
+        "    npm install --no-save sharp && npm run icons\n",
+    );
+    process.exit(1);
+  }
+}
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.join(HERE, "..");
@@ -38,6 +71,8 @@ const APPLE_TOUCH_SIZE = 180;
 const FAVICON_SIZES = [32, 16];
 
 async function main() {
+  const sharp = await loadSharp();
+
   await fs.mkdir(OUTPUT_DIR, { recursive: true });
 
   const source = await fs.readFile(SOURCE);

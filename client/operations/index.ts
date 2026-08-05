@@ -11,6 +11,7 @@
 export * as analyticsOps from "./analytics";
 export * as backupOps from "./backup";
 export * as examOps from "./exams";
+export * as migrationOps from "./migrations";
 export * as pagesOps from "./pages";
 export * as sessionOps from "./session";
 export * as settingsOps from "./settings";

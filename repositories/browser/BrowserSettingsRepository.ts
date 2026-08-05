@@ -156,6 +156,10 @@ export class BrowserSettingsRepository implements ISettingsRepository {
     });
   }
 
+  async markRevisionBlocksRepaired(): Promise<Settings> {
+    return this.applyUpdate({ revisionBlocksRepairedAt: new Date().toISOString() });
+  }
+
   /** Begins a fresh pass from the start of the user's order. */
   async restartCycle(): Promise<Settings> {
     return this.applyUpdate({ cycleStartedAt: new Date().toISOString() });
@@ -261,6 +265,9 @@ function toDomainSettings(record: StoredSettings): Settings {
     revisionMode: (record.revisionMode as RevisionMode) ?? RevisionMode.Adaptive,
     cycleLengthDays: record.cycleLengthDays ?? DEFAULT_CYCLE_LENGTH_DAYS,
     cycleStartedAt: record.cycleStartedAt ? new Date(record.cycleStartedAt) : null,
+    revisionBlocksRepairedAt: record.revisionBlocksRepairedAt
+      ? new Date(record.revisionBlocksRepairedAt)
+      : null,
     createdAt: new Date(record.createdAt),
     updatedAt: new Date(record.updatedAt),
   };

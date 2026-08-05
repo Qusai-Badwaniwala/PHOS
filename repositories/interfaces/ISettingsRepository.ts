@@ -94,6 +94,11 @@ export interface ISettingsRepository {
    * Adaptive Engine reads it rather than sets it.
    */
   updateRevisionMode(update: RevisionModeUpdate): Promise<Settings>;
+  /**
+   * Records that the one-time repair of interleaved seeded revision has
+   * run, so it never runs twice.
+   */
+  markRevisionBlocksRepaired(): Promise<Settings>;
   /** Begins a fresh traditional pass from the start of the user's order. */
   restartCycle(): Promise<Settings>;
   save(settings: Settings): Promise<Settings>;

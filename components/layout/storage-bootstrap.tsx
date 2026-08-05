@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { ensurePersistentStorage } from "@/client/storage";
 import { seedIfEmpty } from "@/repositories/browser";
+import { migrationOps } from "@/client/operations";
 
 /**
  * The two things PHOS has to do once, before the user's first action.
@@ -12,6 +13,11 @@ import { seedIfEmpty } from "@/repositories/browser";
  *    for a Hifz record.
  * 2. Open and seed the database, so the 604 pages of the Mushaf exist
  *    before any screen asks for them.
+ * 3. Run any outstanding one-time repair to data an older version of
+ *    PHOS wrote. Everything is stored on the user's own device, so a
+ *    corrected rule can only reach existing records here — there is no
+ *    server to migrate and no reasonable way to ask people to delete
+ *    their Hifz and start again.
  *
  * Neither blocks rendering. Seeding is idempotent and every repository
  * awaits the same connection promise, so a screen that loads first
@@ -25,7 +31,10 @@ import { seedIfEmpty } from "@/repositories/browser";
 export function StorageBootstrap() {
   useEffect(() => {
     void ensurePersistentStorage();
-    void seedIfEmpty();
+    // Seeding first: a repair reads pages, so they must exist. Both are
+    // idempotent and both swallow their own failures, so neither can
+    // stop a screen rendering.
+    void seedIfEmpty().then(() => migrationOps.runPendingRepairs());
   }, []);
 
   return null;

@@ -76,4 +76,16 @@ export interface IMemoryEngine {
     dueImmediately: boolean,
     dailyRevisionCapacity?: number,
   ): Promise<number>;
+
+  /**
+   * Repairs revision seeded into an interleaved cycle, turning it into
+   * the contiguous blocks seeding now produces.
+   *
+   * Preserves the exact set of review dates and only changes which page
+   * carries which, so the daily workload cannot move. Pages with real
+   * recall history are left untouched.
+   *
+   * Returns how many pages were rewritten.
+   */
+  reblockSeededRevision(pageIdsInMemorizationOrder: readonly string[]): Promise<number>;
 }

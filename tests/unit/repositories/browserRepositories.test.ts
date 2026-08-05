@@ -822,3 +822,24 @@ describe("past exam records", () => {
     expect((await repository.findById(created.id))?.recordedAsPast).toBe(false);
   });
 });
+
+describe("the revision-blocks repair flag", () => {
+  it("is unset for a record written before the repair existed", async () => {
+    // Which is exactly what "has not run for this user yet" means.
+    expect(
+      (await new BrowserSettingsRepository().getSettings()).revisionBlocksRepairedAt,
+    ).toBeNull();
+  });
+
+  it("is stamped once marked, and survives Reset Settings", async () => {
+    /*
+     * A record that a migration happened, not a preference. Clearing it
+     * on Reset Settings would make the repair run again on data it has
+     * already corrected.
+     */
+    const repository = new BrowserSettingsRepository();
+    await repository.markRevisionBlocksRepaired();
+
+    expect((await repository.resetToDefaults()).revisionBlocksRepairedAt).toBeInstanceOf(Date);
+  });
+});

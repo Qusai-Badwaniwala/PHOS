@@ -1,7 +1,13 @@
 import type { IPageRepository, IRecallEventRepository } from "@/repositories";
 import { generateCorrelationId } from "@/shared/utils";
 import { MemoryState as MemoryStateEnum } from "@/shared/types";
-import type { MemoryProfile, MemoryUpdateResult, RecallOutcome, MemoryState } from "@/shared/types";
+import type {
+  MemoryProfile,
+  MemoryUpdateResult,
+  Page,
+  RecallOutcome,
+  MemoryState,
+} from "@/shared/types";
 import {
   applyStabilityDecay,
   applyStrengthDecay,
@@ -326,5 +332,86 @@ export class MemoryEngine implements IMemoryEngine {
     }
 
     return seeded;
+  }
+
+  /**
+   * Repairs revision that was seeded into an interleaved cycle, turning
+   * it into the contiguous blocks `seedPriorMemorization()` now
+   * produces.
+   *
+   * WHY THIS EXISTS
+   * ---------------
+   * Seeding used to spread pages with `index % cycleDays`, which put
+   * 582, 585, 588, 591 on one day. The load was right and the order was
+   * not — Hifz is recited continuously, and nobody revises every third
+   * page. The seeding rule was fixed, but a fix to the rule cannot
+   * reach dates already written to somebody's device, and asking every
+   * user to delete their data is not a repair.
+   *
+   * HOW IT WORKS, AND WHY IT CANNOT CHANGE THE WORKLOAD
+   * ---------------------------------------------------
+   * It does not recompute anything. It takes the review dates already
+   * stored, sorts them, and re-pairs them with the pages in
+   * memorization order — earliest date to earliest page. The *multiset*
+   * of dates is untouched, so the number of pages falling due on any
+   * given day is exactly what it was before; only which page carries
+   * which date changes.
+   *
+   * That property is what makes this safe to run unattended. It needs
+   * no knowledge of the original cycle length, of how many batches the
+   * pages were seeded in, or of whether revision was set to start
+   * immediately — all of which are unrecoverable after the fact, and
+   * all of which a recomputation would have had to guess.
+   *
+   * WHAT IT REFUSES TO TOUCH
+   * ------------------------
+   * Any page with a recall event. Those dates were earned by the user
+   * actually reciting, and are evidence rather than an estimate. This
+   * is the same rule `seedPriorMemorization()` follows when it skips a
+   * page that has left `Unseen` — an estimate must never overwrite
+   * evidence.
+   */
+  async reblockSeededRevision(pageIdsInMemorizationOrder: readonly string[]): Promise<number> {
+    const eligible: { page: Page; reviewedAt: Date }[] = [];
+
+    for (const pageId of pageIdsInMemorizationOrder) {
+      const page = await this.deps.pageRepository.findById(pageId);
+      if (!page || page.memoryState === MemoryStateEnum.Unseen || !page.lastReviewedAt) {
+        continue;
+      }
+
+      // Evidence, not an estimate. Left exactly as it is.
+      const recalls = await this.deps.recallEventRepository.findByPage(pageId);
+      if (recalls.length > 0) continue;
+
+      eligible.push({ page, reviewedAt: page.lastReviewedAt });
+    }
+
+    if (eligible.length === 0) return 0;
+
+    const datesInOrder = eligible.map((entry) => entry.reviewedAt.getTime()).sort((a, b) => a - b);
+
+    let changed = 0;
+    for (const [index, entry] of eligible.entries()) {
+      const reviewedAt = new Date(datesInOrder[index]!);
+      if (reviewedAt.getTime() === entry.reviewedAt.getTime()) continue;
+
+      /*
+       * All three timestamps move together, exactly as seeding sets
+       * them together. Leaving `lastSuccessfulRecallAt` behind would
+       * make `didLastReviewFail()` in the Adaptive Engine read
+       * "reviewed but never recalled successfully" and file the page
+       * under Recovery — telling a user their Hifz was failing as a
+       * side effect of a repair.
+       */
+      await this.deps.pageRepository.updateReviewTimestamps(entry.page.id, {
+        lastReviewedAt: reviewedAt,
+        lastSuccessfulRecallAt: reviewedAt,
+        firstStudiedAt: reviewedAt,
+      });
+      changed += 1;
+    }
+
+    return changed;
   }
 }

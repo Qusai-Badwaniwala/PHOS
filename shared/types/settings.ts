@@ -124,6 +124,14 @@ export interface Settings
   readonly ayahRotationFrequency: number;
   readonly memorizationOrder: MemorizationOrder;
   readonly revisionMode: RevisionMode;
+  /**
+   * When the one-time repair of interleaved seeded revision ran, or
+   * `null` if it has not.
+   *
+   * Not a preference — a record that a migration happened. It lives on
+   * Settings only because that is where PHOS keeps its single row.
+   */
+  readonly revisionBlocksRepairedAt: Date | null;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }

@@ -133,6 +133,16 @@ export interface StoredSettings {
   revisionMode?: string;
   cycleLengthDays?: number;
   cycleStartedAt?: string | null;
+  /**
+   * When the one-time repair of interleaved seeded revision ran.
+   *
+   * Absent means it has not run for this user yet, which is exactly
+   * right for every record written before the repair existed. Stored
+   * rather than derived because the repair is not detectable after the
+   * fact — once the dates are blocked, they look identical to dates
+   * that were always blocked.
+   */
+  revisionBlocksRepairedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

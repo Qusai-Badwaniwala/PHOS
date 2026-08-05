@@ -1074,3 +1074,146 @@ Any future defect-injection pass must key backups by full path.
 ### Verification
 
 Vitest 309, Jest 100. Format, lint, typecheck and the static build clean.
+
+---
+
+# Phases 10–12 — goals, exams, and a traditional revision cycle
+
+Shipped together as **v0.2.0** on 2026-08-05. Developed as one unit
+because they share a database version bump and were never released
+separately.
+
+## Phase 10 — the user's own goal
+
+A target the user sets, and where their real pace is heading.
+
+**Chosen as a Juz, stored as pages.** Nobody plans Hifz in page counts,
+and "through Juz 5" means 124 pages for somebody memorizing Juz 30
+first and 101 for somebody going straight through. The picker lists Juz
+in the user's own order and shows the conversion rather than hiding it.
+
+**Three honesty rules, enforced in code rather than copy.** Pace comes
+from `firstStudiedAt` — never the onboarding estimate, which is the
+thing evidence is meant to replace. Nothing is projected below seven
+days of history, because two good days would promise the whole Mushaf
+inside a year. "Don't know" and "zero" are different answers, and a
+paused month gets the first.
+
+Where the pace lands late the card says so without alarm, and adds that
+memorizing faster is not automatically right — without that line, a
+goal card quietly reverses the application's central principle.
+
+### The defect Qusai found: 582, 585, 588, 591
+
+Seeded revision was staggered with `index % cycleDays`. The daily load
+was correct and the arrangement was not: Hifz is recited continuously.
+Changed to contiguous blocks — 582–589, 590–597, 598–604.
+
+Four existing stagger tests passed throughout, because every one of
+them measured _how many_ pages fell on each day and none measured
+_which_.
+
+## Phase 11 — exams
+
+A fixed eight-stage ladder, on its own route at `/exams`.
+
+**A stage unlocks on memorization, not permission.** The run-up revises
+the pages in scope, and a page never memorized cannot be revised, so
+booking one would produce a schedule that silently omits part of the
+syllabus. Locked stages state the distance in pages rather than just
+refusing.
+
+**Equal division, not priority order.** Everywhere else PHOS schedules
+by need. An exam inverts the requirement — the student is examined on
+the whole scope, and a priority queue makes no promise of reaching the
+end of itself.
+
+**Two product decisions Qusai settled**, both easy to undo by accident
+and both pinned by tests:
+
+- Weak and Recovery pages outside the scope are not surfaced during the
+  run-up. A student a week from an exam cannot act on "eleven other
+  pages are slipping". They are reported once it is over.
+- An oversized day is warned about and scheduled in full. **This is the
+  only place PHOS suspends the Adaptive Engine's "never exceed
+  available time" contract**, and it is suspended loudly, in three
+  places, because both the date and the syllabus are fixed by somebody
+  other than PHOS.
+
+### Two defects found by using it
+
+- **A passed Self Exam vanished.** `past` was computed in the
+  operation, mapped through the DTO, formatted in the adapter — and
+  never rendered by any component. Nothing in the type system or the
+  tests could see it.
+- **Exams passed before PHOS existed had nowhere to go.** Raised as a
+  question, not a bug. Added to onboarding as per-stage checkboxes and
+  to `/exams` as "Add a past exam" with an optional date. Recording one
+  never unlocks a stage and never triggers the fallen-behind report —
+  PHOS ran no preparation for it, so it set nothing aside.
+
+## Phase 12 — the traditional revision cycle
+
+An optional fixed rotation through everything memorized, in the user's
+own order, repeating — the Manzil pattern most institutions teach.
+
+Requirement 9 settles which is better: PHOS recommends, the user
+decides. The recommendation is stated once, plainly, and then the
+choice is left alone — no warnings, no nudges.
+
+**Only revision changes.** New memorization keeps its pacing, its
+observed daily target and its roadmap order. **Position comes from a
+stored start date**, so missing days leaves the user where the rotation
+actually is rather than restarting it. An exam takes precedence over
+both.
+
+A real bug caught here: `updateRevisionMode` re-stamped `cycleStartedAt`
+every time the user switched _back_ to the cycle, so glancing at the
+other option silently restarted their teacher's rotation. The doc
+comment said it would not; the code did.
+
+## The device migration
+
+The blocked-seeding fix could not reach anyone already carrying the old
+dates, and by this point PHOS had users beyond Qusai. Asking people to
+delete their Hifz was not an option.
+
+`MemoryEngine.reblockSeededRevision()` recomputes nothing. It sorts the
+review dates already stored and re-pairs them with the pages in
+memorization order. The multiset of dates is untouched, so **the number
+of pages due on any given day is arithmetically identical before and
+after** — only which page carries which changes.
+
+That property is what made it safe to run unattended. Recomputing would
+have needed the original cycle length, the number of seeding batches
+and the start-immediately setting, all unrecoverable after the fact.
+
+It refuses to touch any page with a recall event, moves all three
+timestamps together, records that it ran, does _not_ mark itself done
+if it failed, and can never stop the application opening.
+
+## Also in this release
+
+- **Exam-wise memorization order**: Juz 30 → 26, then 1 → 25. The last
+  five descend so each of the first three exam stages completes as
+  early as possible.
+- **Exams moved to their own route**, with sidebar and bottom-bar
+  entries. The bottom bar was rebuilt for six items — the previous
+  fixed minimum width would have overflowed a 360px screen.
+- **`resetAllData()` now deletes exams.** Missed when the store was
+  added; a scheduled exam would have survived a full wipe.
+- Database version 1 → 2, service worker cache `phos-v3`.
+
+## Final gate
+
+494 Vitest + 166 Jest (from 203 at v0.1.0). Format, lint, typecheck,
+build and the base-path check all clean.
+
+**Defect injection across the three phases: 23 defects injected, 23
+caught** — but three of those only after a test was strengthened,
+because the original assertion could not have failed. One of them was
+the _same_ vacuous-test mistake made in Phase 7: an assertion that
+picked a case identical before and after.
+
+Every defect that reached a user was found by Qusai opening the
+application. None was reachable from the tests.

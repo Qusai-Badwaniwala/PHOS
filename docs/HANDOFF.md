@@ -22,17 +22,38 @@ Author and product owner: **Qusai**.
 
 ---
 
-## Current state — v1.0, shipped
+## Current state — v0.2.0, shipped and in use
 
-|              |                                                    |
-| ------------ | -------------------------------------------------- |
-| Live at      | https://qusai-badwaniwala.github.io/PHOS/          |
-| Repository   | https://github.com/Qusai-Badwaniwala/PHOS (public) |
-| Project root | `phos-handoff/phos-integrated/`                    |
-| Deployed     | 2026-08-04                                         |
+|               |                                                    |
+| ------------- | -------------------------------------------------- |
+| Live at       | https://qusai-badwaniwala.github.io/PHOS/          |
+| Repository    | https://github.com/Qusai-Badwaniwala/PHOS (public) |
+| Project root  | `phos-handoff/phos-integrated/`                    |
+| First shipped | 2026-08-04 (v0.1.0, phases 0–8)                    |
+| Current       | 2026-08-05 (v0.2.0, phases 10–12)                  |
+| Database      | version 2 · service worker cache `phos-v3`         |
 
-All nine build phases are complete. The application is deployed,
-working, and verified in a browser.
+Twelve build phases complete. **PHOS has real users beyond Qusai**,
+which changes what is safe to do: see "If you change how stored data is
+produced" below.
+
+### What v0.2.0 added
+
+- **Goals** — a target chosen as a Juz along the user's own memorization
+  order, with a projection measured from real pace and withheld below
+  seven days of evidence.
+- **Exams** — `/exams`, its own route. A fixed eight-stage ladder, a
+  run-up schedule that divides the whole scope evenly across the days
+  remaining, Self Exams over any Juz, and a record of exams passed
+  before PHOS existed. Exam mode replaces the day's plan and sets aside
+  revision outside the scope until the exam is marked passed.
+- **A traditional revision cycle** — an optional fixed rotation through
+  everything memorized, in the user's own order, repeating. Only
+  revision changes; new memorization keeps its pacing. An exam takes
+  precedence over both.
+- **An exam-wise memorization order** — Juz 30 → 26, then 1 → 25.
+- **Blocked seeding**, plus a one-time device repair for anyone who
+  onboarded before it.
 
 ---
 
@@ -131,6 +152,45 @@ caught it, and prove the test fails without the fix.
 **Verify a fix by restoring the defect.** Every regression test in this
 codebase was confirmed to fail against the original behaviour before
 being accepted. A test that has never failed is not yet a test.
+
+---
+
+## If you change how stored data is produced — read this first
+
+PHOS stores everything in the user's browser. **There is no server, no
+way to reach anyone, and no acceptable way to ask somebody to delete
+years of their own Hifz record.** Fixing a rule therefore does not fix
+the data that rule already produced.
+
+This is not theoretical. Seeding once spread prior memorization with
+`index % cycleDays`, handing one day pages 582, 585, 588, 591 — the
+right quantity of revision in an order nobody recites. The rule took
+twenty minutes to fix; reaching the people already carrying the old
+dates took a whole extra feature.
+
+Three rules, all of them load-bearing:
+
+1. **Schema upgrades may only add.** Guard each step by `oldVersion` in
+   `repositories/browser/database.ts`, and test the upgrade path
+   directly — `browserRepositories.test.ts` builds a real version 1
+   database, puts a page in it, upgrades, and asserts the record
+   survived.
+2. **A missing field resolves to the behaviour the user already had**,
+   never to the new default, and in exactly one place — the repository
+   boundary. See `revisionMode ?? RevisionMode.Adaptive` and the goal
+   fields in `BrowserSettingsRepository`.
+3. **A repair must not change what the user experiences.**
+   `MemoryEngine.reblockSeededRevision()` recomputes nothing: it sorts
+   the dates already stored and re-pairs them with pages in order, so
+   the number of pages due on any day is arithmetically identical
+   before and after. Repairs live in `client/operations/migrations.ts`
+   and run once from the storage bootstrap.
+
+**Adding a store means wiring it into every path that crosses all
+stores** — reset, backup, export, import, restore. The `exams` store
+was added and missed from `resetAllData()`; a scheduled exam would have
+survived a full wipe and put the scheduler into exam mode over pages
+that were no longer memorized.
 
 ---
 

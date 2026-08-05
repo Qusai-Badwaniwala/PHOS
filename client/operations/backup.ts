@@ -128,6 +128,7 @@ export interface DataResetSummary {
   readonly safetyBackupId: string;
   readonly deletedRecallEvents: number;
   readonly deletedSessions: number;
+  readonly deletedExams: number;
   readonly resetPages: number;
   readonly completedAt: string;
 }
@@ -156,6 +157,7 @@ export async function resetAllData(confirmation: string): Promise<DataResetSumma
     safetyBackupId: result.safetyBackupId,
     deletedRecallEvents: result.deletedRecallEvents,
     deletedSessions: result.deletedSessions,
+    deletedExams: result.deletedExams,
     resetPages: result.resetPages,
     completedAt: result.completedAt.toISOString(),
   };

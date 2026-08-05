@@ -79,6 +79,9 @@ const persistenceEngine = new BrowserPersistenceEngine({
   sessionRepository: repositories.sessionRepository,
   settingsRepository: repositories.settingsRepository,
   backupRepository: repositories.backupRepository,
+  // A full reset clears exams too: they are records of what happened,
+  // not preferences.
+  examRepository: repositories.examRepository,
   applicationVersion: APPLICATION_VERSION,
 });
 

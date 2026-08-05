@@ -126,6 +126,15 @@ export class BrowserExamRepository implements IExamRepository {
     const db = await getDatabase();
     await db.delete("exams", id);
   }
+
+  async deleteAll(): Promise<number> {
+    const db = await getDatabase();
+    const tx = db.transaction("exams", "readwrite");
+    const count = await tx.store.count();
+    await tx.store.clear();
+    await tx.done;
+    return count;
+  }
 }
 
 function toDomainExam(record: StoredExam): Exam {

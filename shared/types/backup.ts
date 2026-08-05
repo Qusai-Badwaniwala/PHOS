@@ -104,6 +104,8 @@ export interface DataResetResult {
   readonly safetyBackupId: string;
   readonly deletedRecallEvents: number;
   readonly deletedSessions: number;
+  /** Exams removed. Zero for any build with no exam storage wired in. */
+  readonly deletedExams: number;
   readonly resetPages: number;
   readonly completedAt: Date;
 }

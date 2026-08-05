@@ -58,4 +58,12 @@ export interface IExamRepository {
   recordPast(record: PastExamRecord): Promise<Exam>;
   updateStatus(id: string, status: ExamStatus, passedAt: Date | null): Promise<Exam>;
   delete(id: string): Promise<void>;
+  /**
+   * Removes every exam. Used only by a full data reset.
+   *
+   * Exams are records of what happened, not preferences, so they belong
+   * with sessions and recall events on the destructive side of the line
+   * rather than with settings on the preserved side.
+   */
+  deleteAll(): Promise<number>;
 }

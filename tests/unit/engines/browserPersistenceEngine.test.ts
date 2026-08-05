@@ -5,6 +5,7 @@ import { MemoryState, SessionType, ConfidenceLevel } from "@/shared/types";
 import { TOTAL_MUSHAF_PAGES } from "@/shared/constants";
 import {
   BrowserBackupRepository,
+  BrowserExamRepository,
   BrowserPageRepository,
   BrowserRecallEventRepository,
   BrowserSessionRepository,
@@ -19,6 +20,7 @@ import { BackupCreationError, RestoreFailedError } from "@/engines/persistence";
 const APPLICATION_VERSION = "0.1.0";
 
 let engine: BrowserPersistenceEngine;
+let exams: BrowserExamRepository;
 let pages: BrowserPageRepository;
 let sessions: BrowserSessionRepository;
 let recallEvents: BrowserRecallEventRepository;
@@ -34,12 +36,14 @@ beforeEach(async () => {
   recallEvents = new BrowserRecallEventRepository();
   backups = new BrowserBackupRepository();
 
+  exams = new BrowserExamRepository();
   engine = new BrowserPersistenceEngine({
     pageRepository: pages,
     recallEventRepository: recallEvents,
     sessionRepository: sessions,
     settingsRepository: new BrowserSettingsRepository(),
     backupRepository: backups,
+    examRepository: exams,
     applicationVersion: APPLICATION_VERSION,
   });
 });
@@ -307,5 +311,44 @@ describe("deleteBackup", () => {
     await expect(engine.deleteBackup(backup.metadata.id)).rejects.toBeInstanceOf(
       RestoreFailedError,
     );
+  });
+});
+
+describe("what a full reset takes with it", () => {
+  it("removes exams, which are records rather than preferences", async () => {
+    /*
+     * Missed when the exams store was added. Leaving them behind was
+     * worse than untidy: a *scheduled* exam would survive the wipe and
+     * put the Adaptive Engine into exam mode over a scope where nothing
+     * was memorized any more, producing an empty plan with nothing to
+     * explain it.
+     */
+    await exams.recordPast({ stage: 1, juzNumbers: [30], examDate: null });
+    await exams.create({
+      stage: 2,
+      juzNumbers: [28, 29, 30],
+      examDate: new Date(Date.now() + 10 * 86_400_000),
+      includeNewMemorization: false,
+    });
+
+    const result = await engine.resetAllData();
+
+    expect(result.deletedExams).toBe(2);
+    expect(await exams.findAll()).toHaveLength(0);
+    // And nothing is left that could still be treated as active.
+    expect(await exams.findActive(new Date())).toBeNull();
+  });
+
+  it("puts exams in the safety backup, so a reset stays undoable", async () => {
+    await exams.recordPast({ stage: 1, juzNumbers: [30], examDate: null });
+
+    const result = await engine.resetAllData();
+    await engine.restoreBackup(result.safetyBackupId);
+
+    expect(await exams.findAll()).toHaveLength(1);
+  });
+
+  it("reports zero rather than failing when no exams exist", async () => {
+    expect((await engine.resetAllData()).deletedExams).toBe(0);
   });
 });

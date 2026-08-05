@@ -12,6 +12,7 @@ import type {
   StorageStatistics,
 } from "@/shared/types";
 import type {
+  IExamRepository,
   IPageRepository,
   IRecallEventRepository,
   ISessionRepository,
@@ -41,6 +42,12 @@ export interface BrowserPersistenceEngineDependencies {
   readonly recallEventRepository: IRecallEventRepository;
   readonly sessionRepository: ISessionRepository;
   readonly settingsRepository: ISettingsRepository;
+  /**
+   * Optional so the engine stays constructible without it, exactly as
+   * the Adaptive Engine's is. Absent, a reset simply has no exams to
+   * remove — which is the truth for any build from before they existed.
+   */
+  readonly examRepository?: IExamRepository;
   /**
    * Concrete, not `IBackupRepository`. Restoring needs a backup's
    * *contents*, and in the browser this repository is the only thing
@@ -475,6 +482,13 @@ export class BrowserPersistenceEngine implements IBrowserPersistenceEngine {
    *    under their events and leave dangling references behind.
    *
    * Pages are reset, not deleted — see `IPageRepository.resetAllProgress()`.
+   *
+   * Exams are deleted too. They are records of what happened, not
+   * preferences, so they belong on this side of the line alongside
+   * sessions and recall events. Leaving them behind was worse than
+   * untidy: a *scheduled* exam would survive a full wipe and put the
+   * Adaptive Engine into exam mode over a scope where nothing was
+   * memorized any more, producing an empty plan with no explanation.
    */
   async resetAllData(): Promise<DataResetResult> {
     const safetyBackup = await this.createBackup();
@@ -482,11 +496,13 @@ export class BrowserPersistenceEngine implements IBrowserPersistenceEngine {
     const deletedRecallEvents = await this.deps.recallEventRepository.deleteAll();
     const deletedSessions = await this.deps.sessionRepository.deleteAllSessions();
     const resetPages = await this.deps.pageRepository.resetAllProgress();
+    const deletedExams = (await this.deps.examRepository?.deleteAll()) ?? 0;
 
     return {
       safetyBackupId: safetyBackup.metadata.id,
       deletedRecallEvents,
       deletedSessions,
+      deletedExams,
       resetPages,
       completedAt: new Date(),
     };

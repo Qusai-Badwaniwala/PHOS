@@ -54,7 +54,7 @@ export function DangerZone({ className }: DangerZoneProps) {
       clearAllAssignments();
 
       setOutcome(
-        `Deleted ${result.deletedRecallEvents} recall record(s) and ${result.deletedSessions} session(s), and reset ${result.resetPages} pages. ` +
+        `Deleted ${result.deletedRecallEvents} recall record(s), ${result.deletedSessions} session(s) and ${result.deletedExams} exam(s), and reset ${result.resetPages} pages. ` +
           `A verified backup was taken first and is listed on the Backup page, so this can still be undone.`,
       );
       setOpenDialog(null);

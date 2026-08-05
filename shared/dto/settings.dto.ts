@@ -38,6 +38,31 @@ export interface OnboardingDTO {
   readonly revisionStartsImmediately: boolean;
 }
 
+/**
+ * The user's own goal (Phase 10), or `null` when none is set.
+ *
+ * Separate from `OnboardingDTO` on purpose: onboarding answers are
+ * estimates PHOS overrides as it observes real recall, while a goal is
+ * the user's stated intention and is never adjusted on their behalf.
+ */
+export interface GoalDTO {
+  readonly targetPages: number;
+  readonly targetDate: string;
+}
+
+/**
+ * How revision is scheduled (Phase 12).
+ *
+ * `cycleStartedAt` travels with the mode because "day 3 of 7" is
+ * meaningless without it, and recomputing the position anywhere but the
+ * engine would be a second implementation of the same arithmetic.
+ */
+export interface RevisionScheduleDTO {
+  readonly mode: string;
+  readonly cycleLengthDays: number;
+  readonly cycleStartedAt: string | null;
+}
+
 export interface SettingsDTO {
   readonly theme: string;
   readonly ayahRotationFrequency: number;
@@ -45,6 +70,8 @@ export interface SettingsDTO {
   readonly preferences: PreferencesDTO;
   readonly onboarding: OnboardingDTO;
   readonly memorizationOrder: string;
+  readonly goal: GoalDTO | null;
+  readonly revision: RevisionScheduleDTO;
 }
 
 export interface UpdateSettingsRequestDTO {

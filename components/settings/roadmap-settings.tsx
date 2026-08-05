@@ -18,6 +18,7 @@ const ORDER_LABELS: Record<string, string> = {
   Standard: "Juz 1 → 30",
   Reverse: "Juz 30 → 1",
   Juz30First: "Juz 30 first, then 1 → 29",
+  ExamOrder: "Exam order (Juz 30 → 26, then 1 → 25)",
   Custom: "Custom order",
 };
 

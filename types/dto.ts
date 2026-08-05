@@ -5,6 +5,8 @@
  * Do not modify without architectural approval.
  */
 
+import type { ExamStageState, ExamStatus } from "@/shared/types";
+
 export type Theme = "light" | "dark" | "system";
 
 export type SessionStatus = "not_started" | "in_progress" | "paused" | "completed" | "interrupted";
@@ -42,6 +44,10 @@ export interface DashboardDTO {
   welcomeBackMessage: string | null;
   /** Present only when today's plan is unusually heavy (Requirement 7). */
   workloadWarning: string | null;
+  /** The user's goal, or `null` when they have not set one. */
+  goal: GoalCardDTO | null;
+  /** The week just gone. Always present — it describes facts, not a feature. */
+  weeklyReview: WeeklyReviewDTO;
 }
 
 export interface PlanExplanationDTO {
@@ -106,6 +112,45 @@ export interface DashboardStatsDTO {
   revisionQueue: number;
   weeklyProgress: number;
   consistency?: number;
+}
+
+/**
+ * The user's goal, ready to render.
+ *
+ * `summary` is the one sentence the card shows. It is assembled here
+ * rather than in the component so that the wording — the part a user
+ * actually reads and believes — sits next to the arithmetic that
+ * justifies it.
+ */
+export interface GoalCardDTO {
+  targetPages: number;
+  /** Already formatted to the user's date preference. */
+  targetDate: string;
+  pagesMemorized: number;
+  pagesRemaining: number;
+  /** `null` when PHOS cannot honestly measure a pace yet. Never rendered as zero. */
+  pacePerDay: number | null;
+  projectedDate: string | null;
+  /** Negative is ahead of the goal, positive is later than it. */
+  daysFromGoal: number | null;
+  targetReached: boolean;
+  summary: string;
+  /**
+   * A quieter second line, present only where it is genuinely needed —
+   * chiefly to say that going faster is not automatically better, so a
+   * goal card cannot quietly reverse PHOS's retention-over-speed rule.
+   */
+  note?: string;
+}
+
+/** The week just gone, in the four numbers that describe it honestly. */
+export interface WeeklyReviewDTO {
+  pagesCompleted: number;
+  sessionsCompleted: number;
+  recallsRecorded: number;
+  /** The Analytics Engine's own word for the trend. Never reworded here. */
+  recallTrend: string;
+  trendSummary: string;
 }
 
 export interface DayProgressDTO {
@@ -306,4 +351,79 @@ export interface SessionSettingsDTO {
  */
 export interface RevisionSettingsDTO {
   showProgress: boolean;
+}
+
+// -----------------------------------------------------------
+// Exams (Phase 11)
+// -----------------------------------------------------------
+
+/** One rung of the exam ladder, as the roadmap draws it. */
+export interface ExamStageCardDTO {
+  stage: number;
+  label: string;
+  state: ExamStageState;
+  pagesMemorized: number;
+  pagesInScope: number;
+  examId: string | null;
+  /** Already formatted to the user's date preference. */
+  examDate: string | null;
+  /**
+   * Why the stage is in this state, in one line.
+   *
+   * A locked stage that does not say *why* reads as PHOS withholding
+   * something; this always names the pages still to memorize.
+   */
+  detail: string;
+}
+
+export interface ExamCardDTO {
+  id: string;
+  stage: number | null;
+  scopeLabel: string;
+  /** Already formatted; `null` when a past exam was recorded without a date. */
+  examDate: string | null;
+  /** True when this records something passed before PHOS was involved. */
+  recordedAsPast: boolean;
+  includeNewMemorization: boolean;
+  status: ExamStatus;
+}
+
+export interface ExamCoverageDayCardDTO {
+  date: string;
+  pageNumbers: readonly number[];
+}
+
+/** The exam currently being prepared for, and how the run-up divides. */
+export interface ExamRunUpDTO {
+  exam: ExamCardDTO;
+  /** Whole days until the exam. Zero means today. */
+  daysRemaining: number;
+  pagesInScope: number;
+  pagesPerDay: number;
+  todaysPages: readonly number[];
+  /** "Pages 582–589", or "Nothing left to cover". */
+  todaysRange: string;
+  summary: string;
+  /**
+   * Present only when the run-up needs more time than the user has.
+   * A warning, never a trim — see `calculateExamPlan()`.
+   */
+  budgetWarning: string | null;
+  coverage: readonly ExamCoverageDayCardDTO[];
+  /** Says plainly that ordinary revision is paused, so its absence is not read as a fault. */
+  setAsideNote: string;
+}
+
+export interface ExamAftermathCardDTO {
+  pagesFallenBehind: number;
+  weakestPageNumbers: readonly number[];
+  summary: string;
+}
+
+export interface ExamOverviewDTO {
+  stages: readonly ExamStageCardDTO[];
+  runUp: ExamRunUpDTO | null;
+  past: readonly ExamCardDTO[];
+  /** What fell behind during a recently passed exam, when there is anything to report. */
+  aftermath: ExamAftermathCardDTO | null;
 }

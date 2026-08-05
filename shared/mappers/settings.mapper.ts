@@ -36,6 +36,20 @@ export function toSettingsDTO(settings: Settings): SettingsDTO {
       revisionStartsImmediately: settings.revisionStartsImmediately,
     },
     memorizationOrder: settings.memorizationOrder,
+    // Both stored fields move together, so this is either a whole goal
+    // or none — the client never has to reason about half of one.
+    goal:
+      settings.goalTargetPages !== null && settings.goalTargetDate !== null
+        ? {
+            targetPages: settings.goalTargetPages,
+            targetDate: settings.goalTargetDate.toISOString(),
+          }
+        : null,
+    revision: {
+      mode: settings.revisionMode,
+      cycleLengthDays: settings.cycleLengthDays,
+      cycleStartedAt: settings.cycleStartedAt ? settings.cycleStartedAt.toISOString() : null,
+    },
   };
 }
 

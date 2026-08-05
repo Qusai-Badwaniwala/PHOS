@@ -27,8 +27,14 @@ import { juzNumberForPage, TOTAL_MUSHAF_PAGES } from "@/shared/constants";
  * its enforcement point moves.
  */
 
-/** Bumped only when the object stores or indexes change shape. */
-export const DATABASE_VERSION = 1;
+/**
+ * Bumped only when the object stores or indexes change shape.
+ *
+ * 1 → 2 (Phase 11) adds the `exams` store. Every existing store is left
+ * exactly as it was: an upgrade runs against a database that already
+ * holds somebody's entire Hifz record, so it may only add.
+ */
+export const DATABASE_VERSION = 2;
 const DATABASE_NAME = "phos";
 
 /**
@@ -104,6 +110,29 @@ export interface StoredSettings {
   followsExistingSchedule: boolean;
   revisionStartsImmediately: boolean;
   memorizationOrder: string;
+  /**
+   * The user's own goal (Phase 10). Optional on this type on purpose.
+   *
+   * IndexedDB stores whatever object it was given, and every record
+   * written before Phase 10 simply has no such key. Declaring these as
+   * required would be a lie about what is on disk, and would let code
+   * read `undefined` while the compiler insisted it could not happen.
+   *
+   * `BrowserSettingsRepository` is the single place that resolves the
+   * absence, mapping a missing key to "no goal set".
+   */
+  goalTargetPages?: number | null;
+  goalTargetDate?: string | null;
+  /**
+   * The traditional revision cycle (Phase 12). Optional for exactly the
+   * same reason the goal fields above are: records written before
+   * Phase 12 have no such key, and `BrowserSettingsRepository` is the
+   * single place that resolves the absence — to `Adaptive`, which is
+   * what every existing user was already getting.
+   */
+  revisionMode?: string;
+  cycleLengthDays?: number;
+  cycleStartedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -113,6 +142,29 @@ export interface StoredRoadmapEntry {
   juzNumber: number;
   position: number;
   paused: boolean;
+}
+
+/** An exam the user booked (Phase 11). */
+export interface StoredExam {
+  id: string;
+  /** 1–8 on the fixed ladder, or `null` for a Self Exam. */
+  stage: number | null;
+  juzNumbers: number[];
+  /** `null` for a retrospective record with no date given. */
+  examDate: string | null;
+  includeNewMemorization: boolean;
+  status: string;
+  /**
+   * Optional on this type for the usual reason: exam records written
+   * before this field existed have no such key, and the repository
+   * resolves the absence to `false` — every exam stored back then was
+   * one PHOS scheduled.
+   */
+  recordedAsPast?: boolean;
+  scheduledAt: string;
+  passedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /**
@@ -161,6 +213,14 @@ export interface PhosSnapshot {
   recallEvents: StoredRecallEvent[];
   settings: StoredSettings | null;
   roadmapEntries: StoredRoadmapEntry[];
+  /**
+   * Optional for the same reason the goal fields on `StoredSettings`
+   * are: every backup and export file written before Phase 11 has no
+   * such key, and those files must keep restoring. `writeSnapshot()`
+   * resolves the absence to "no exams", which is exactly what a
+   * pre-Phase-11 file means.
+   */
+  exams?: StoredExam[];
 }
 
 interface PhosDB extends DBSchema {
@@ -189,6 +249,11 @@ interface PhosDB extends DBSchema {
     key: string;
     value: StoredRoadmapEntry;
     indexes: { juzNumber: number };
+  };
+  exams: {
+    key: string;
+    value: StoredExam;
+    indexes: { status: string; examDate: string };
   };
   backups: {
     key: string;
@@ -223,34 +288,56 @@ export function getDatabase(): Promise<IDBPDatabase<PhosDB>> {
   return databasePromise;
 }
 
-/** Opens the connection and creates its stores on first use. */
+/**
+ * Opens the connection, creating or upgrading its stores.
+ *
+ * Each version's changes are guarded by `oldVersion` and applied in
+ * order, so a first run creates everything and an existing database
+ * receives only what it is missing. This matters more here than in a
+ * server schema: the database being upgraded is the user's only copy of
+ * their Hifz record, held on their own device, with no migration to run
+ * and nobody to notice if it went wrong. Steps may therefore add, and
+ * only add.
+ */
 function openDatabase(): Promise<IDBPDatabase<PhosDB>> {
   return openDB<PhosDB>(DATABASE_NAME, DATABASE_VERSION, {
-    upgrade(db) {
-      const pages = db.createObjectStore("pages", { keyPath: "id" });
-      // Mirrors the indexes declared in `schema.prisma`.
-      pages.createIndex("pageNumber", "pageNumber", { unique: true });
-      pages.createIndex("memoryState", "memoryState");
-      pages.createIndex("juzNumber", "juzNumber");
+    upgrade(db, oldVersion) {
+      if (oldVersion < 1) {
+        const pages = db.createObjectStore("pages", { keyPath: "id" });
+        // Mirrors the indexes declared in `schema.prisma`.
+        pages.createIndex("pageNumber", "pageNumber", { unique: true });
+        pages.createIndex("memoryState", "memoryState");
+        pages.createIndex("juzNumber", "juzNumber");
 
-      const sessions = db.createObjectStore("sessions", { keyPath: "id" });
-      sessions.createIndex("startedAt", "startedAt");
+        const sessions = db.createObjectStore("sessions", { keyPath: "id" });
+        sessions.createIndex("startedAt", "startedAt");
 
-      const sessionItems = db.createObjectStore("sessionItems", { keyPath: "id" });
-      sessionItems.createIndex("sessionId", "sessionId");
+        const sessionItems = db.createObjectStore("sessionItems", { keyPath: "id" });
+        sessionItems.createIndex("sessionId", "sessionId");
 
-      const recallEvents = db.createObjectStore("recallEvents", { keyPath: "id" });
-      recallEvents.createIndex("pageId", "pageId");
-      recallEvents.createIndex("sessionId", "sessionId");
-      recallEvents.createIndex("timestamp", "timestamp");
+        const recallEvents = db.createObjectStore("recallEvents", { keyPath: "id" });
+        recallEvents.createIndex("pageId", "pageId");
+        recallEvents.createIndex("sessionId", "sessionId");
+        recallEvents.createIndex("timestamp", "timestamp");
 
-      db.createObjectStore("settings", { keyPath: "id" });
+        db.createObjectStore("settings", { keyPath: "id" });
 
-      const roadmap = db.createObjectStore("roadmapEntries", { keyPath: "id" });
-      roadmap.createIndex("juzNumber", "juzNumber", { unique: true });
+        const roadmap = db.createObjectStore("roadmapEntries", { keyPath: "id" });
+        roadmap.createIndex("juzNumber", "juzNumber", { unique: true });
 
-      const backups = db.createObjectStore("backups", { keyPath: "id" });
-      backups.createIndex("createdAt", "createdAt");
+        const backups = db.createObjectStore("backups", { keyPath: "id" });
+        backups.createIndex("createdAt", "createdAt");
+      }
+
+      // Phase 11. Everybody already running PHOS arrives here with a
+      // populated version 1 database and gets an empty `exams` store
+      // added beside it — no page, session or recall record is read,
+      // rewritten or deleted.
+      if (oldVersion < 2) {
+        const exams = db.createObjectStore("exams", { keyPath: "id" });
+        exams.createIndex("status", "status");
+        exams.createIndex("examDate", "examDate");
+      }
     },
   });
 }
@@ -339,6 +426,8 @@ async function seed(db: IDBPDatabase<PhosDB>): Promise<void> {
       followsExistingSchedule: false,
       revisionStartsImmediately: true,
       memorizationOrder: "Standard",
+      goalTargetPages: null,
+      goalTargetDate: null,
       createdAt: now,
       updatedAt: now,
     });
@@ -406,16 +495,16 @@ export async function computeChecksum(serialized: string): Promise<string> {
 /** Reads every store into one object. Used by backup and export. */
 export async function readSnapshot(): Promise<PhosSnapshot> {
   const db = await getDatabase();
-  const [pages, sessions, sessionItems, recallEvents, settings, roadmapEntries] = await Promise.all(
-    [
+  const [pages, sessions, sessionItems, recallEvents, settings, roadmapEntries, exams] =
+    await Promise.all([
       db.getAll("pages"),
       db.getAll("sessions"),
       db.getAll("sessionItems"),
       db.getAll("recallEvents"),
       db.getAll("settings"),
       db.getAll("roadmapEntries"),
-    ],
-  );
+      db.getAll("exams"),
+    ]);
 
   return {
     pages,
@@ -424,6 +513,7 @@ export async function readSnapshot(): Promise<PhosSnapshot> {
     recallEvents,
     settings: settings[0] ?? null,
     roadmapEntries,
+    exams,
   };
 }
 
@@ -446,6 +536,7 @@ export async function writeSnapshot(snapshot: PhosSnapshot): Promise<void> {
     "recallEvents",
     "settings",
     "roadmapEntries",
+    "exams",
   ] as const;
 
   const tx = db.transaction(stores, "readwrite");
@@ -457,6 +548,9 @@ export async function writeSnapshot(snapshot: PhosSnapshot): Promise<void> {
     ...snapshot.sessionItems.map((row) => tx.objectStore("sessionItems").add(row)),
     ...snapshot.recallEvents.map((row) => tx.objectStore("recallEvents").add(row)),
     ...snapshot.roadmapEntries.map((row) => tx.objectStore("roadmapEntries").add(row)),
+    // A file written before Phase 11 has no `exams` key. Restoring it
+    // must leave the store empty rather than throw on `undefined`.
+    ...(snapshot.exams ?? []).map((row) => tx.objectStore("exams").add(row)),
     ...(snapshot.settings ? [tx.objectStore("settings").add(snapshot.settings)] : []),
   ]);
 

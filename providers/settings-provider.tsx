@@ -29,6 +29,10 @@ const PLACEHOLDER_SETTINGS: AppSettings = {
     revisionStartsImmediately: true,
   },
   memorizationOrder: "Standard",
+  // No goal until settings have actually been read. Inventing one here
+  // would flash a target the user never set.
+  goal: null,
+  revisionSchedule: { mode: "Adaptive", cycleLengthDays: 7, cycleStartedAt: null },
 };
 
 interface SettingsContextValue {

@@ -1,5 +1,6 @@
 import type { IMemoryEngine } from "@/engines/memory";
 import type {
+  IExamRepository,
   IPageRepository,
   IRecallEventRepository,
   IRoadmapRepository,
@@ -7,18 +8,37 @@ import type {
   ISettingsRepository,
 } from "@/repositories";
 import { generateCorrelationId, startOfLocalDay } from "@/shared/utils";
-import { resolveRoadmap, toJuzPriority, WorkloadCategory } from "@/shared/types";
+import {
+  MemoryState,
+  resolveRoadmap,
+  RevisionMode as RevisionModeEnum,
+  toJuzPriority,
+  WorkloadCategory,
+} from "@/shared/types";
 import type {
   DailyStudyPlan,
+  Exam,
+  ExamAftermath,
+  ExamCoverageDay,
+  ExamPlan,
+  ExamStageProgress,
   MemorizationOrder,
   MemorizationRoadmap,
   Page,
   PlanItemExplanation,
   ReturnAssessment,
+  RevisionCyclePlan,
+  StudyItem,
 } from "@/shared/types";
 import {
   allocateStudyTime as allocateStudyTimeCalculator,
   assessReturn,
+  calculateExamAftermath,
+  calculateExamCoverage,
+  calculateExamPlan,
+  calculateRevisionCycle,
+  calculateStageProgress,
+  describeExamScope,
   detectWorkloadWarning,
   estimatePageDurationSeconds,
   explainPlan as explainPlanSummary,
@@ -59,6 +79,13 @@ export interface AdaptiveEngineDependencies {
    */
   readonly settingsRepository?: ISettingsRepository;
   readonly roadmapRepository?: IRoadmapRepository;
+  /**
+   * Supplies booked exams (Phase 11). Optional on the same terms as the
+   * roadmap: without it the engine never enters exam mode and plans
+   * exactly as it did before exams existed, which is also what every
+   * pre-Phase-11 test expects.
+   */
+  readonly examRepository?: IExamRepository;
   readonly config?: AdaptiveEngineConfig;
 }
 
@@ -100,7 +127,44 @@ export class AdaptiveEngine implements IAdaptiveEngine {
       const alreadyStudiedTodayPageIds = await this.getPagesStudiedToday(referenceDate);
       const eligiblePages = allPages.filter((page) => !alreadyStudiedTodayPageIds.has(page.id));
 
+      // Phase 11: an exam replaces the day's plan outright rather than
+      // reweighting it. See `buildExamDayPlan()` for why this is a
+      // substitution and not an adjustment.
+      const activeExam = await this.getActiveExam(referenceDate);
+      if (activeExam) {
+        return this.buildExamDayPlan(
+          activeExam,
+          allPages,
+          eligiblePages,
+          availableStudyMinutes,
+          referenceDate,
+        );
+      }
+
       const roadmap = await this.loadRoadmap();
+
+      /*
+       * Phase 12: the traditional cycle replaces how *revision* is
+       * chosen, and nothing else.
+       *
+       * Deliberately checked after the exam branch. An exam is
+       * time-boxed and imposed from outside; a cycle is the user's
+       * ongoing preference and will still be there afterwards. Letting
+       * the cycle win would mean a student who follows a Manzil
+       * rotation could not prepare for an exam at all.
+       */
+      const settings = await this.deps.settingsRepository?.getSettings();
+      if (settings?.revisionMode === RevisionModeEnum.Traditional) {
+        return this.buildTraditionalDayPlan(
+          allPages,
+          eligiblePages,
+          settings,
+          roadmap,
+          availableStudyMinutes,
+          referenceDate,
+        );
+      }
+
       const ranked = rankPagesCalculator(eligiblePages, referenceDate, this.config, roadmap);
 
       // Requirement 5: a returning user's plan leans on revision before
@@ -266,6 +330,284 @@ export class AdaptiveEngine implements IAdaptiveEngine {
         // always read in Mushaf order.
         return aJuz !== bJuz ? aJuz - bJuz : a.pageNumber - b.pageNumber;
       });
+  }
+
+  // ---------------------------------------------------------------
+  // Exams (Phase 11)
+  // ---------------------------------------------------------------
+
+  async getActiveExam(referenceDate: Date = new Date()): Promise<Exam | null> {
+    if (!this.deps.examRepository) return null;
+    return this.deps.examRepository.findActive(referenceDate);
+  }
+
+  async getExamStages(): Promise<readonly ExamStageProgress[]> {
+    const [pages, exams] = await Promise.all([
+      this.deps.pageRepository.findAll(),
+      this.deps.examRepository?.findAll() ?? Promise.resolve([]),
+    ]);
+    return calculateStageProgress(pages, exams);
+  }
+
+  async getExamPlan(exam: Exam, availableStudyMinutes: number): Promise<ExamPlan> {
+    const pages = await this.deps.pageRepository.findAll();
+    return calculateExamPlan(exam, pages, availableStudyMinutes, new Date());
+  }
+
+  async getExamCoverage(exam: Exam): Promise<readonly ExamCoverageDay[]> {
+    const pages = await this.deps.pageRepository.findAll();
+    return calculateExamCoverage(exam, pages, new Date());
+  }
+
+  async getExamAftermath(exam: Exam): Promise<ExamAftermath> {
+    const pages = await this.deps.pageRepository.findAll();
+    return calculateExamAftermath(exam, pages, new Date());
+  }
+
+  /**
+   * The day's plan during an exam run-up.
+   *
+   * WHY THIS REPLACES THE PLAN RATHER THAN ADJUSTING IT
+   * ---------------------------------------------------
+   * The ordinary plan answers "what most needs attention today?". An
+   * exam asks a different question — "what must be covered before
+   * Thursday?" — and the two have no common answer. Reweighting the
+   * priority queue toward the exam scope would still leave coverage to
+   * chance, because a queue makes no promise about reaching the end of
+   * itself. Substituting the schedule outright is the only arrangement
+   * in which every page in scope is guaranteed to be revised.
+   *
+   * WHAT IS DELIBERATELY WITHHELD
+   * -----------------------------
+   * Pages outside the exam scope are excluded entirely, including weak
+   * and Recovery pages that PHOS would normally push to the front. This
+   * is the product decision Qusai settled: attention must not be
+   * divided during a critical period. Those pages are not forgotten —
+   * they keep decaying, and `getExamAftermath()` reports exactly how
+   * many fell behind once the exam is marked passed, which is the first
+   * moment the user can act on it.
+   *
+   * WHAT IS DELIBERATELY NOT WITHHELD
+   * ---------------------------------
+   * The oversized-day warning. If the scope divided across the
+   * remaining days exceeds the user's stated time, PHOS says so and
+   * schedules it anyway. See `calculateExamPlan()`.
+   */
+  private async buildExamDayPlan(
+    exam: Exam,
+    allPages: readonly Page[],
+    eligiblePages: readonly Page[],
+    availableStudyMinutes: number,
+    referenceDate: Date,
+  ): Promise<DailyStudyPlan> {
+    const examPlan = calculateExamPlan(exam, allPages, availableStudyMinutes, referenceDate);
+    const dueToday = new Set(examPlan.todaysPageNumbers);
+
+    // Pages already studied today are absent from `eligiblePages`, so a
+    // finished exam block does not reappear on the same day.
+    const examPages = eligiblePages
+      .filter((page) => dueToday.has(page.pageNumber))
+      .sort((a, b) => a.pageNumber - b.pageNumber);
+
+    const examItems: StudyItem[] = examPages.map((page, index) => ({
+      pageId: page.id,
+      pageNumber: page.pageNumber,
+      memoryState: page.memoryState,
+      // Exam revision is revision, whatever the page's own strength.
+      // Labelling a strong page "Recovery" mid-run-up would be the
+      // attention-dividing signal this mode exists to suppress.
+      workloadCategory: WorkloadCategory.OverdueRevision,
+      juzNumber: page.juzNumber,
+      recommendedOrder: index,
+      estimatedDurationSeconds: estimatePageDurationSeconds(page, this.config),
+    }));
+
+    /*
+     * New memorization continues only if the user asked for it when
+     * booking. It is appended after the exam block, and capped by the
+     * ordinary daily target, so "keep going" never means "and also
+     * memorize at an unlimited rate during exam week".
+     */
+    let newItems: StudyItem[] = [];
+    if (exam.includeNewMemorization) {
+      const workload = await this.recommendWorkloadFromHistory(referenceDate);
+      const roadmap = await this.loadRoadmap();
+      const ranked = rankPagesCalculator(
+        eligiblePages.filter(
+          (page) => page.memoryState === MemoryState.Unseen && !dueToday.has(page.pageNumber),
+        ),
+        referenceDate,
+        this.config,
+        roadmap,
+      );
+      newItems = toStudyItems(ranked.slice(0, Math.max(0, workload.recommendedNewPages))).map(
+        (item, index) => ({ ...item, recommendedOrder: examItems.length + index }),
+      );
+    }
+
+    const studyItems = [...examItems, ...newItems];
+    const estimatedTotalDurationSeconds = studyItems.reduce(
+      (total, item) => total + item.estimatedDurationSeconds,
+      0,
+    );
+
+    const returnAssessment = assessReturn(await this.findLastSessionDate(), referenceDate);
+    const workload = await this.recommendWorkloadFromHistory(referenceDate);
+
+    return {
+      studyItems,
+      estimatedTotalDurationSeconds,
+      // Recovery is suppressed for the duration, by the same decision
+      // that excludes weak pages from the plan.
+      recoveryRecommended: false,
+      availableStudyMinutes,
+      generatedAt: referenceDate,
+      explanation: explainExamDay(exam, examPlan, newItems.length),
+      returnAssessment,
+      workload,
+      workloadWarning: examPlan.exceedsDailyBudget
+        ? {
+            estimatedMinutes: Math.round(estimatedTotalDurationSeconds / 60),
+            availableMinutes: availableStudyMinutes,
+            // Nothing here is deferrable. The scope and the date are
+            // both fixed by somebody else, so naming a number of
+            // droppable pages would be offering a choice that does not
+            // exist.
+            deferrablePages: 0,
+            message: `Covering ${describeExamScope(exam)} before ${formatExamDate(exam.examDate)} needs about ${examPlan.estimatedMinutesPerDay} minutes a day, more than the ${availableStudyMinutes} you set aside. PHOS is still dividing it evenly rather than dropping pages — arriving at an exam having never revised part of the syllabus is worse than a long day.`,
+          }
+        : null,
+    };
+  }
+
+  async getRevisionCycle(availableStudyMinutes: number): Promise<RevisionCyclePlan | null> {
+    const settings = await this.deps.settingsRepository?.getSettings();
+    if (!settings || settings.revisionMode !== RevisionModeEnum.Traditional) return null;
+
+    const [pages, roadmap] = await Promise.all([
+      this.deps.pageRepository.findAll(),
+      this.loadRoadmap(),
+    ]);
+
+    return calculateRevisionCycle(
+      pages,
+      {
+        cycleLengthDays: settings.cycleLengthDays,
+        cycleStartedAt: settings.cycleStartedAt,
+        availableStudyMinutes,
+        memorizationOrder: roadmap?.juzSequence ?? [],
+      },
+      new Date(),
+    );
+  }
+
+  /**
+   * The day's plan under a traditional revision cycle.
+   *
+   * WHAT CHANGES, AND WHAT DOES NOT
+   * -------------------------------
+   * Only revision. New memorization continues exactly as it always
+   * does — same pacing, same daily target observed from real recall,
+   * same roadmap order. That separation is the whole point: somebody
+   * following a Manzil rotation is not thereby asking PHOS to stop
+   * helping them memorize.
+   *
+   * This is the difference from exam mode, which suspends new
+   * memorization unless asked and hides weak pages. Nothing is hidden
+   * here. A cycle is an ongoing way of working, not a critical period,
+   * so there is no reason to withhold anything from the user.
+   *
+   * WHY THE PORTION IS NOT PRIORITISED
+   * ----------------------------------
+   * Reordering the day's portion by weakness would make it a different
+   * thing every morning, which is exactly what somebody choosing a
+   * fixed rotation is choosing against. Pages come in order, and the
+   * order is the promise.
+   */
+  private async buildTraditionalDayPlan(
+    allPages: readonly Page[],
+    eligiblePages: readonly Page[],
+    settings: { cycleLengthDays: number; cycleStartedAt: Date | null },
+    roadmap: MemorizationRoadmap | undefined,
+    availableStudyMinutes: number,
+    referenceDate: Date,
+  ): Promise<DailyStudyPlan> {
+    const cycle = calculateRevisionCycle(
+      allPages,
+      {
+        cycleLengthDays: settings.cycleLengthDays,
+        cycleStartedAt: settings.cycleStartedAt,
+        availableStudyMinutes,
+        memorizationOrder: roadmap?.juzSequence ?? [],
+      },
+      referenceDate,
+    );
+
+    const dueToday = new Set(cycle.todaysPageNumbers);
+    const revisionItems: StudyItem[] = eligiblePages
+      .filter((page) => dueToday.has(page.pageNumber))
+      .sort((a, b) => orderIndex(a, roadmap) - orderIndex(b, roadmap))
+      .map((page, index) => ({
+        pageId: page.id,
+        pageNumber: page.pageNumber,
+        memoryState: page.memoryState,
+        workloadCategory: WorkloadCategory.LongTermRevision,
+        juzNumber: page.juzNumber,
+        recommendedOrder: index,
+        estimatedDurationSeconds: estimatePageDurationSeconds(page, this.config),
+      }));
+
+    // New memorization, unchanged: ranked and capped exactly as it is
+    // under PHOS's own scheduling.
+    const workload = await this.recommendWorkloadFromHistory(referenceDate);
+    const newRanked = rankPagesCalculator(
+      eligiblePages.filter(
+        (page) => page.memoryState === MemoryState.Unseen && !dueToday.has(page.pageNumber),
+      ),
+      referenceDate,
+      this.config,
+      roadmap,
+    );
+    const cappedNew = capNewMemorization(
+      newRanked,
+      workload.recommendedNewPages,
+      daysSinceLastNewPage(allPages, referenceDate),
+    );
+    const newItems = toStudyItems(cappedNew).map((item, index) => ({
+      ...item,
+      recommendedOrder: revisionItems.length + index,
+    }));
+
+    const studyItems = [...revisionItems, ...newItems];
+    const estimatedTotalDurationSeconds = studyItems.reduce(
+      (total, item) => total + item.estimatedDurationSeconds,
+      0,
+    );
+
+    return {
+      studyItems,
+      estimatedTotalDurationSeconds,
+      // Recovery is a spaced-repetition concept: it means "this page is
+      // overdue relative to its own stability". A fixed cycle has no
+      // per-page schedule to be overdue against, so claiming Recovery
+      // here would be describing a state the user is not in.
+      recoveryRecommended: false,
+      availableStudyMinutes,
+      generatedAt: referenceDate,
+      explanation: explainTraditionalDay(cycle, newItems.length),
+      returnAssessment: assessReturn(await this.findLastSessionDate(), referenceDate),
+      workload,
+      workloadWarning: cycle.exceedsDailyBudget
+        ? {
+            estimatedMinutes: Math.round(estimatedTotalDurationSeconds / 60),
+            availableMinutes: availableStudyMinutes,
+            deferrablePages: 0,
+            message: cycle.suggestedCycleLengthDays
+              ? `A ${cycle.cycleLengthDays}-day cycle over ${cycle.pagesInCycle} pages is about ${cycle.pagesPerDay} pages a day, roughly ${cycle.estimatedMinutesPerDay} minutes — more than the ${availableStudyMinutes} you set aside. A ${cycle.suggestedCycleLengthDays}-day cycle would fit. You can change it in Settings, or keep this one.`
+              : `A ${cycle.cycleLengthDays}-day cycle over ${cycle.pagesInCycle} pages is about ${cycle.pagesPerDay} pages a day, more than the ${availableStudyMinutes} minutes you set aside. Lengthening the cycle in Settings would spread it further.`,
+          }
+        : null,
+    };
   }
 
   /**
@@ -560,4 +902,111 @@ function explainCategory(
     default:
       return "Scheduled for review";
   }
+}
+
+/**
+ * A date written the way an exam is talked about: "Thursday 12 March".
+ *
+ * Only a retrospective record can have no date, and those never reach a
+ * planner — but the fallback keeps this total rather than throwing on a
+ * state that should be unreachable.
+ */
+function formatExamDate(date: Date | null): string {
+  if (!date) return "the day of your exam";
+  return date.toLocaleDateString(undefined, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+}
+
+/**
+ * Why today's plan looks like an exam run-up.
+ *
+ * Says what is being covered and, crucially, that the rest of the
+ * Mushaf has been set aside on purpose. Requirement 4 asks that users
+ * understand why recommendations change; an exam changes the plan more
+ * abruptly than anything else PHOS does, and silence here would read as
+ * a malfunction — the user's usual revision simply gone.
+ */
+function explainExamDay(
+  exam: Exam,
+  plan: ExamPlan,
+  newPageCount: number,
+): {
+  headline: string;
+  details: readonly string[];
+} {
+  const daysLeft = plan.daysRemaining - 1;
+  const when =
+    daysLeft <= 0
+      ? "today"
+      : daysLeft === 1
+        ? "tomorrow"
+        : `in ${daysLeft} days, on ${formatExamDate(exam.examDate)}`;
+
+  const details = [
+    `${plan.pagesInScope} pages in scope, divided evenly across the ${plan.daysRemaining} ${plan.daysRemaining === 1 ? "day" : "days"} remaining — about ${plan.pagesPerDay} a day.`,
+    "Revision outside the exam scope is set aside until the exam is over. PHOS will tell you what fell behind once you mark it passed.",
+  ];
+
+  if (newPageCount > 0) {
+    details.push(
+      `${newPageCount} new ${newPageCount === 1 ? "page" : "pages"}, because you chose to keep memorizing during the run-up.`,
+    );
+  } else if (!exam.includeNewMemorization) {
+    details.push("No new memorization, as you chose when you booked this exam.");
+  }
+
+  return {
+    headline: `Preparing for ${describeExamScope(exam)}, ${when}.`,
+    details,
+  };
+}
+
+/**
+ * A page's position in the user's memorization order.
+ *
+ * Pages in a paused Juz sort to the end rather than being dropped: a
+ * pause excludes a Juz from *new* memorization, but pages already
+ * memorized inside it are still the user's Hifz and still need
+ * revising.
+ */
+function orderIndex(page: Page, roadmap: MemorizationRoadmap | undefined): number {
+  if (!roadmap) return page.pageNumber;
+  const juzRank = roadmap.juzSequence.indexOf(page.juzNumber);
+  return juzRank === -1 ? Number.MAX_SAFE_INTEGER : juzRank;
+}
+
+/**
+ * Why today's plan looks like a fixed rotation.
+ *
+ * Names the position in the cycle, because "day 3 of 7" is the single
+ * fact a person following a Manzil rotation actually navigates by — and
+ * it is the thing PHOS can tell them that a paper schedule cannot.
+ */
+function explainTraditionalDay(
+  cycle: RevisionCyclePlan,
+  newPageCount: number,
+): { headline: string; details: readonly string[] } {
+  const details = [
+    `${cycle.pagesInCycle} pages memorized, divided across ${cycle.cycleLengthDays} days — about ${cycle.pagesPerDay} a day.`,
+  ];
+
+  if (cycle.passesCompleted > 0) {
+    details.push(
+      `You have completed ${cycle.passesCompleted} full ${cycle.passesCompleted === 1 ? "pass" : "passes"} since starting this cycle.`,
+    );
+  }
+
+  if (newPageCount > 0) {
+    details.push(
+      `${newPageCount} new ${newPageCount === 1 ? "page" : "pages"} as well. A revision cycle changes how PHOS chooses revision, not how it paces new memorization.`,
+    );
+  }
+
+  return {
+    headline: `Day ${cycle.dayOfCycle} of your ${cycle.cycleLengthDays}-day revision cycle.`,
+    details,
+  };
 }

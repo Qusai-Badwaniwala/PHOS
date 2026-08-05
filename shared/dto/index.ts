@@ -16,4 +16,5 @@ export * from "./page.dto";
 export * from "./analytics.dto";
 export * from "./settings.dto";
 export * from "./backup.dto";
+export * from "./exam.dto";
 export * from "./validators";

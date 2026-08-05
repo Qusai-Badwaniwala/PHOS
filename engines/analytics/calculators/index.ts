@@ -4,3 +4,4 @@ export * from "./PeriodCalculator";
 export * from "./ReportCalculator";
 export * from "./TrendCalculator";
 export * from "./SessionStatisticsCalculator";
+export * from "./GoalCalculator";

@@ -112,3 +112,31 @@ export function formatTimePreferred(value: Date | string): string {
 export function formatDateTimePreferred(value: Date | string): string {
   return formatDateTime(value, activeFormats.dateFormat, activeFormats.timeFormat);
 }
+
+/**
+ * A span of days, said the way a person would say it.
+ *
+ * Deliberately vague at longer ranges. "About 5 months" is honest about
+ * a projection built on an observed average; "163 days" would dress the
+ * same estimate up as a measurement precise to the day, which it is
+ * not.
+ */
+export function formatApproximateDuration(days: number): string {
+  const absolute = Math.abs(days);
+
+  if (absolute <= 1) return "a day";
+  if (absolute < 14) return `${absolute} days`;
+
+  if (absolute < 60) {
+    const weeks = Math.round(absolute / 7);
+    return `about ${weeks} week${weeks === 1 ? "" : "s"}`;
+  }
+
+  if (absolute < 365) {
+    const months = Math.round(absolute / 30);
+    return `about ${months} month${months === 1 ? "" : "s"}`;
+  }
+
+  const years = Math.round((absolute / 365) * 10) / 10;
+  return `about ${years} year${years === 1 ? "" : "s"}`;
+}

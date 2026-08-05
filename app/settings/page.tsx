@@ -8,6 +8,8 @@ import { SettingsItem } from "@/components/settings/settings-item";
 import { ThemeSelector } from "@/components/settings/theme-selector";
 import { DangerZone } from "@/components/settings/danger-zone";
 import { RoadmapSettings } from "@/components/settings/roadmap-settings";
+import { GoalSettings } from "@/components/settings/goal-settings";
+import { RevisionModeSettings } from "@/components/settings/revision-mode-settings";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -23,6 +25,7 @@ const SECTIONS = [
   "General",
   "Appearance",
   "Roadmap",
+  "Goal",
   "Session",
   "Revision",
   "Danger Zone",
@@ -140,6 +143,18 @@ export default function SettingsPage() {
 
           <div id="roadmap">
             <RoadmapSettings />
+
+            {/*
+            Placed after the roadmap: what you will memorize and in what
+            order comes before how fast you hope to get there.
+          */}
+            <GoalSettings />
+
+            {/*
+              And after the goal: how revision is chosen is a working
+              preference, not part of deciding what to memorize.
+            */}
+            <RevisionModeSettings />
           </div>
 
           <SettingsSection

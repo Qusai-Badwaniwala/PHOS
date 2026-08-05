@@ -1,7 +1,9 @@
 import type {
   DashboardMetrics,
+  GoalProjection,
   HistoricalReport,
   LearningProgressSummary,
+  MemorizationGoal,
   MemoryHealth,
   ProgressReport,
   ReportingPeriod,
@@ -25,4 +27,15 @@ export interface IAnalyticsEngine {
   generateSessionStatistics(sessionId: string): Promise<SessionStatistics>;
   generateHistoricalReport(period: ReportingPeriod): Promise<HistoricalReport>;
   summarizeLearningProgress(): Promise<LearningProgressSummary>;
+
+  /**
+   * Measures the user's own goal against what they have actually
+   * memorized. `null` when no goal is set.
+   *
+   * The goal arrives as a parameter rather than through a repository,
+   * because this engine does not own it and must never be able to
+   * change it. Settings is the sole owner; Analytics only reports what
+   * the arithmetic says.
+   */
+  projectGoal(goal: MemorizationGoal): Promise<GoalProjection | null>;
 }

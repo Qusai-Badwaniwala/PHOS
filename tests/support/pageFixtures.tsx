@@ -25,6 +25,8 @@ export const SETTINGS: AppSettings = {
     revisionStartsImmediately: true,
   },
   memorizationOrder: "Standard",
+  goal: null,
+  revisionSchedule: { mode: "Adaptive", cycleLengthDays: 7, cycleStartedAt: null },
 };
 
 export const DASHBOARD: DashboardDTO = {
@@ -76,6 +78,14 @@ export const DASHBOARD: DashboardDTO = {
   },
   welcomeBackMessage: null,
   workloadWarning: null,
+  goal: null,
+  weeklyReview: {
+    pagesCompleted: 6,
+    sessionsCompleted: 4,
+    recallsRecorded: 41,
+    recallTrend: "Steady",
+    trendSummary: "Your recall has held steady since last week.",
+  },
 };
 
 export const SESSION: SessionDTO = {

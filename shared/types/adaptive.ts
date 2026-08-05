@@ -153,3 +153,36 @@ export interface PlanItemExplanation {
   readonly pageId: string;
   readonly reason: string;
 }
+
+/**
+ * Today's portion of a traditional revision cycle (Phase 12).
+ *
+ * A fixed rotation through everything memorized, in the user's own
+ * order, repeating forever — the Manzil pattern. Unlike an exam's
+ * run-up this has no end date and is not a coverage *promise* against a
+ * deadline; it is simply where the rotation has reached.
+ */
+export interface RevisionCyclePlan {
+  /** Days in a full pass. */
+  readonly cycleLengthDays: number;
+  /** Which day of the current pass today is, 1-based. */
+  readonly dayOfCycle: number;
+  /** How many passes have been completed since the cycle began. */
+  readonly passesCompleted: number;
+  /** Everything memorized, which is what the cycle rotates through. */
+  readonly pagesInCycle: number;
+  /** Today's portion, in the user's memorization order. */
+  readonly todaysPageNumbers: readonly number[];
+  readonly pagesPerDay: number;
+  /**
+   * Set when the daily portion will not fit the user's stated time.
+   *
+   * Unlike an exam's equivalent, this one is actionable: the cycle
+   * length is the user's own choice, so PHOS can honestly suggest a
+   * longer one rather than only reporting the problem.
+   */
+  readonly exceedsDailyBudget: boolean;
+  readonly estimatedMinutesPerDay: number;
+  /** A cycle length that would fit the budget, when the current one does not. */
+  readonly suggestedCycleLengthDays: number | null;
+}

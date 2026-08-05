@@ -45,17 +45,85 @@ export interface OnboardingProfile {
 }
 
 /**
+ * A memorization goal the user set for themselves: reach this many
+ * pages by this date.
+ *
+ * Both fields are `null` together — a goal is either set or it is not,
+ * and half a goal is not a state PHOS should be able to reach.
+ *
+ * Deliberately kept out of `OnboardingProfile`. Onboarding answers are
+ * *estimates PHOS may override* as it observes real recall; a goal is
+ * the opposite — the user's own stated intention, which PHOS measures
+ * itself against and must never quietly adjust.
+ */
+export interface MemorizationGoal {
+  /** How many of the 604 pages the user wants memorized. `null` when no goal is set. */
+  readonly goalTargetPages: number | null;
+  /** When they want to have reached it. `null` when no goal is set. */
+  readonly goalTargetDate: Date | null;
+}
+
+/**
+ * How PHOS decides what to revise each day (Phase 12).
+ *
+ * Two genuinely different answers to the same question, and neither is
+ * wrong.
+ */
+export enum RevisionMode {
+  /**
+   * Spaced repetition: revise what is closest to being forgotten.
+   *
+   * PHOS's own scheduling, and the default. Fewer pages for the same
+   * retention, because effort follows need.
+   */
+  Adaptive = "Adaptive",
+  /**
+   * A fixed rotation through everything memorized, in order, on a
+   * repeating cycle — the Manzil pattern taught in most Hifz
+   * institutions.
+   *
+   * Chosen by people whose teacher sets a cycle, or who simply find a
+   * predictable daily portion easier to keep to than a list that
+   * changes shape every morning. Requirement 9 settles the argument
+   * about which is better: PHOS recommends, the user decides.
+   */
+  Traditional = "Traditional",
+}
+
+/**
+ * The traditional cycle's own settings.
+ *
+ * Only meaningful when `revisionMode` is `Traditional`, but stored
+ * unconditionally so switching back and forth does not lose the
+ * length the user chose.
+ */
+export interface TraditionalCycle {
+  /** Days to complete one full pass over everything memorized. */
+  readonly cycleLengthDays: number;
+  /**
+   * When the current pass began.
+   *
+   * Stored rather than derived, because "where am I in the cycle" must
+   * survive a day the user did not open PHOS. Deriving it from the last
+   * session would silently restart the rotation after every break.
+   */
+  readonly cycleStartedAt: Date | null;
+}
+
+/**
  * Domain-safe representation of the singleton Settings record.
  *
  * Mirrors the `Settings` Prisma model (SDS Part 8). Exactly one
  * Settings record shall exist; singleton behavior is enforced by the
  * SettingsRepository, not by this type.
  */
-export interface Settings extends DisplayPreferences, OnboardingProfile {
+export interface Settings
+  extends DisplayPreferences, OnboardingProfile, MemorizationGoal, TraditionalCycle {
   readonly id: string;
   readonly theme: string;
   readonly ayahRotationFrequency: number;
   readonly memorizationOrder: MemorizationOrder;
+  readonly revisionMode: RevisionMode;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }

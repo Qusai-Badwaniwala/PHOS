@@ -251,6 +251,11 @@ export class MemoryEngine implements IMemoryEngine {
       MAX_SEED_CYCLE_DAYS,
     );
 
+    // How many pages share a day. Ceiling rather than floor so the last
+    // block is the short one; a floor would leave a remainder with no
+    // day to belong to.
+    const pagesPerDay = Math.max(1, Math.ceil(pageIds.length / cycleDays));
+
     let seeded = 0;
 
     for (const [index, pageId] of pageIds.entries()) {
@@ -281,10 +286,24 @@ export class MemoryEngine implements IMemoryEngine {
        * steady stream of roughly `capacity` pages a day, which is what
        * spaced repetition is supposed to produce.
        *
+       * The stagger is by *contiguous block*, not `index % cycleDays`.
+       * Both spread the load identically, but interleaving assigned one
+       * day pages 582, 585, 588, 591 — nobody revises Hifz that way.
+       * Recitation is continuous, and jumping over the pages between
+       * breaks the flow the revision exists to maintain. Blocks give
+       * that same day 582–589 instead.
+       *
+       * This governs the first cycle only. After a real review each page
+       * earns its own interval from its own recall, so a page that was
+       * stumbled over returns sooner than its neighbours and the blocks
+       * loosen. That is spaced repetition working, not this decision
+       * being undone — it only means the sequence starts tidy rather
+       * than starting scattered.
+       *
        * `dueImmediately` decides only where the stream starts: from
        * today, or from tomorrow onward.
        */
-      const positionInCycle = index % cycleDays;
+      const positionInCycle = Math.min(cycleDays - 1, Math.floor(index / pagesPerDay));
       const daysAgo = dueImmediately ? cycleDays - positionInCycle : positionInCycle;
 
       // Both timestamps are set together and to the same instant. If

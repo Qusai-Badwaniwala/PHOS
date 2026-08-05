@@ -12,3 +12,4 @@ export * from "./page.mapper";
 export * from "./analytics.mapper";
 export * from "./settings.mapper";
 export * from "./backup.mapper";
+export * from "./exam.mapper";

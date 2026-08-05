@@ -5,3 +5,5 @@ export * from "./ReturnCalculator";
 export * from "./ExplanationCalculator";
 export * from "./WorkloadCalculator";
 export * from "./WarningCalculator";
+export * from "./ExamCalculator";
+export * from "./RevisionCycleCalculator";

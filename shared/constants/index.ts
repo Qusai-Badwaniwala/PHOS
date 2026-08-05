@@ -7,5 +7,7 @@
  */
 
 export * from "./mushaf";
+export * from "./exam";
+export * from "./revision-cycle";
 export * from "./version";
 export * from "./base-path";

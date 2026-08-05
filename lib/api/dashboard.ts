@@ -1,10 +1,95 @@
 import { analyticsOps, sessionOps } from "@/client/operations";
 import { getDailyStudyMinutes } from "./settings";
 import { primarySurahForPage, surahLabelForRange } from "@/shared/constants";
-import { formatDatePreferred } from "@/lib/format";
+import { formatApproximateDuration, formatDatePreferred } from "@/lib/format";
 import { SESSION_TYPE_WORKLOAD_CATEGORIES } from "@/engines/learning/constants";
 import { ReportingPeriod, SessionType, WorkloadCategory } from "@/shared/types";
-import type { ActivityItemDTO, DashboardDTO, DayProgressDTO, RevisionType } from "@/types/dto";
+import type { GoalProjectionDTO } from "@/shared/dto";
+import type {
+  ActivityItemDTO,
+  DashboardDTO,
+  DayProgressDTO,
+  GoalCardDTO,
+  RevisionType,
+  WeeklyReviewDTO,
+} from "@/types/dto";
+
+/**
+ * Turns a projection into the one sentence the goal card shows.
+ *
+ * The wording lives here, beside the arithmetic that justifies it,
+ * because it is the part the user actually reads and believes. Three
+ * rules hold it together:
+ *
+ * 1. **Never say a pace PHOS has not measured.** Below the evidence
+ *    threshold it says so plainly rather than showing a confident date
+ *    built on three days of data.
+ * 2. **"Behind" is a fact about pace, not a verdict on effort.** No
+ *    exclamation, no warning colour, no implication of failure.
+ * 3. **Going faster is not automatically right.** PHOS protects
+ *    retention over speed everywhere else; where the projection lands
+ *    late, the note says so, or the goal card would quietly reverse the
+ *    application's central principle.
+ */
+function toGoalCard(projection: GoalProjectionDTO): GoalCardDTO {
+  const base = {
+    targetPages: projection.targetPages,
+    targetDate: formatDatePreferred(projection.targetDate),
+    pagesMemorized: projection.pagesMemorized,
+    pagesRemaining: projection.pagesRemaining,
+    pacePerDay: projection.observedPagesPerDay,
+    projectedDate: projection.projectedCompletionDate
+      ? formatDatePreferred(projection.projectedCompletionDate)
+      : null,
+    daysFromGoal: projection.daysFromGoal,
+    targetReached: projection.targetReached,
+  };
+
+  if (projection.targetReached) {
+    return {
+      ...base,
+      summary: `You've reached your goal of ${projection.targetPages} pages.`,
+    };
+  }
+
+  if (projection.observedPagesPerDay === null || projection.projectedCompletionDate === null) {
+    return {
+      ...base,
+      summary: `${projection.pagesMemorized} of ${projection.targetPages} pages memorized.`,
+      note: "PHOS will estimate a finish date once it has watched you memorize for about a week.",
+    };
+  }
+
+  const pace = Math.round(projection.observedPagesPerDay * 10) / 10;
+  const paceText =
+    pace >= 1
+      ? `about ${pace} page${pace === 1 ? "" : "s"} a day`
+      : `about ${pace} of a page a day`;
+  const days = projection.daysFromGoal ?? 0;
+
+  // Within a fortnight either way is "around" the goal — claiming to
+  // land on a specific side of it would overstate what an averaged pace
+  // can tell anyone.
+  if (Math.abs(days) <= 14) {
+    return {
+      ...base,
+      summary: `At ${paceText}, you'd reach ${projection.targetPages} pages around ${base.projectedDate} — close to your goal.`,
+    };
+  }
+
+  if (days < 0) {
+    return {
+      ...base,
+      summary: `At ${paceText}, you'd reach ${projection.targetPages} pages around ${base.projectedDate} — ${formatApproximateDuration(days)} before your goal.`,
+    };
+  }
+
+  return {
+    ...base,
+    summary: `At ${paceText}, you'd reach ${projection.targetPages} pages around ${base.projectedDate} — ${formatApproximateDuration(days)} after your goal.`,
+    note: "That is a fact about pace, not a verdict. PHOS protects what you already know before it adds more, so memorizing faster is not automatically the right answer.",
+  };
+}
 
 function formatEstimatedTime(seconds: number): string {
   const minutes = Math.max(1, Math.round(seconds / 60));
@@ -65,10 +150,12 @@ function isSameLocalDay(a: Date, b: Date): boolean {
  */
 export async function getDashboardData(): Promise<DashboardDTO> {
   const studyMinutes = await getDailyStudyMinutes();
-  const [dashboard, plan, weekHistory] = await Promise.all([
+  const [dashboard, plan, weekHistory, weekTrend, goalProjection] = await Promise.all([
     analyticsOps.getDashboard(),
     sessionOps.getTodayPlan(studyMinutes),
     analyticsOps.getHistoricalReport(ReportingPeriod.Weekly),
+    analyticsOps.getTrendAnalysis(ReportingPeriod.Weekly),
+    analyticsOps.getGoalProjection(),
   ]);
 
   const newMemorizationItems = plan.studyItems.filter(
@@ -235,5 +322,19 @@ export async function getDashboardData(): Promise<DashboardDTO> {
     },
     welcomeBackMessage: plan.returnAssessment.welcomeBackMessage,
     workloadWarning: plan.workloadWarning?.message ?? null,
+    goal: goalProjection ? toGoalCard(goalProjection) : null,
+    /*
+     * The week just gone, from the Analytics Engine's own weekly
+     * report. `trendDirection` and `summary` are passed through
+     * verbatim for the same reason the plan explanation is: a second,
+     * unverified account of the user's progress is worse than none.
+     */
+    weeklyReview: {
+      pagesCompleted: dashboard.weeklyProgress.completedPages,
+      sessionsCompleted: dashboard.weeklyProgress.completedSessions,
+      recallsRecorded: dashboard.weeklyProgress.recallEvents,
+      recallTrend: weekTrend.trendDirection,
+      trendSummary: weekTrend.summary,
+    } satisfies WeeklyReviewDTO,
   };
 }

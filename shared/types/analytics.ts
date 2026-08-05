@@ -25,6 +25,54 @@ export interface MemoryHealth {
 }
 
 /**
+ * Where the user's own goal stands, measured against what they have
+ * actually done (Phase 10).
+ *
+ * Every field is arithmetic on recorded facts. Nothing here is an
+ * opinion about whether the user is doing well, and nothing in PHOS may
+ * present it as one: a projection that arrives later than the goal is
+ * information about pace, not a verdict on effort.
+ */
+export interface GoalProjection {
+  readonly targetPages: number;
+  readonly targetDate: Date;
+  readonly pagesMemorized: number;
+  readonly pagesRemaining: number;
+
+  /**
+   * New pages per day, observed from when pages were actually first
+   * studied — never the onboarding estimate.
+   *
+   * `null` when too little has been recorded to measure. That is a
+   * different statement from "zero pages a day", and the two must never
+   * be conflated: one means "PHOS does not know yet", the other means
+   * "you have stopped".
+   */
+  readonly observedPagesPerDay: number | null;
+
+  /**
+   * Days of real history the pace was measured across.
+   *
+   * The same honesty gate as `MemoryHealth.assessedPages`: a projection
+   * built on three days of data is arithmetic on noise, and consumers
+   * use this to decide whether it has earned the right to be shown.
+   */
+  readonly assessedDays: number;
+
+  /** When the target would be reached at the observed pace. `null` when pace is unknown. */
+  readonly projectedCompletionDate: Date | null;
+
+  /**
+   * Days between the projection and the goal. Negative means ahead of
+   * it, positive means later than it. `null` when pace is unknown.
+   */
+  readonly daysFromGoal: number | null;
+
+  /** True once `pagesMemorized` has reached the target. */
+  readonly targetReached: boolean;
+}
+
+/**
  * Retention Quality: long-term retention effectiveness
  * (SDS Part 14 "RETENTION QUALITY CONTRACT"). Computed; never
  * persisted.

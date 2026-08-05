@@ -26,6 +26,18 @@ export enum MemorizationOrder {
   Reverse = "Reverse",
   /** Juz 30 first (the common starting point), then Juz 1 → 29. */
   Juz30First = "Juz30First",
+  /**
+   * Juz 30 → 26, then Juz 1 → 25.
+   *
+   * Shaped by the exam ladder rather than by the Mushaf: the first three
+   * stages examine Juz 30, then 28–30, then 26–30, so somebody intending
+   * to sit exams from the start needs the last five Juz before anything
+   * else. Descending within that block is deliberate — 30, then 29 and
+   * 28 completes the second stage, then 27 and 26 completes the third.
+   * Ascending 26 → 30 would leave the first stage unreachable until the
+   * whole block was finished.
+   */
+  ExamOrder = "ExamOrder",
   /** A sequence the user arranged themselves, or their teacher set. */
   Custom = "Custom",
 }
@@ -78,6 +90,8 @@ export function resolveRoadmap(
         // Juz 30 leads; everything else keeps its natural order behind
         // it. Expressed as a sort key so the comparator stays total.
         return juz30FirstKey(a.juzNumber) - juz30FirstKey(b.juzNumber);
+      case MemorizationOrder.ExamOrder:
+        return examOrderKey(a.juzNumber) - examOrderKey(b.juzNumber);
       case MemorizationOrder.Custom:
         // `position` is user-arranged and not guaranteed distinct, so
         // Juz number breaks ties and keeps the result deterministic.
@@ -100,6 +114,22 @@ export function resolveRoadmap(
 
 function juz30FirstKey(juzNumber: number): number {
   return juzNumber === TOTAL_JUZ ? 0 : juzNumber;
+}
+
+/** The first Juz of the descending exam block, i.e. Juz 26. */
+const EXAM_BLOCK_FIRST_JUZ = 26;
+
+/**
+ * Sort key for `ExamOrder`: 30, 29, 28, 27, 26, then 1 → 25.
+ *
+ * The last five Juz descend so that each exam stage completes as early
+ * as possible; everything else follows in Mushaf order behind them.
+ */
+function examOrderKey(juzNumber: number): number {
+  const examBlockLength = TOTAL_JUZ - EXAM_BLOCK_FIRST_JUZ + 1;
+  return juzNumber >= EXAM_BLOCK_FIRST_JUZ
+    ? TOTAL_JUZ - juzNumber
+    : examBlockLength - 1 + juzNumber;
 }
 
 /**

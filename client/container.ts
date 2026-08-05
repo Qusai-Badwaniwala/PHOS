@@ -5,6 +5,7 @@ import { MemoryEngine } from "@/engines/memory";
 import { BrowserPersistenceEngine } from "@/engines/persistence/browser";
 import {
   BrowserBackupRepository,
+  BrowserExamRepository,
   BrowserPageRepository,
   BrowserRecallEventRepository,
   BrowserRoadmapRepository,
@@ -41,6 +42,7 @@ const repositories = {
   settingsRepository: new BrowserSettingsRepository(),
   roadmapRepository: new BrowserRoadmapRepository(),
   backupRepository: new BrowserBackupRepository(),
+  examRepository: new BrowserExamRepository(),
 };
 
 const memoryEngine = new MemoryEngine({
@@ -59,6 +61,9 @@ const adaptiveEngine = new AdaptiveEngine({
   // Requirements 3, 7, 8: the daily workload is observed from real
   // recall history rather than fixed at the onboarding estimate.
   recallEventRepository: repositories.recallEventRepository,
+  // Phase 11: a booked exam replaces the day's plan with a coverage
+  // schedule over its scope.
+  examRepository: repositories.examRepository,
   config: DEFAULT_ADAPTIVE_CONFIG,
 });
 

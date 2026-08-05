@@ -1,10 +1,13 @@
-import { MemorizationLevel, MemorizationOrder, type Settings } from "@/shared/types";
+import { MemorizationLevel, MemorizationOrder, RevisionMode, type Settings } from "@/shared/types";
 import type {
+  GoalUpdate,
   ISettingsRepository,
+  RevisionModeUpdate,
   OnboardingUpdate,
   PersonalizationUpdate,
   PreferencesUpdate,
 } from "../interfaces/ISettingsRepository";
+import { DEFAULT_CYCLE_LENGTH_DAYS } from "@/shared/constants";
 import { generateId, getDatabase, type StoredSettings } from "./database";
 
 /**
@@ -112,12 +115,60 @@ export class BrowserSettingsRepository implements ISettingsRepository {
     return this.applyUpdate({ memorizationOrder: order });
   }
 
+  async updateGoal(goal: GoalUpdate | null): Promise<Settings> {
+    // Both fields move together, so clearing cannot leave a date behind
+    // with no target — a state nothing downstream knows how to read.
+    return this.applyUpdate(
+      goal
+        ? {
+            goalTargetPages: goal.targetPages,
+            goalTargetDate: goal.targetDate.toISOString(),
+          }
+        : { goalTargetPages: null, goalTargetDate: null },
+    );
+  }
+
+  /**
+   * Switches how revision is scheduled, and how long a full pass takes.
+   *
+   * `cycleStartedAt` is stamped only when there is no start date at
+   * all — the first time this user ever chooses a cycle. A cycle with
+   * no start has no position, so it needs one; a cycle that already has
+   * one keeps it.
+   *
+   * That includes coming *back*. Somebody who tries spaced repetition
+   * for a week and returns to their cycle should land where the
+   * rotation actually is, not at the beginning of the Mushaf. Stamping
+   * on every switch to `Traditional` looks equivalent and is not: it
+   * silently restarts their teacher's rotation every time they look at
+   * the other option. `restartCycle()` is the explicit way to begin
+   * again, and it is the only way.
+   */
+  async updateRevisionMode(update: RevisionModeUpdate): Promise<Settings> {
+    const current = await this.getSettings();
+    const startingCycle =
+      update.revisionMode === RevisionMode.Traditional && current.cycleStartedAt === null;
+
+    return this.applyUpdate({
+      revisionMode: update.revisionMode,
+      ...(update.cycleLengthDays !== undefined ? { cycleLengthDays: update.cycleLengthDays } : {}),
+      ...(startingCycle ? { cycleStartedAt: new Date().toISOString() } : {}),
+    });
+  }
+
+  /** Begins a fresh pass from the start of the user's order. */
+  async restartCycle(): Promise<Settings> {
+    return this.applyUpdate({ cycleStartedAt: new Date().toISOString() });
+  }
+
   async resetToDefaults(): Promise<Settings> {
-    // Display preferences only. Onboarding answers and
-    // `memorizationOrder` are deliberately preserved — see the SQL
-    // repository for why re-triggering the wizard, or silently moving a
-    // Juz-30-first user back to Standard, exceeds what "Reset Settings"
-    // promises.
+    // Display preferences only. Onboarding answers, `memorizationOrder`,
+    // the user's goal and their revision mode are deliberately
+    // preserved — re-triggering the wizard, silently moving a
+    // Juz-30-first user back to Standard, deleting a goal they set, or
+    // switching somebody off the cycle their teacher set all exceed
+    // what "Reset Settings" promises. `DEFAULTS` holds none of those
+    // keys, so this cannot touch them even by accident.
     return this.applyUpdate({ ...DEFAULTS });
   }
 
@@ -134,6 +185,11 @@ export class BrowserSettingsRepository implements ISettingsRepository {
       sessionConfirmCompletion: settings.sessionConfirmCompletion,
       revisionShowProgress: settings.revisionShowProgress,
       memorizationOrder: settings.memorizationOrder,
+      goalTargetPages: settings.goalTargetPages,
+      goalTargetDate: settings.goalTargetDate ? settings.goalTargetDate.toISOString() : null,
+      revisionMode: settings.revisionMode,
+      cycleLengthDays: settings.cycleLengthDays,
+      cycleStartedAt: settings.cycleStartedAt ? settings.cycleStartedAt.toISOString() : null,
     });
   }
 
@@ -185,6 +241,26 @@ function toDomainSettings(record: StoredSettings): Settings {
     followsExistingSchedule: record.followsExistingSchedule,
     revisionStartsImmediately: record.revisionStartsImmediately,
     memorizationOrder: record.memorizationOrder as MemorizationOrder,
+    /*
+     * Records written before Phase 10 have no goal keys at all. `??`
+     * rather than a cast, so an upgrading user reads "no goal set"
+     * instead of `undefined` leaking into the projection arithmetic and
+     * producing a date in 1970.
+     *
+     * Both fields resolve together: a goal is set or it is not.
+     */
+    goalTargetPages: record.goalTargetPages ?? null,
+    goalTargetDate: record.goalTargetDate ? new Date(record.goalTargetDate) : null,
+    /*
+     * Same discipline for Phase 12. A record written before the
+     * traditional cycle existed has none of these keys, and must read
+     * as `Adaptive` — which is exactly the behaviour that user already
+     * had. Defaulting to `Traditional` would silently rewrite how PHOS
+     * schedules for everybody who upgraded.
+     */
+    revisionMode: (record.revisionMode as RevisionMode) ?? RevisionMode.Adaptive,
+    cycleLengthDays: record.cycleLengthDays ?? DEFAULT_CYCLE_LENGTH_DAYS,
+    cycleStartedAt: record.cycleStartedAt ? new Date(record.cycleStartedAt) : null,
     createdAt: new Date(record.createdAt),
     updatedAt: new Date(record.updatedAt),
   };

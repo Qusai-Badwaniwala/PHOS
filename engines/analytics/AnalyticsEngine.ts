@@ -3,8 +3,10 @@ import { generateCorrelationId } from "@/shared/utils";
 import { MemoryState, ReportingPeriod } from "@/shared/types";
 import type {
   DashboardMetrics,
+  GoalProjection,
   HistoricalReport,
   LearningProgressSummary,
+  MemorizationGoal,
   MemoryHealth,
   Page,
   ProgressReport,
@@ -15,6 +17,7 @@ import type {
 import {
   buildProgressReport,
   buildSessionStatistics,
+  calculateGoalProjection,
   calculateMemoryHealth,
   calculateRetentionQuality,
   calculateTrend,
@@ -62,6 +65,18 @@ export class AnalyticsEngine implements IAnalyticsEngine {
       return calculateRetentionQuality(recallEvents, now);
     } catch (error) {
       throw new AnalyticsCalculationError("Failed to calculate retention quality.", correlationId, {
+        cause: describeError(error),
+      });
+    }
+  }
+
+  async projectGoal(goal: MemorizationGoal): Promise<GoalProjection | null> {
+    const correlationId = generateCorrelationId();
+    try {
+      const pages = await this.deps.pageRepository.findAll();
+      return calculateGoalProjection(pages, goal, new Date());
+    } catch (error) {
+      throw new AnalyticsCalculationError("Failed to project the goal.", correlationId, {
         cause: describeError(error),
       });
     }

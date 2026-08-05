@@ -1,8 +1,14 @@
 import type {
   DailyStudyPlan,
+  Exam,
+  ExamAftermath,
+  ExamCoverageDay,
+  ExamPlan,
+  ExamStageProgress,
   MemorizationOrder,
   Page,
   PlanItemExplanation,
+  RevisionCyclePlan,
   WorkloadCategory,
 } from "@/shared/types";
 
@@ -57,6 +63,52 @@ export interface IAdaptiveEngine {
    * disagree.
    */
   getMemorizationSequence(orderOverride?: MemorizationOrder): Promise<readonly Page[]>;
+
+  // ---------------------------------------------------------------
+  // Exams (Phase 11)
+  // ---------------------------------------------------------------
+
+  /**
+   * The exam currently being prepared for, or `null`.
+   *
+   * Exposed because it changes what the whole application shows, not
+   * just the plan: the Dashboard, the session screen and the revision
+   * screen all describe an exam run-up differently.
+   */
+  getActiveExam(referenceDate?: Date): Promise<Exam | null>;
+
+  /** How each rung of the fixed ladder stands for this user. */
+  getExamStages(): Promise<readonly ExamStageProgress[]>;
+
+  /**
+   * The run-up for an exam: how the scope divides across the days that
+   * remain, and whether that fits the user's stated daily time.
+   */
+  getExamPlan(exam: Exam, availableStudyMinutes: number): Promise<ExamPlan>;
+
+  /** The whole run-up day by day, for the exam card's schedule view. */
+  getExamCoverage(exam: Exam): Promise<readonly ExamCoverageDay[]>;
+
+  /**
+   * What fell behind while an exam ran.
+   *
+   * Only meaningful after the exam is over — during the run-up PHOS
+   * deliberately withholds it.
+   */
+  getExamAftermath(exam: Exam): Promise<ExamAftermath>;
+
+  // ---------------------------------------------------------------
+  // The traditional revision cycle (Phase 12)
+  // ---------------------------------------------------------------
+
+  /**
+   * Where the user's fixed rotation has reached, or `null` when they
+   * are on PHOS's own scheduling.
+   *
+   * `null` rather than a disabled-looking plan, so a caller cannot
+   * render "day 0 of 0" for somebody who never chose a cycle.
+   */
+  getRevisionCycle(availableStudyMinutes: number): Promise<RevisionCyclePlan | null>;
 }
 
 export type { WorkloadCategory };

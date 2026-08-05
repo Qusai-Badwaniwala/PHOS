@@ -21,7 +21,17 @@ import {
   type OnboardingPreview,
 } from "@/lib/api/settings";
 import { InstallGuide } from "@/components/shared/install-guide";
-import { ArrowLeft, ArrowRight, BookOpen, HardDrive, Loader2 } from "lucide-react";
+import { EXAM_LADDER } from "@/shared/constants";
+import {
+  ArrowLeft,
+  ArrowRight,
+  BookOpen,
+  GraduationCap,
+  HardDrive,
+  Loader2,
+  RotateCcw,
+  Target,
+} from "lucide-react";
 
 const LEVEL_LABELS: Record<string, string> = {
   Beginner: "I am just starting",
@@ -33,8 +43,21 @@ const LEVEL_LABELS: Record<string, string> = {
 const ORDER_LABELS: Record<string, string> = {
   Standard: "Juz 1 → 30 (standard)",
   Juz30First: "Juz 30 first, then 1 → 29",
+  ExamOrder: "Exam order — Juz 30 → 26, then 1 → 25",
   Reverse: "Juz 30 → 1 (reverse)",
   Custom: "A custom order I will set myself",
+};
+
+/**
+ * A second line for orders whose shape is not obvious from the label.
+ *
+ * `ExamOrder` in particular looks arbitrary until you know it is built
+ * around the exam ladder, and somebody who does not intend to sit exams
+ * should be able to tell at a glance that it is not for them.
+ */
+const ORDER_NOTES: Record<string, string> = {
+  ExamOrder:
+    "Shaped around the exam ladder — the first three exams cover Juz 30, then 28–30, then 26–30, so those come first. Choose this if you intend to sit exams from the start.",
 };
 
 /**
@@ -110,6 +133,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
     comfortableDailyPages: 0.5,
     followsExistingSchedule: false,
     revisionStartsImmediately: true,
+    passedExamStages: [],
   });
 
   const patch = (update: Partial<OnboardingAnswers>) =>
@@ -247,6 +271,53 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
               </p>
             </div>
 
+            {/*
+              Exams already passed.
+
+              Recorded here rather than only on the Exams screen because
+              somebody arriving with three stages behind them would
+              otherwise meet a roadmap that acts as though none of it
+              happened — and many will never open a screen they have no
+              reason to think concerns them.
+
+              These do not gate or unlock anything. A stage still opens
+              on memorization alone; this only stops PHOS being wrong
+              about the user's history.
+            */}
+            <div className="space-y-2">
+              <span className="text-sm font-medium">
+                Exams you have already passed{" "}
+                <span className="font-normal text-muted-foreground">(optional)</span>
+              </span>
+              <div className="space-y-1.5 rounded-md border border-border p-3">
+                {EXAM_LADDER.map((definition) => {
+                  const checked = answers.passedExamStages.includes(definition.stage);
+                  return (
+                    <label key={definition.stage} className="flex items-center gap-2.5 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() =>
+                          patch({
+                            passedExamStages: checked
+                              ? answers.passedExamStages.filter((n) => n !== definition.stage)
+                              : [...answers.passedExamStages, definition.stage].sort(
+                                  (a, b) => a - b,
+                                ),
+                          })
+                        }
+                      />
+                      <span>{definition.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Leave these empty if you have not sat any. You can add exams later, with dates, from
+                the Exams screen.
+              </p>
+            </div>
+
             <div className="space-y-2">
               <label htmlFor="daily-minutes" className="text-sm font-medium">
                 Minutes available on a normal day
@@ -347,6 +418,12 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
               </SelectContent>
             </Select>
 
+            {ORDER_NOTES[answers.memorizationOrder] && (
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                {ORDER_NOTES[answers.memorizationOrder]}
+              </p>
+            )}
+
             {preview && answers.pagesAlreadyMemorized > 0 && (
               <div className="rounded-md border border-border bg-muted/50 p-4 text-sm">
                 <p className="font-medium text-foreground">
@@ -394,7 +471,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
             <div>
               <h2 className="text-xl font-semibold">You&apos;re ready</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Three things worth a minute before you begin.
+                A few things worth a minute before you begin.
               </p>
             </div>
 
@@ -456,6 +533,99 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                     <span className="font-medium text-foreground">Backup → Export</span> to save a
                     file somewhere safe. That file is also how you would move PHOS to a new phone or
                     computer.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/*
+              Mentioned once, and framed as optional both times.
+              Somebody who never sets a goal loses nothing, and an
+              opening wizard that presents one as expected would make an
+              empty field feel like an unfinished task before the user
+              has memorized a single page.
+            */}
+            <div className="rounded-lg border border-border bg-muted/40 p-4">
+              <div className="flex gap-3">
+                <Target
+                  className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                <div>
+                  <p className="text-sm font-medium">If you have a goal, you can tell PHOS</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Under <span className="font-medium text-foreground">Settings → Goal</span> you
+                    can name the Juz you want memorized and by when — chosen from your own order, so
+                    it means what you expect. PHOS will then tell you where your real pace is
+                    heading, measured from what you actually do rather than from the answers you
+                    gave a moment ago.
+                  </p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Entirely optional. PHOS schedules exactly the same way with or without one, and
+                    it will never chase you about a date.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/*
+              Exams are mentioned here because the one thing a user must
+              know *before* booking one is that PHOS pauses the rest of
+              their revision. Discovering that after the fact — a
+              Dashboard whose usual revision has simply vanished — reads
+              as a fault, and this is the last screen where saying so
+              costs nothing.
+            */}
+            <div className="rounded-lg border border-border bg-muted/40 p-4">
+              <div className="flex gap-3">
+                <GraduationCap
+                  className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                <div>
+                  <p className="text-sm font-medium">If you sit Hifz exams</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    The Dashboard carries an exam roadmap — Juz 30, then 28–30, then 26–30, and on
+                    to the whole Quran. Give one a date and PHOS divides the entire scope evenly
+                    across the days remaining, so nothing is left unrevised. You can also set your
+                    own exam over any Juz you choose.
+                  </p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    While an exam is scheduled, PHOS pauses revision outside its scope so nothing
+                    competes for your attention, and tells you what fell behind once you mark it
+                    passed.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/*
+              Named here because a student whose teacher sets a Manzil
+              cycle will otherwise assume PHOS cannot do what they need
+              and stop using it on the first day. Framed as a choice
+              rather than a fallback: it is how most Hifz is taught.
+            */}
+            <div className="rounded-lg border border-border bg-muted/40 p-4">
+              <div className="flex gap-3">
+                <RotateCcw
+                  className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                <div>
+                  <p className="text-sm font-medium">If you follow a fixed revision cycle</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    By default PHOS chooses your revision each day, putting the pages closest to
+                    being forgotten first. If you would rather rotate through everything you have
+                    memorized on a set schedule — the way most institutions teach — you can switch
+                    to that under{" "}
+                    <span className="font-medium text-foreground">
+                      Settings → How revision is chosen
+                    </span>
+                    .
+                  </p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Either way, new memorization is paced the same. It only changes how revision is
+                    picked.
                   </p>
                 </div>
               </div>

@@ -14,6 +14,7 @@ export * from "./recall-event";
 export * from "./session";
 export * from "./settings";
 export * from "./roadmap";
+export * from "./exam";
 export * from "./backup";
 export * from "./adaptive";
 export * from "./analytics";

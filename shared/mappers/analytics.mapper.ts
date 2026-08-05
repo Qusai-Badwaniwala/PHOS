@@ -1,5 +1,6 @@
 ﻿import type {
   DashboardMetrics,
+  GoalProjection,
   HistoricalReport,
   ProgressReport,
   SessionStatistics,
@@ -7,6 +8,7 @@
 } from "@/shared/types";
 import type {
   DashboardDTO,
+  GoalProjectionDTO,
   HistoricalReportDTO,
   ProgressReportDTO,
   SessionStatisticsDTO,
@@ -29,6 +31,22 @@ export function toTrendAnalysisDTO(trend: TrendAnalysis): TrendAnalysisDTO {
     trendDirection: trend.trendDirection,
     trendStrength: trend.trendStrength,
     summary: trend.summary,
+  };
+}
+
+export function toGoalProjectionDTO(projection: GoalProjection): GoalProjectionDTO {
+  return {
+    targetPages: projection.targetPages,
+    targetDate: projection.targetDate.toISOString(),
+    pagesMemorized: projection.pagesMemorized,
+    pagesRemaining: projection.pagesRemaining,
+    observedPagesPerDay: projection.observedPagesPerDay,
+    assessedDays: projection.assessedDays,
+    projectedCompletionDate: projection.projectedCompletionDate
+      ? projection.projectedCompletionDate.toISOString()
+      : null,
+    daysFromGoal: projection.daysFromGoal,
+    targetReached: projection.targetReached,
   };
 }
 

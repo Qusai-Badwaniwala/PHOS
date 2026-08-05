@@ -139,9 +139,9 @@ describe("pacing new memorization below one page a day", () => {
  * keeping identical stability, would do so again every cycle. Spreading
  * them turns the block into a steady stream.
  */
-function buildSeedingEngine(pageCount: number) {
+function buildSeedingEngine(pageCount: number, startPage = 1) {
   const pages = new Map<string, Page>();
-  for (let i = 1; i <= pageCount; i += 1) {
+  for (let i = startPage; i < startPage + pageCount; i += 1) {
     pages.set(`page-${i}`, unseenPage(i));
   }
 
@@ -232,5 +232,95 @@ describe("staggering seeded prior memorization", () => {
     for (const page of pages.values()) {
       expect(page.firstStudiedAt).not.toBeNull();
     }
+  });
+});
+
+// ---------------------------------------------------------------
+// Staggering by block: each day's pages must be consecutive
+// ---------------------------------------------------------------
+
+/**
+ * A third defect found by the product owner using PHOS, in the fix for
+ * the second.
+ *
+ * Spreading the load was right; spreading it with `index % cycleDays`
+ * was not. It handed one day pages 582, 585, 588, 591 — the correct
+ * *quantity* of revision, in an order nobody recites. Hifz revision is
+ * continuous; skipping the pages in between breaks the flow the
+ * revision exists to maintain. Blocks carry the identical daily load as
+ * 582–589.
+ *
+ * Every test above passed throughout, because they only ever measured
+ * how many pages fell on each day.
+ */
+
+/** The seeded page numbers falling due on each of the next N days. */
+function duePageNumbersByDay(pages: readonly Page[], days: number): number[][] {
+  const groups: number[][] = Array.from({ length: days }, () => []);
+  for (const page of pages) {
+    if (!page.lastReviewedAt) continue;
+    const daysSince = (Date.now() - page.lastReviewedAt.getTime()) / MILLISECONDS_PER_DAY;
+    const dueInDays = Math.max(0, Math.round(page.memoryStability - daysSince));
+    if (dueInDays < days) groups[dueInDays]!.push(page.pageNumber);
+  }
+  return groups.map((group) => [...group].sort((a, b) => a - b));
+}
+
+function isConsecutive(pageNumbers: readonly number[]): boolean {
+  return pageNumbers.every((n, i) => i === 0 || n === pageNumbers[i - 1]! + 1);
+}
+
+describe("staggering seeded pages into consecutive blocks", () => {
+  it("gives the reported scenario 582–589 today, not 582, 585, 588, 591", async () => {
+    // Exactly what the product owner hit: Juz 30 reported as already
+    // memorized, a capacity that collapses the cycle to its 3-day floor.
+    const { engine, pages } = buildSeedingEngine(23, 582);
+    await engine.seedPriorMemorization([...pages.keys()], true, 20);
+
+    const [today, tomorrow, dayThree] = duePageNumbersByDay([...pages.values()], 3);
+
+    expect(today).toEqual([582, 583, 584, 585, 586, 587, 588, 589]);
+    expect(tomorrow).toEqual([590, 591, 592, 593, 594, 595, 596, 597]);
+    expect(dayThree).toEqual([598, 599, 600, 601, 602, 603, 604]);
+  });
+
+  it("keeps every day's revision consecutive at any cycle length", async () => {
+    const { engine, pages } = buildSeedingEngine(200);
+    await engine.seedPriorMemorization([...pages.keys()], true, 20);
+
+    for (const day of duePageNumbersByDay([...pages.values()], 15)) {
+      expect(isConsecutive(day)).toBe(true);
+    }
+  });
+
+  it("still spreads the load evenly — blocks must not cost balance", async () => {
+    // The point of the stagger is unchanged; only the arrangement moved.
+    const { engine, pages } = buildSeedingEngine(23, 582);
+    await engine.seedPriorMemorization([...pages.keys()], true, 20);
+
+    const sizes = duePageNumbersByDay([...pages.values()], 3).map((day) => day.length);
+
+    expect(sizes).toEqual([8, 8, 7]);
+  });
+
+  it("covers every page exactly once, leaving none unscheduled", async () => {
+    // `Math.ceil` for the block size is what makes the remainder land on
+    // the final day rather than falling off the end of the cycle.
+    const { engine, pages } = buildSeedingEngine(23, 582);
+    await engine.seedPriorMemorization([...pages.keys()], true, 20);
+
+    const scheduled = duePageNumbersByDay([...pages.values()], 3).flat();
+
+    expect(scheduled).toHaveLength(23);
+    expect(new Set(scheduled).size).toBe(23);
+  });
+
+  it("handles fewer pages than the cycle has days", async () => {
+    const { engine, pages } = buildSeedingEngine(2);
+    await engine.seedPriorMemorization([...pages.keys()], true, 20);
+
+    const scheduled = duePageNumbersByDay([...pages.values()], 5).flat();
+
+    expect(scheduled.sort((a, b) => a - b)).toEqual([1, 2]);
   });
 });

@@ -23,16 +23,30 @@ import {
 const ops = vi.hoisted(() => ({
   getDashboard: vi.fn(),
   getHistoricalReport: vi.fn(),
+  getTrendAnalysis: vi.fn(),
+  getGoalProjection: vi.fn(),
   getTodayPlan: vi.fn(),
   getSettings: vi.fn(),
 }));
 
 vi.mock("@/client/operations", () => ({
-  analyticsOps: { getDashboard: ops.getDashboard, getHistoricalReport: ops.getHistoricalReport },
+  analyticsOps: {
+    getDashboard: ops.getDashboard,
+    getHistoricalReport: ops.getHistoricalReport,
+    getTrendAnalysis: ops.getTrendAnalysis,
+    getGoalProjection: ops.getGoalProjection,
+  },
   sessionOps: { getTodayPlan: ops.getTodayPlan },
   settingsOps: { getSettings: ops.getSettings },
   backupOps: { DATA_RESET_CONFIRMATION: "DELETE" },
 }));
+
+const STEADY_TREND = {
+  period: "Weekly",
+  trendDirection: "Steady",
+  trendStrength: 0,
+  summary: "Your recall has held steady since last week.",
+};
 
 const { getDashboardData } = await import("@/lib/api/dashboard");
 
@@ -41,6 +55,8 @@ beforeEach(() => {
   ops.getSettings.mockResolvedValue(engineSettings());
   ops.getDashboard.mockResolvedValue(dashboardMetrics());
   ops.getHistoricalReport.mockResolvedValue(historicalReport([]));
+  ops.getTrendAnalysis.mockResolvedValue(STEADY_TREND);
+  ops.getGoalProjection.mockResolvedValue(null);
   ops.getTodayPlan.mockResolvedValue(dailyPlan([]));
 });
 
@@ -312,6 +328,145 @@ describe("the plan's own explanation", () => {
     );
 
     expect((await getDashboardData()).workloadWarning).toBe("Today is heavier than usual.");
+  });
+});
+
+describe("the goal card", () => {
+  /** A projection as the Analytics Engine would report it. */
+  function projection(overrides: Record<string, unknown> = {}) {
+    return {
+      targetPages: 604,
+      targetDate: new Date(2029, 2, 1).toISOString(),
+      pagesMemorized: 120,
+      pagesRemaining: 484,
+      observedPagesPerDay: 1,
+      assessedDays: 30,
+      projectedCompletionDate: new Date(2028, 0, 15).toISOString(),
+      daysFromGoal: -410,
+      targetReached: false,
+      ...overrides,
+    };
+  }
+
+  it("is absent when the user has set no goal", async () => {
+    // Most people never set one. An empty card is not a feature.
+    expect((await getDashboardData()).goal).toBeNull();
+  });
+
+  it("never states a pace PHOS has not measured", async () => {
+    /*
+     * The evidence gate, carried all the way to the sentence. Below the
+     * threshold the engine reports a null pace, and the card must say
+     * so rather than rendering "0 pages a day" — which would read as
+     * "you have stopped" to someone three days in.
+     */
+    ops.getGoalProjection.mockResolvedValue(
+      projection({
+        observedPagesPerDay: null,
+        projectedCompletionDate: null,
+        daysFromGoal: null,
+        assessedDays: 3,
+        pagesMemorized: 6,
+      }),
+    );
+
+    const goal = (await getDashboardData()).goal!;
+
+    expect(goal.pacePerDay).toBeNull();
+    expect(goal.projectedDate).toBeNull();
+    expect(goal.summary).toContain("6 of 604");
+    expect(goal.summary).not.toMatch(/0 pages a day/);
+    expect(goal.note).toMatch(/about a week/);
+  });
+
+  it("says how far ahead a fast pace lands, without praise", async () => {
+    ops.getGoalProjection.mockResolvedValue(projection());
+
+    const goal = (await getDashboardData()).goal!;
+
+    expect(goal.summary).toMatch(/before your goal/);
+    // No congratulation, no exclamation — it is arithmetic either way.
+    expect(goal.summary).not.toMatch(/!/);
+    expect(goal.note).toBeUndefined();
+  });
+
+  it("says how far late a slow pace lands, and refuses to make it a verdict", async () => {
+    ops.getGoalProjection.mockResolvedValue(
+      projection({
+        projectedCompletionDate: new Date(2029, 8, 1).toISOString(),
+        daysFromGoal: 184,
+      }),
+    );
+
+    const goal = (await getDashboardData()).goal!;
+
+    expect(goal.summary).toMatch(/after your goal/);
+    expect(goal.summary).not.toMatch(/behind|failing|!/i);
+    /*
+     * The note exists so a goal card cannot quietly reverse PHOS's
+     * central rule. Everywhere else the application protects retention
+     * over speed; being late must not read as an instruction to rush.
+     */
+    expect(goal.note).toMatch(/not automatically the right answer/);
+  });
+
+  it("calls it close rather than picking a side, within a fortnight either way", async () => {
+    // An averaged pace cannot honestly resolve a difference of days.
+    ops.getGoalProjection.mockResolvedValue(projection({ daysFromGoal: 5 }));
+
+    const goal = (await getDashboardData()).goal!;
+
+    expect(goal.summary).toMatch(/close to your goal/);
+    expect(goal.summary).not.toMatch(/before your goal|after your goal/);
+  });
+
+  it("says so plainly once the target is reached", async () => {
+    ops.getGoalProjection.mockResolvedValue(
+      projection({ targetReached: true, pagesRemaining: 0, projectedCompletionDate: null }),
+    );
+
+    const goal = (await getDashboardData()).goal!;
+
+    expect(goal.summary).toMatch(/reached your goal/);
+    expect(goal.projectedDate).toBeNull();
+  });
+});
+
+describe("the weekly review", () => {
+  it("reports the week from the engine's own figures", async () => {
+    ops.getDashboard.mockResolvedValue(
+      dashboardMetrics({
+        weeklyProgress: {
+          period: "Weekly",
+          completedSessions: 5,
+          completedPages: 12,
+          recallEvents: 63,
+          progressSummary: "",
+        },
+      }),
+    );
+
+    const review = (await getDashboardData()).weeklyReview;
+
+    expect(review).toMatchObject({
+      pagesCompleted: 12,
+      sessionsCompleted: 5,
+      recallsRecorded: 63,
+      recallTrend: "Steady",
+    });
+  });
+
+  it("passes the engine's trend sentence through verbatim", async () => {
+    // Requirement 4's principle: a second, reworded account of the
+    // user's progress is worse than none.
+    ops.getTrendAnalysis.mockResolvedValue({
+      ...STEADY_TREND,
+      summary: "Your recall improved noticeably this week.",
+    });
+
+    expect((await getDashboardData()).weeklyReview.trendSummary).toBe(
+      "Your recall improved noticeably this week.",
+    );
   });
 });
 

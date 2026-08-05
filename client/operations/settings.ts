@@ -1,5 +1,18 @@
-import { MemorizationLevel, MemorizationOrder, TOTAL_JUZ } from "@/shared/types";
-import { primarySurahForPage, TOTAL_MUSHAF_PAGES } from "@/shared/constants";
+import {
+  MemorizationLevel,
+  MemorizationOrder,
+  MemoryState,
+  RevisionMode,
+  TOTAL_JUZ,
+} from "@/shared/types";
+import {
+  EXAM_LADDER,
+  examStage,
+  MAXIMUM_CYCLE_LENGTH_DAYS,
+  MINIMUM_CYCLE_LENGTH_DAYS,
+  primarySurahForPage,
+  TOTAL_MUSHAF_PAGES,
+} from "@/shared/constants";
 import { generateCorrelationId } from "@/shared/utils";
 import {
   ValidationError,
@@ -90,6 +103,69 @@ export async function resetSettings(): Promise<SettingsDTO> {
   return toSettingsDTO(await container.settingsRepository.resetToDefaults());
 }
 
+/** Used when settings cannot be read — the same value `lib/api` falls back to. */
+const FALLBACK_STUDY_MINUTES = 60;
+
+/**
+ * The user's stated daily study budget, for operations that need it
+ * before the adapter layer is involved.
+ *
+ * `lib/api/settings.ts` has its own `getDailyStudyMinutes()` for the
+ * screens. This is the same answer for callers *inside* the operations
+ * layer, which must not reach upward into the adapter — the dependency
+ * only runs one way.
+ */
+export async function getDailyStudyMinutesForEngine(): Promise<number> {
+  try {
+    const settings = await container.settingsRepository.getSettings();
+    return settings.dailyAvailableMinutes || FALLBACK_STUDY_MINUTES;
+  } catch {
+    return FALLBACK_STUDY_MINUTES;
+  }
+}
+
+// ---------------------------------------------------------------
+// The user's own goal (Phase 10)
+// ---------------------------------------------------------------
+
+export interface GoalInput {
+  /** How many of the 604 pages they want memorized. */
+  readonly targetPages: number;
+  /** ISO date string. */
+  readonly targetDate: string;
+}
+
+/**
+ * Sets the user's goal, or clears it when passed `null`.
+ *
+ * Validated because both values come straight from form fields. The
+ * date is required to be in the future: a goal is a statement about
+ * what someone intends to do, and a date already past cannot be one.
+ */
+export async function updateGoal(goal: GoalInput | null): Promise<SettingsDTO> {
+  if (goal === null) {
+    return toSettingsDTO(await container.settingsRepository.updateGoal(null));
+  }
+
+  const correlationId = generateCorrelationId();
+  const targetPages = validateNumericRange(
+    goal.targetPages,
+    "targetPages",
+    { min: 1, max: TOTAL_MUSHAF_PAGES, integer: true },
+    correlationId,
+  );
+
+  const targetDate = new Date(goal.targetDate);
+  if (Number.isNaN(targetDate.getTime())) {
+    throw new ValidationError('Field "targetDate" is not a valid date.', correlationId);
+  }
+  if (targetDate.getTime() <= Date.now()) {
+    throw new ValidationError("A goal's date must be in the future.", correlationId);
+  }
+
+  return toSettingsDTO(await container.settingsRepository.updateGoal({ targetPages, targetDate }));
+}
+
 // ---------------------------------------------------------------
 // Onboarding (PRODUCT_REQUIREMENTS Requirement 1)
 // ---------------------------------------------------------------
@@ -171,6 +247,24 @@ export async function completeOnboarding(
     correlationId,
   );
 
+  /*
+   * Ladder stages the user says they already passed. Validated as
+   * numbers in range and silently de-duplicated; an unknown stage is
+   * dropped rather than rejected, because a stale value in this list
+   * must never be able to block somebody from finishing setup.
+   */
+  const passedExamStages = Array.isArray(answers.passedExamStages)
+    ? [
+        ...new Set(
+          (answers.passedExamStages as unknown[])
+            .filter((value): value is number => typeof value === "number")
+            .filter(
+              (value) => Number.isInteger(value) && value >= 1 && value <= EXAM_LADDER.length,
+            ),
+        ),
+      ].sort((a, b) => a - b)
+    : [];
+
   // Order is recorded first, because the memorization sequence used for
   // seeding below is derived from it. Someone who began at Juz 30 has
   // memorized the end of the Mushaf, and seeding page numbers 1..N
@@ -197,6 +291,31 @@ export async function completeOnboarding(
       // actually keep up with. A page takes roughly a minute.
       estimateDailyRevisionCapacity(dailyAvailableMinutes),
     );
+  }
+
+  /*
+   * Exams the user says they already passed, stored as plain history.
+   *
+   * Deliberately after seeding and deliberately non-fatal: a failure
+   * here must not lose the onboarding answers that were already
+   * written. Losing an exam record is a small annoyance the user can
+   * repair from the Exams screen; losing their whole setup is not.
+   */
+  for (const stage of passedExamStages) {
+    const definition = examStage(stage);
+    if (!definition) continue;
+    try {
+      await container.examRepository.recordPast({
+        stage: definition.stage,
+        juzNumbers: definition.juzNumbers,
+        // Onboarding does not ask when. Nobody remembers the day they
+        // sat Juz 30, and the Exams screen offers a date for anyone who
+        // does.
+        examDate: null,
+      });
+    } catch {
+      // Ignored for the reason above.
+    }
   }
 
   return { ...toSettingsDTO(updated), seededPages };
@@ -257,6 +376,74 @@ export async function previewOnboarding(order: string, pages: number): Promise<O
           surahArabic: primarySurahForPage(next.pageNumber)?.arabicName ?? null,
         }
       : null,
+  };
+}
+
+/** One Juz along the user's own memorization order, as a goal target. */
+export interface GoalMilestone {
+  /** The Juz itself, e.g. 30 for the first milestone of a Juz-30-first order. */
+  juzNumber: number;
+  /** Its place along the user's order, 1-based. */
+  position: number;
+  /** Pages memorized once this Juz is finished — what the goal actually stores. */
+  cumulativePages: number;
+  /** True when the user has already memorized at least this many pages. */
+  reached: boolean;
+}
+
+export interface GoalPosition {
+  /** Every Juz in the user's order, earliest first. */
+  milestones: readonly GoalMilestone[];
+  /** Pages that have left `Unseen`. */
+  pagesMemorized: number;
+  /** The Juz holding the next page they have not started, or `null` when none is left. */
+  currentJuz: number | null;
+}
+
+/**
+ * Where the user is, and the Juz they could aim for.
+ *
+ * A goal is stored as a page count, because that is what the projection
+ * can do arithmetic with. But nobody thinks about Hifz in pages — they
+ * think in Juz, and "through Juz 5" only means something along their
+ * *own* order. Somebody memorizing Juz 30 first reaches 124 pages at
+ * their sixth milestone; the same words mean 101 pages for somebody
+ * going in Mushaf order. This resolves that, so the picker can offer
+ * Juz and still save a page count.
+ *
+ * Nothing is written, and the sequence is the same
+ * `getMemorizationSequence()` seeding and the onboarding preview use —
+ * a third copy of the ordering rule is exactly the duplication that
+ * drifts.
+ */
+export async function getGoalPosition(): Promise<GoalPosition> {
+  const sequence = await container.adaptiveEngine.getMemorizationSequence();
+
+  const pagesMemorized = sequence.filter((page) => page.memoryState !== MemoryState.Unseen).length;
+  const nextUnstudied = sequence.find((page) => page.memoryState === MemoryState.Unseen);
+
+  const milestones: GoalMilestone[] = [];
+  for (const [index, page] of sequence.entries()) {
+    const last = milestones[milestones.length - 1];
+    // The sequence is already grouped by Juz, so a change of Juz opens
+    // the next milestone and every page simply extends the current one.
+    if (last?.juzNumber === page.juzNumber) {
+      last.cumulativePages = index + 1;
+      last.reached = pagesMemorized >= last.cumulativePages;
+    } else {
+      milestones.push({
+        juzNumber: page.juzNumber,
+        position: milestones.length + 1,
+        cumulativePages: index + 1,
+        reached: pagesMemorized >= index + 1,
+      });
+    }
+  }
+
+  return {
+    milestones,
+    pagesMemorized,
+    currentJuz: nextUnstudied?.juzNumber ?? null,
   };
 }
 
@@ -377,4 +564,67 @@ function validateJuzSequence(value: unknown, correlationId: string): number[] {
   }
 
   return sequence;
+}
+
+// ---------------------------------------------------------------
+// The traditional revision cycle (Phase 12)
+// ---------------------------------------------------------------
+
+export interface RevisionModeInput {
+  readonly mode: string;
+  readonly cycleLengthDays?: number;
+}
+
+/**
+ * Switches between PHOS's own scheduling and a fixed traditional cycle.
+ *
+ * The cycle length is validated to a range that can actually be
+ * followed: a one-day cycle means reciting everything memorized every
+ * day, and past three months a "cycle" no longer describes anything a
+ * person experiences as a rotation. Neither bound is a judgement — the
+ * usual choices sit between 7 and 30.
+ */
+export async function updateRevisionMode(input: RevisionModeInput): Promise<SettingsDTO> {
+  const correlationId = generateCorrelationId();
+
+  const mode = validateEnum(
+    input.mode,
+    Object.values(RevisionMode),
+    "mode",
+    correlationId,
+  ) as RevisionMode;
+
+  const cycleLengthDays =
+    input.cycleLengthDays === undefined
+      ? undefined
+      : validateNumericRange(
+          input.cycleLengthDays,
+          "cycleLengthDays",
+          { min: MINIMUM_CYCLE_LENGTH_DAYS, max: MAXIMUM_CYCLE_LENGTH_DAYS, integer: true },
+          correlationId,
+        );
+
+  return toSettingsDTO(
+    await container.settingsRepository.updateRevisionMode({
+      revisionMode: mode,
+      ...(cycleLengthDays !== undefined ? { cycleLengthDays } : {}),
+    }),
+  );
+}
+
+/**
+ * Starts the rotation again from the beginning of the user's order.
+ *
+ * Offered because a cycle's position is a stored date, and a person who
+ * falls a long way behind their teacher's rotation needs a way to say
+ * "start again from the top" without changing anything else.
+ */
+export async function restartRevisionCycle(): Promise<SettingsDTO> {
+  return toSettingsDTO(await container.settingsRepository.restartCycle());
+}
+
+/** Where the fixed rotation has reached, or `null` on PHOS's own scheduling. */
+export async function getRevisionCycle() {
+  const minutes = await getDailyStudyMinutesForEngine();
+  return container.adaptiveEngine.getRevisionCycle(minutes);
 }

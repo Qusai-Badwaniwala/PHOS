@@ -77,6 +77,8 @@ const FAKE_SETTINGS = {
     revisionStartsImmediately: true,
   },
   memorizationOrder: "Standard",
+  goal: null,
+  revision: { mode: "Adaptive", cycleLengthDays: 7, cycleStartedAt: null },
 } satisfies SettingsDTO;
 
 /**

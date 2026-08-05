@@ -42,6 +42,27 @@ export interface DashboardDTO {
   readonly dashboardStatistics: DashboardStatisticsDTO;
 }
 
+/**
+ * The user's goal, measured against what they have actually memorized.
+ *
+ * `observedPagesPerDay` and the projected date are `null` together
+ * whenever PHOS cannot honestly measure a pace — which is a different
+ * statement from a pace of zero, and the UI must not collapse the two.
+ */
+export interface GoalProjectionDTO {
+  readonly targetPages: number;
+  readonly targetDate: string;
+  readonly pagesMemorized: number;
+  readonly pagesRemaining: number;
+  readonly observedPagesPerDay: number | null;
+  /** Days of real history behind the pace. 0 means the projection has not been earned. */
+  readonly assessedDays: number;
+  readonly projectedCompletionDate: string | null;
+  /** Negative is ahead of the goal, positive is later than it. */
+  readonly daysFromGoal: number | null;
+  readonly targetReached: boolean;
+}
+
 export interface SessionStatisticsDTO {
   readonly sessionId: string;
   readonly startedAt: string;

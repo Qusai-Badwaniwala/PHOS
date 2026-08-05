@@ -127,6 +127,8 @@ export function engineSettings(overrides: Partial<SettingsDTO> = {}): SettingsDT
       revisionStartsImmediately: true,
     },
     memorizationOrder: "Standard",
+    goal: null,
+    revision: { mode: "Adaptive", cycleLengthDays: 7, cycleStartedAt: null },
     ...overrides,
   };
 }

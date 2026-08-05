@@ -27,6 +27,16 @@ type BackendSettings = EngineSettings;
 export interface AppSettings extends SettingsDTO {
   onboarding: BackendOnboarding;
   memorizationOrder: string;
+  /** The user's goal, or `null` when they have not set one. */
+  goal: { targetPages: number; targetDate: string } | null;
+  /**
+   * How revision is *scheduled* (Phase 12).
+   *
+   * Named apart from `revision`, which is the display preference for
+   * the revision screen. Two unrelated things called "revision" on one
+   * object is exactly how a wrong field gets read.
+   */
+  revisionSchedule: { mode: string; cycleLengthDays: number; cycleStartedAt: string | null };
 }
 
 function toAppSettings(backend: BackendSettings): AppSettings {
@@ -46,11 +56,47 @@ function toAppSettings(backend: BackendSettings): AppSettings {
     revision: { showProgress: p.revisionShowProgress },
     onboarding: backend.onboarding,
     memorizationOrder: backend.memorizationOrder,
+    goal: backend.goal,
+    revisionSchedule: backend.revision,
   };
 }
 
 export async function getSettings(): Promise<AppSettings> {
   return toAppSettings(await settingsOps.getSettings());
+}
+
+/**
+ * Sets the user's goal, or clears it when passed `null`.
+ *
+ * Nothing in PHOS calls this except the user's own action in Settings.
+ * A goal is their stated intention; no engine may set, move or delete
+ * one on their behalf.
+ */
+/**
+ * Switches between PHOS's own scheduling and a fixed traditional cycle,
+ * and sets how long a full pass takes.
+ */
+export async function saveRevisionMode(input: {
+  mode: string;
+  cycleLengthDays?: number;
+}): Promise<AppSettings> {
+  return toAppSettings(await settingsOps.updateRevisionMode(input));
+}
+
+/** Begins the rotation again from the start of the user's order. */
+export async function restartRevisionCycle(): Promise<AppSettings> {
+  return toAppSettings(await settingsOps.restartRevisionCycle());
+}
+
+/** Where the fixed rotation has reached, or `null` on PHOS's own scheduling. */
+export async function getRevisionCycle() {
+  return settingsOps.getRevisionCycle();
+}
+
+export async function saveGoal(
+  goal: { targetPages: number; targetDate: string } | null,
+): Promise<AppSettings> {
+  return toAppSettings(await settingsOps.updateGoal(goal));
 }
 
 /** Fallback study budget if settings cannot be read — the previous hardcoded value. */
@@ -117,9 +163,28 @@ export interface OnboardingAnswers {
   comfortableDailyPages: number;
   followsExistingSchedule: boolean;
   revisionStartsImmediately: boolean;
+  /**
+   * Ladder stages the user says they already passed, before PHOS.
+   *
+   * Recorded as history only — a stage still unlocks on memorization
+   * alone, so this never grants access to anything.
+   */
+  passedExamStages: number[];
 }
 
 export type { OnboardingPreview } from "@/client/operations/settings";
+export type { GoalMilestone, GoalPosition } from "@/client/operations/settings";
+
+/**
+ * The Juz the user could aim for, in their own memorization order, and
+ * where they currently stand.
+ *
+ * Lets the Goal settings offer "through Juz 5" while still storing the
+ * page count the projection needs.
+ */
+export async function getGoalPosition(): Promise<settingsOps.GoalPosition> {
+  return settingsOps.getGoalPosition();
+}
 
 /**
  * What the onboarding answers will do, without saving them.

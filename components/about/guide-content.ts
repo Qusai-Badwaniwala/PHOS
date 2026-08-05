@@ -169,6 +169,48 @@ export const FAQ: readonly FaqEntry[] = [
       "Two ways, and they are not interchangeable. A backup is a verified copy kept inside PHOS, ready to restore in one click — perfect for undoing a mistake, and taken automatically before anything destructive. An export is a file saved wherever you choose, and it is the only copy that survives clearing your browser's data or moving to a new device. Take an export whenever you have made progress you would be sorry to lose.",
   },
   {
+    id: "goal",
+    question: "Can I set a target and have PHOS track it?",
+    answer:
+      'Yes, and it is optional. Under Settings → Goal you name the Juz you want memorized and by when. The list is your own memorization order, not the Mushaf\'s, so somebody memorizing Juz 30 first is offered Juz 30 first and "through Juz 5" means the 124 pages they would actually have covered. The Dashboard then tells you where your current pace would take you — measured from the pages you have actually started, never from the estimate you gave during setup. PHOS says nothing until it has watched you memorize for about a week, because a projection built on two or three days is arithmetic on noise. If your pace would land after your goal it says so plainly and without judgement, and it will remind you that memorizing faster is not automatically the right answer: PHOS protects what you already know before it adds more.',
+  },
+  {
+    id: "revision-cycle",
+    question: "My teacher sets a fixed revision cycle. Can PHOS follow it?",
+    answer:
+      "Yes. Under Settings → How revision is chosen you can switch from PHOS's own scheduling to a fixed cycle, and set how many days a full pass takes — seven is the usual Manzil rotation. PHOS then divides everything you have memorized across those days, in your own memorization order and in continuous blocks, and repeats forever. It tells you which day of the cycle you are on, which is the one thing a paper schedule cannot. Your position comes from the date you started, not from your last session, so missing a day leaves you where you actually are rather than restarting the rotation.",
+  },
+  {
+    id: "which-revision-mode",
+    question: "Which revision mode is actually better?",
+    answer:
+      "PHOS's own scheduling reaches the same retention for fewer pages a day, because it spends your effort where your recall shows it is needed rather than spreading it evenly. That is the honest answer and PHOS says so on the setting itself. But it is not the only thing that matters: a fixed cycle is predictable, it is what most institutions teach, and if your teacher sets a rotation you need to follow that rotation. So PHOS states the recommendation once and then leaves the choice alone — no warnings, no nudges. Either way new memorization is paced identically; the setting changes only how revision is picked. If an exam is scheduled, its run-up takes precedence over both until you mark it passed.",
+  },
+  {
+    id: "exams",
+    question: "Can PHOS help me prepare for a Hifz exam?",
+    answer:
+      "Yes. The Dashboard carries an exam roadmap of eight stages — Juz 30, then 28–30, then 26–30, then Juz 1–5 alongside 26–30, and onward to the whole Quran. A stage opens once every page in it has been memorized, because the run-up schedule revises those pages and PHOS cannot revise a page you have never learned. Give a stage a date and PHOS divides the entire scope evenly across the days remaining, in continuous blocks, so every page is revised before the exam rather than left to a priority queue that might never reach it. If your madrasa uses a different ladder, Self Exam takes any Juz you choose and the same date.",
+  },
+  {
+    id: "past-exams",
+    question: "I passed exams before I started using PHOS. Can I record those?",
+    answer:
+      'Yes, in two places. Onboarding lists the eight roadmap stages so you can tick the ones you have already passed, and the Exams screen has "Add a past exam" for anything you remember later, anything outside the roadmap, or an exam you sit at your madrasa while using PHOS. The date is optional — nobody remembers the day they sat Juz 30, so an undated one simply reads "Before you started PHOS" rather than showing a guess. Recording a past exam changes nothing about your scheduling: it is history, not a setting. It also never unlocks a stage, because stages open on what you have memorized, and it never triggers the fallen-behind report, because PHOS did not run that exam\'s preparation and so set nothing aside for it.',
+  },
+  {
+    id: "exam-mode",
+    question: "What changes while an exam is scheduled?",
+    answer:
+      "Revision outside the exam's scope is paused — including pages PHOS would normally push to the front as weak. That is deliberate: a week before an exam you cannot act on \"eleven other pages are slipping\", and showing it would only divide your attention when it matters most. Those pages keep decaying, and the moment you mark the exam passed PHOS tells you exactly how many fell behind and which to start with. One other thing changes: if covering the scope in the days you have left needs more time than you said you had, PHOS says so and schedules it anyway. Everywhere else it will not exceed your daily time, but an exam's date and syllabus are set by somebody else, and arriving having never revised part of it is worse than a long day.",
+  },
+  {
+    id: "exam-order",
+    question: "Which memorization order should I choose if I plan to sit exams?",
+    answer:
+      "Exam order — Juz 30 → 26, then 1 → 25. The first three exam stages cover Juz 30, then 28–30, then 26–30, so the last five Juz come first, and they descend so each stage completes as early as possible: Juz 30 opens the first, adding 29 and 28 opens the second, adding 27 and 26 opens the third. Going upward through 26–30 instead would leave the first stage locked until the whole block was finished. If you are not planning on exams, any of the other orders is just as well supported and nothing about scheduling depends on this choice.",
+  },
+  {
     id: "devices",
     question: "Can I use PHOS on my phone and my laptop?",
     answer:

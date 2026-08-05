@@ -18,6 +18,9 @@ import { PlanExplanationCard } from "@/components/dashboard/plan-explanation";
 import { WelcomeBack } from "@/components/dashboard/welcome-back";
 import { WorkloadNotice } from "@/components/dashboard/workload-notice";
 import { LogOutsideWork } from "@/components/dashboard/log-outside-work";
+import { GoalCard } from "@/components/dashboard/goal-card";
+import { WeeklyReviewCard } from "@/components/dashboard/weekly-review";
+import { ExamModeStrip } from "@/components/exams/exam-mode-strip";
 import { useDashboard } from "@/lib/hooks/use-dashboard";
 
 export default function DashboardPage() {
@@ -36,6 +39,15 @@ export default function DashboardPage() {
           everything else so a returning user is greeted before they see
           the work waiting for them. */}
       <WelcomeBack message={data.welcomeBackMessage} />
+
+      {/*
+        Exams have their own screen, but exam mode replaces the day's
+        plan — ordinary revision disappears and weak pages stop being
+        surfaced. That has to be explained where it happens, so one
+        strip stays here while a run-up is active and renders nothing
+        the rest of the time.
+      */}
+      <ExamModeStrip />
 
       {/* Inspirational Ayah — AD-17, always visible */}
       <InspirationalAyah />
@@ -108,6 +120,18 @@ export default function DashboardPage() {
 
       {/* Weekly Progress Chart */}
       <WeeklyProgress days={data.weeklyProgress} />
+
+      {/*
+        Looking back rather than forward — the goal the user set, and
+        the week they actually had. Placed below today's plan on
+        purpose: what to do now is the point of this screen, and
+        progress tracking must never be the first thing competing for
+        attention.
+      */}
+      <section aria-label="Progress over time" className="grid gap-4 lg:grid-cols-2">
+        <GoalCard goal={data.goal} />
+        <WeeklyReviewCard review={data.weeklyReview} />
+      </section>
 
       {/* Recent Activity */}
       <RecentActivity activities={data.recentActivity} />

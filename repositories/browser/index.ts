@@ -14,4 +14,5 @@ export * from "./BrowserSessionRepository";
 export * from "./BrowserRecallEventRepository";
 export * from "./BrowserSettingsRepository";
 export * from "./BrowserRoadmapRepository";
+export * from "./BrowserExamRepository";
 export * from "./BrowserBackupRepository";

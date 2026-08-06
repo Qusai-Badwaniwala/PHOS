@@ -23,6 +23,7 @@ const SESSIONS = [
     startedAt: new Date(2026, 7, 1, 9, 0).toISOString(),
     completed: true,
     pagesCompleted: 3,
+    pageNumbers: [12, 13, 14],
     recallCount: 3,
   }),
   sessionStatistics({
@@ -30,13 +31,16 @@ const SESSIONS = [
     startedAt: new Date(2026, 7, 3, 9, 0).toISOString(),
     completed: false,
     pagesCompleted: 1,
+    pageNumbers: [40],
     recallCount: 1,
   }),
   sessionStatistics({
     sessionId: "aug-02",
     startedAt: new Date(2026, 7, 2, 9, 0).toISOString(),
     completed: true,
+    sessionType: "Manzil",
     pagesCompleted: 2,
+    pageNumbers: [582, 583],
     recallCount: 2,
   }),
 ];
@@ -92,17 +96,35 @@ describe("filtering", () => {
   });
 
   it("searches the description as well as the title", async () => {
-    // "3 page(s)" only ever appears in the description, so a search
+    // A page number only ever appears in the description, so a search
     // that matched titles alone would silently return nothing.
-    const data = await getHistory({ search: "3 page" });
+    const data = await getHistory({ search: "12–14" });
 
     expect(data.entries.map((entry) => entry.id)).toEqual(["aug-01"]);
   });
 
-  it("searches case-insensitively", async () => {
-    const data = await getHistory({ search: "COMPLETED SESSION" });
+  it("lets a user find a session by a page they studied", async () => {
+    // The reason pages are in the record at all: "when did I last do
+    // 582?" is a question a Hafiz actually asks.
+    const data = await getHistory({ search: "582" });
 
-    expect(data.entries).toHaveLength(2);
+    expect(data.entries.map((entry) => entry.id)).toEqual(["aug-02"]);
+  });
+
+  it("searches case-insensitively", async () => {
+    const data = await getHistory({ search: "COMPLETED MEMORIZATION" });
+
+    expect(data.entries).toHaveLength(1);
+  });
+
+  it("distinguishes revision from new memorization", async () => {
+    /*
+     * Both read "Completed session" before, so a record of the day's
+     * work could not say what kind of work it was.
+     */
+    const data = await getHistory({ search: "revision" });
+
+    expect(data.entries.map((entry) => entry.id)).toEqual(["aug-02"]);
   });
 
   it("applies several filters together rather than the last one only", async () => {

@@ -484,3 +484,74 @@ describe("the study budget", () => {
     expect(ops.getHistoricalReport).toHaveBeenCalledWith(ReportingPeriod.Weekly);
   });
 });
+
+/**
+ * Recent activity.
+ *
+ * Raised by the product owner: every entry read "Completed session",
+ * whether it was revision or new memorization, and never said which
+ * pages. A record of a Hifz day that cannot say what was studied is
+ * not much of a record.
+ */
+describe("recent activity", () => {
+  it("names the pages that were actually studied", async () => {
+    ops.getHistoricalReport.mockResolvedValue(
+      historicalReport([
+        sessionStatistics({ sessionId: "s1", completed: true, pageNumbers: [12, 13, 14] }),
+      ]),
+    );
+
+    const data = await getDashboardData();
+
+    expect(data.recentActivity[0]!.detail).toBe("Pages 12–14");
+  });
+
+  it("distinguishes revision from new memorization", async () => {
+    ops.getHistoricalReport.mockResolvedValue(
+      historicalReport([
+        sessionStatistics({ sessionId: "s1", sessionType: "Manzil", completed: true }),
+      ]),
+    );
+
+    const data = await getDashboardData();
+
+    expect(data.recentActivity[0]!.title).toBe("Completed revision");
+  });
+
+  it("says memorization for a Sabaq", async () => {
+    ops.getHistoricalReport.mockResolvedValue(
+      historicalReport([
+        sessionStatistics({ sessionId: "s1", sessionType: "Sabaq", completed: true }),
+      ]),
+    );
+
+    const data = await getDashboardData();
+
+    expect(data.recentActivity[0]!.title).toBe("Completed memorization");
+  });
+
+  it("names an unfinished session as in progress, without claiming it is done", async () => {
+    ops.getHistoricalReport.mockResolvedValue(
+      historicalReport([
+        sessionStatistics({ sessionId: "s1", sessionType: "Sabaq", completed: false }),
+      ]),
+    );
+
+    const data = await getDashboardData();
+
+    expect(data.recentActivity[0]!.title).toBe("Memorization in progress");
+    expect(data.recentActivity[0]!.status).toBe("pending");
+  });
+
+  it("omits the detail line rather than printing an empty one", async () => {
+    // A session whose items could not be resolved still has a title and
+    // a date; it just has nothing to say about pages.
+    ops.getHistoricalReport.mockResolvedValue(
+      historicalReport([sessionStatistics({ sessionId: "s1", pageNumbers: [] })]),
+    );
+
+    const data = await getDashboardData();
+
+    expect(data.recentActivity[0]!.detail).toBeUndefined();
+  });
+});

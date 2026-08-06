@@ -87,9 +87,11 @@ export function sessionStatistics(
 ): SessionStatisticsDTO {
   return {
     sessionId: "session-1",
+    sessionType: "Sabaq",
     startedAt: new Date(2026, 7, 1, 10, 0).toISOString(),
     durationSeconds: 600,
     pagesCompleted: 2,
+    pageNumbers: [12, 13],
     recallCount: 2,
     successRatio: 1,
     completed: true,

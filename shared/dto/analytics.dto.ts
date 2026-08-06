@@ -65,9 +65,13 @@ export interface GoalProjectionDTO {
 
 export interface SessionStatisticsDTO {
   readonly sessionId: string;
+  /** Sabaq, Sabqi, Manzil or Recovery — what kind of work this was. */
+  readonly sessionType: string;
   readonly startedAt: string;
   readonly durationSeconds: number;
   readonly pagesCompleted: number;
+  /** The pages themselves, ascending. */
+  readonly pageNumbers: readonly number[];
   readonly recallCount: number;
   readonly successRatio: number;
   readonly completed: boolean;

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { formatDate, formatDateTime, formatTime } from "@/lib/format";
+import {
+  formatDate,
+  formatDateTime,
+  formatTime,
+  describeSessionType,
+  formatPageList,
+} from "@/lib/format";
 
 /**
  * These functions exist because `toLocaleDateString()` renders whatever
@@ -56,5 +62,49 @@ describe("formatTime", () => {
 describe("formatDateTime", () => {
   it("combines both preferences", () => {
     expect(formatDateTime(SAMPLE, "dmy", "24h")).toBe("03/08/2026 15:05");
+  });
+});
+
+/**
+ * How a day's pages are written out.
+ *
+ * Raised by the product owner: "Completed session" said whether you
+ * worked, not on what — and read identically for revision and new
+ * memorization. Shared by the Dashboard and History so the same session
+ * can never be described two different ways.
+ */
+describe("formatPageList", () => {
+  it("collapses a contiguous run, because eight numbers is a wall of digits", () => {
+    expect(formatPageList([582, 583, 584, 585, 586, 587, 588, 589])).toBe("Pages 582–589");
+  });
+
+  it("keeps gaps, because a gap is real information about the day", () => {
+    expect(formatPageList([1, 4, 7])).toBe("Pages 1, 4, 7");
+  });
+
+  it("mixes runs and gaps", () => {
+    expect(formatPageList([582, 583, 584, 590])).toBe("Pages 582–584, 590");
+  });
+
+  it("uses the singular for one page", () => {
+    expect(formatPageList([7])).toBe("Page 7");
+  });
+
+  it("sorts and de-duplicates whatever it is given", () => {
+    expect(formatPageList([3, 1, 2, 2])).toBe("Pages 1–3");
+  });
+
+  it("returns nothing for nothing, so a caller can omit the line", () => {
+    expect(formatPageList([])).toBe("");
+  });
+});
+
+describe("describeSessionType", () => {
+  it("calls Sabaq memorization and everything else revision", () => {
+    // The distinction the history could not previously make.
+    expect(describeSessionType("Sabaq")).toBe("Memorization");
+    expect(describeSessionType("Sabqi")).toBe("Revision");
+    expect(describeSessionType("Manzil")).toBe("Revision");
+    expect(describeSessionType("Recovery")).toBe("Revision");
   });
 });

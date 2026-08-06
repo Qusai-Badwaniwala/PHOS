@@ -1,5 +1,10 @@
 import { analyticsOps } from "@/client/operations";
-import { formatDatePreferred, formatTimePreferred } from "@/lib/format";
+import {
+  describeSessionType,
+  formatDatePreferred,
+  formatPageList,
+  formatTimePreferred,
+} from "@/lib/format";
 import { ReportingPeriod } from "@/shared/types";
 import type { HistoryDTO, HistoryFiltersDTO, TimelineEntryDTO } from "@/types/dto";
 
@@ -20,13 +25,19 @@ export async function getHistory(filters?: HistoryFiltersDTO): Promise<HistoryDT
     .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
     .map((s) => {
       const sessionDate = new Date(s.startedAt);
+      const kind = describeSessionType(s.sessionType);
+      const pages = formatPageList(s.pageNumbers);
       return {
         id: s.sessionId,
         type: "session",
-        title: s.completed ? "Completed session" : "Session in progress",
+        title: s.completed ? `Completed ${kind.toLowerCase()}` : `${kind} in progress`,
         date: formatDatePreferred(sessionDate),
         time: formatTimePreferred(sessionDate),
-        description: `${s.pagesCompleted} page(s), ${s.recallCount} recall(s)`,
+        // Pages lead, because that is what the entry is a record of.
+        // The recall count follows as supporting detail.
+        description: pages
+          ? `${pages} · ${s.recallCount} recall${s.recallCount === 1 ? "" : "s"}`
+          : `${s.pagesCompleted} page${s.pagesCompleted === 1 ? "" : "s"}, ${s.recallCount} recall${s.recallCount === 1 ? "" : "s"}`,
         status: s.completed ? "completed" : "pending",
       };
     });

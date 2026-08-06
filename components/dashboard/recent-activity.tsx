@@ -55,6 +55,7 @@ export function RecentActivity({ activities, className }: RecentActivityProps) {
               </div>
               <div>
                 <p className="text-sm font-medium">{activity.title}</p>
+                {activity.detail && <p className="text-xs text-foreground/80">{activity.detail}</p>}
                 <p className="text-xs text-muted-foreground">{activity.date}</p>
               </div>
             </div>

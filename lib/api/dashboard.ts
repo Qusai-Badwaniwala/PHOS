@@ -1,7 +1,12 @@
 import { analyticsOps, sessionOps } from "@/client/operations";
 import { getDailyStudyMinutes } from "./settings";
 import { primarySurahForPage, surahLabelForRange } from "@/shared/constants";
-import { formatApproximateDuration, formatDatePreferred } from "@/lib/format";
+import {
+  describeSessionType,
+  formatApproximateDuration,
+  formatDatePreferred,
+  formatPageList,
+} from "@/lib/format";
 import { SESSION_TYPE_WORKLOAD_CATEGORIES } from "@/engines/learning/constants";
 import { ReportingPeriod, SessionType, WorkloadCategory } from "@/shared/types";
 import type { GoalProjectionDTO } from "@/shared/dto";
@@ -276,13 +281,20 @@ export async function getDashboardData(): Promise<DashboardDTO> {
   const recentActivity: ActivityItemDTO[] = [...weekHistory.sessions]
     .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime())
     .slice(0, 5)
-    .map((s) => ({
-      id: s.sessionId,
-      type: "session",
-      title: s.completed ? "Completed session" : "Session in progress",
-      date: formatDatePreferred(s.startedAt),
-      status: s.completed ? "completed" : "pending",
-    }));
+    .map((s) => {
+      // "Completed session" described a revision and new memorization
+      // identically, and never said which pages. Both are recoverable
+      // from data the engine already had.
+      const kind = describeSessionType(s.sessionType);
+      return {
+        id: s.sessionId,
+        type: "session" as const,
+        title: s.completed ? `Completed ${kind.toLowerCase()}` : `${kind} in progress`,
+        detail: formatPageList(s.pageNumbers) || undefined,
+        date: formatDatePreferred(s.startedAt),
+        status: s.completed ? ("completed" as const) : ("pending" as const),
+      };
+    });
 
   // A single recorded recall is the line between "PHOS has seen you
   // study" and "PHOS is quoting its own opening assumptions back".

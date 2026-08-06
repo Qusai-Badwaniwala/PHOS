@@ -1,3 +1,4 @@
+import type { SessionType } from "./enums";
 import type { MemoryState, ReportingPeriod, TrendDirection } from "./enums";
 
 /**
@@ -90,9 +91,24 @@ export interface RetentionQuality {
  */
 export interface SessionStatistics {
   readonly sessionId: string;
+  /**
+   * Which kind of work this was.
+   *
+   * Carried because "Completed session" is what the history said for a
+   * revision as much as for new memorization, which made a record of
+   * the day's work unable to describe the day's work.
+   */
+  readonly sessionType: SessionType;
   readonly startedAt: Date;
   readonly durationSeconds: number;
   readonly pagesCompleted: number;
+  /**
+   * The pages themselves, ascending — not just how many.
+   *
+   * A count answers "did I work?" and a Hifz record has to answer "on
+   * what?". Empty only for a session whose items could not be resolved.
+   */
+  readonly pageNumbers: readonly number[];
   readonly recallCount: number;
   readonly successRatio: number;
   readonly completed: boolean;

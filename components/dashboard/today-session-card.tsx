@@ -88,19 +88,27 @@ export function TodaySessionCard({ session, className }: TodaySessionCardProps) 
         size="sm"
       />
 
-      {/* CTA */}
-      <Button className="w-full font-medium" asChild={!session}>
-        {session ? (
-          <span className="flex items-center justify-center gap-2">
-            <Play className="h-4 w-4" aria-hidden="true" />
-            {session?.status === "in_progress" ? "Continue Session" : "Start Session"}
-          </span>
-        ) : (
-          <Link href="/session" className="flex items-center justify-center gap-2">
-            <Play className="h-4 w-4" aria-hidden="true" />
-            Go to Session
-          </Link>
-        )}
+      {/*
+        CTA.
+
+        Always a link, whatever the state. It previously rendered a bare
+        `<span>` whenever a session existed — no href, no handler — so
+        the button was dead in precisely the case where there was
+        something to start, and worked only when there was nothing to
+        do. It had been that way since the first commit; the flow stayed
+        reachable through the sidebar, which is why it went unnoticed.
+
+        Only the label varies. The destination never does.
+      */}
+      <Button className="w-full font-medium" asChild>
+        <Link href="/session" className="flex items-center justify-center gap-2">
+          <Play className="h-4 w-4" aria-hidden="true" />
+          {!session
+            ? "Go to Session"
+            : session.status === "in_progress"
+              ? "Continue Session"
+              : "Start Session"}
+        </Link>
       </Button>
     </article>
   );

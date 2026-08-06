@@ -162,6 +162,16 @@ export interface ActivityItemDTO {
   id: string;
   type: ActivityType;
   title: string;
+  /**
+   * Which pages the work covered, e.g. "Pages 582–589".
+   *
+   * A record of a Hifz day has to say what was studied. "Completed
+   * session" answers whether you worked, not on what — and it read
+   * identically for revision and new memorization.
+   *
+   * Absent for activity that has no pages, such as a backup.
+   */
+  detail?: string;
   date: string;
   status: ActivityStatus;
 }

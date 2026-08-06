@@ -53,9 +53,11 @@ export function toGoalProjectionDTO(projection: GoalProjection): GoalProjectionD
 export function toSessionStatisticsDTO(stats: SessionStatistics): SessionStatisticsDTO {
   return {
     sessionId: stats.sessionId,
+    sessionType: stats.sessionType,
     startedAt: stats.startedAt.toISOString(),
     durationSeconds: stats.durationSeconds,
     pagesCompleted: stats.pagesCompleted,
+    pageNumbers: stats.pageNumbers,
     recallCount: stats.recallCount,
     successRatio: stats.successRatio,
     completed: stats.completed,

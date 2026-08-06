@@ -140,3 +140,48 @@ export function formatApproximateDuration(days: number): string {
   const years = Math.round((absolute / 365) * 10) / 10;
   return `about ${years} year${years === 1 ? "" : "s"}`;
 }
+
+/**
+ * Page numbers written the way a Hafiz would say them: contiguous runs
+ * collapsed, gaps preserved.
+ *
+ *   [1, 2, 3]            -> "Pages 1–3"
+ *   [1, 4, 7]            -> "Pages 1, 4, 7"
+ *   [582, 583, 584, 590] -> "Pages 582–584, 590"
+ *   [7]                  -> "Page 7"
+ *
+ * Runs are collapsed rather than every number listed, because a full
+ * revision day is eight pages and "582, 583, 584, 585, 586, 587, 588,
+ * 589" is a wall of digits nobody reads. Gaps are *not* collapsed,
+ * because a gap is real information — it says the day was not one
+ * continuous stretch.
+ *
+ * Shared by the Dashboard's recent activity and the History page so the
+ * same session can never be described two different ways.
+ */
+export function formatPageList(pageNumbers: readonly number[]): string {
+  const sorted = [...new Set(pageNumbers)].sort((a, b) => a - b);
+  if (sorted.length === 0) return "";
+
+  const runs: string[] = [];
+  let start = sorted[0]!;
+  let previous = start;
+
+  for (const pageNumber of sorted.slice(1)) {
+    if (pageNumber === previous + 1) {
+      previous = pageNumber;
+      continue;
+    }
+    runs.push(start === previous ? `${start}` : `${start}–${previous}`);
+    start = pageNumber;
+    previous = pageNumber;
+  }
+  runs.push(start === previous ? `${start}` : `${start}–${previous}`);
+
+  return `${sorted.length === 1 ? "Page" : "Pages"} ${runs.join(", ")}`;
+}
+
+/** "Memorization" or "Revision" — what the user calls this kind of work. */
+export function describeSessionType(sessionType: string): string {
+  return sessionType === "Sabaq" ? "Memorization" : "Revision";
+}

@@ -123,10 +123,11 @@ export class AnalyticsEngine implements IAnalyticsEngine {
   async generateSessionStatistics(sessionId: string): Promise<SessionStatistics> {
     const correlationId = generateCorrelationId();
     try {
-      const [session, sessionItems, recallEvents] = await Promise.all([
+      const [session, sessionItems, recallEvents, pages] = await Promise.all([
         this.deps.sessionRepository.findById(sessionId),
         this.deps.sessionRepository.findSessionItems(sessionId),
         this.deps.recallEventRepository.findBySession(sessionId),
+        this.deps.pageRepository.findAll(),
       ]);
 
       if (!session) {
@@ -136,7 +137,7 @@ export class AnalyticsEngine implements IAnalyticsEngine {
         );
       }
 
-      return buildSessionStatistics(session, sessionItems, recallEvents);
+      return buildSessionStatistics(session, sessionItems, recallEvents, pageNumbersById(pages));
     } catch (error) {
       if (error instanceof StatisticsGenerationError) {
         throw error;
@@ -156,13 +157,18 @@ export class AnalyticsEngine implements IAnalyticsEngine {
       const { start, end } = resolveDateRange(period, now);
       const sessions = await this.deps.sessionRepository.findBetweenDates(start, end);
 
+      // Built once for the whole report rather than per session: a
+      // weekly report covers many sessions and each would otherwise
+      // re-read all 604 pages.
+      const pageNumbers = pageNumbersById(await this.deps.pageRepository.findAll());
+
       const sessionStatistics = await Promise.all(
         sessions.map(async (session) => {
           const [sessionItems, recallEvents] = await Promise.all([
             this.deps.sessionRepository.findSessionItems(session.id),
             this.deps.recallEventRepository.findBySession(session.id),
           ]);
-          return buildSessionStatistics(session, sessionItems, recallEvents);
+          return buildSessionStatistics(session, sessionItems, recallEvents, pageNumbers);
         }),
       );
 
@@ -274,4 +280,9 @@ function buildLearningProgressSummary(
 
 function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/** Page id → the page number a human reads. */
+function pageNumbersById(pages: readonly Page[]): ReadonlyMap<string, number> {
+  return new Map(pages.map((page) => [page.id, page.pageNumber]));
 }

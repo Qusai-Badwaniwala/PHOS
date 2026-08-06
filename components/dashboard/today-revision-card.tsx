@@ -77,19 +77,19 @@ export function TodayRevisionCard({ revision, className }: TodayRevisionCardProp
         size="sm"
       />
 
-      {/* CTA */}
-      <Button variant="secondary" className="w-full font-medium" asChild={!revision}>
-        {revision ? (
-          <span className="flex items-center justify-center gap-2">
-            <Play className="h-4 w-4" aria-hidden="true" />
-            {revision?.status === "in_progress" ? "Continue Revision" : "Start Revision"}
-          </span>
-        ) : (
-          <Link href="/revision" className="flex items-center justify-center gap-2">
-            <Play className="h-4 w-4" aria-hidden="true" />
-            Go to Revision
-          </Link>
-        )}
+      {/*
+        CTA. See `today-session-card.tsx` — this carried the identical
+        inverted condition, dead exactly when there was revision waiting.
+      */}
+      <Button variant="secondary" className="w-full font-medium" asChild>
+        <Link href="/revision" className="flex items-center justify-center gap-2">
+          <Play className="h-4 w-4" aria-hidden="true" />
+          {!revision
+            ? "Go to Revision"
+            : revision.status === "in_progress"
+              ? "Continue Revision"
+              : "Start Revision"}
+        </Link>
       </Button>
     </article>
   );

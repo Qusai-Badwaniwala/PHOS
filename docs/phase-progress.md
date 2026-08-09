@@ -1217,3 +1217,53 @@ picked a case identical before and after.
 
 Every defect that reached a user was found by Qusai opening the
 application. None was reachable from the tests.
+
+---
+
+# After v0.2.0 — defects found in use
+
+## The Dashboard's primary actions were dead
+
+Reported: "click start session and go to revision, nothing happens."
+
+Both cards rendered the action as a bare `<span>` whenever a session or
+revision existed, and as a `<Link>` only when there was nothing to do —
+so the button worked in exactly the case a user would not press it.
+
+```tsx
+asChild={!session}
+{session ? <span>Start Session</span>      // no href, no handler
+         : <Link href="/session">…</Link>}
+```
+
+Present since `ac593c9`, the first commit. It survived twelve phases and
+a public release because both screens stay reachable from the sidebar:
+the flow was never blocked, only the shortcut. Neither button had a
+single test.
+
+Fixed by making the action always a link and varying only the label. The
+eight tests added assert the `href` rather than the label — a
+label-based assertion passes happily against a dead span, which is
+exactly how this hid.
+
+## "Completed session" could not describe the session
+
+Reported alongside it: Recent Activity and History said "Completed
+session" for revision and new memorization alike, and never named the
+pages.
+
+`SessionStatistics` now carries `sessionType` and the page numbers,
+both recovered from data the engines already held. Page ids resolve
+through one map built per report rather than per session — a weekly
+report covers many sessions and a lookup per item is the N+1 this layer
+exists to avoid.
+
+Entries read "Completed memorization · Pages 12–14". Runs collapse
+because eight consecutive numbers is unreadable; gaps do not, because a
+gap says the day was not one continuous stretch. One shared formatter
+serves both screens, so a session cannot be described two ways. History
+became searchable by page number as a side effect — "when did I last do
+582?" is how the question actually gets asked.
+
+Gate after both: 508 Vitest + 174 Jest. Five defects injected, five
+caught.

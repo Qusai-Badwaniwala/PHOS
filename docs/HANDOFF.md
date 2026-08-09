@@ -22,7 +22,7 @@ Author and product owner: **Qusai**.
 
 ---
 
-## Current state — v0.2.0, shipped and in use
+## Current state — v0.2.1, shipped and in use
 
 |               |                                                    |
 | ------------- | -------------------------------------------------- |
@@ -30,8 +30,8 @@ Author and product owner: **Qusai**.
 | Repository    | https://github.com/Qusai-Badwaniwala/PHOS (public) |
 | Project root  | `phos-handoff/phos-integrated/`                    |
 | First shipped | 2026-08-04 (v0.1.0, phases 0–8)                    |
-| Current       | 2026-08-05 (v0.2.0, phases 10–12)                  |
-| Database      | version 2 · service worker cache `phos-v3`         |
+| Current       | 2026-08-05 (v0.2.1, phases 10–12 + fixes)          |
+| Database      | version 2 · service worker cache `phos-v4`         |
 
 Twelve build phases complete. **PHOS has real users beyond Qusai**,
 which changes what is safe to do: see "If you change how stored data is
@@ -108,8 +108,8 @@ opens.
 npm run format
 npm run lint
 npm run typecheck
-npm run test           # 309 engine + repository tests (Vitest)
-npm run test:ui        # 107 component + page + service-worker tests (Jest)
+npm run test           # 508 engine + repository tests (Vitest)
+npm run test:ui        # 174 component + page + service-worker tests (Jest)
 npm run build          # static export into out/
 ```
 
@@ -143,8 +143,10 @@ defect in PHOS's history — a return allowance that was a no-op, a
 workload warning that was dead code, a 45% recall producing an
 _increase_, an unsatisfiable typed confirmation, a number field turning
 45 into 545, an onboarding preview that was never on screen, an offline
-route that died without its trailing slash — passed every test and
-every type check, and was found by a human opening the app.
+route that died without its trailing slash, a passed Self Exam computed
+through four layers that no screen rendered, and the Dashboard's two
+primary buttons which were dead from the first commit — passed every
+test and every type check, and was found by a human opening the app.
 
 So: **run it, click it, and look.** Then write the test that would have
 caught it, and prove the test fails without the fix.
@@ -152,6 +154,13 @@ caught it, and prove the test fails without the fix.
 **Verify a fix by restoring the defect.** Every regression test in this
 codebase was confirmed to fail against the original behaviour before
 being accepted. A test that has never failed is not yet a test.
+
+**Assert what a control _does_, not what it says.** "Start Session" and
+"Start Revision" rendered as a bare `<span>` — no href, no handler —
+from the first commit until v0.2.1. Both screens stayed reachable from
+the sidebar, so nothing was blocked and nobody noticed. Any test
+checking the label would have passed; the ones that catch it assert the
+`href`.
 
 ---
 

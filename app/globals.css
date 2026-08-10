@@ -135,6 +135,47 @@
 
     /* Border radius */
     --radius: 0.5rem;
+
+    /*
+     * Motion — two curves and two durations, and nothing else.
+     *
+     * `--ease-spring` is a critically damped spring written as a native
+     * `linear()` easing: it reaches the target quickly and settles
+     * without overshoot. Critically damped is the default because
+     * overshoot on something that merely appeared reads as decoration;
+     * bounce is earned by momentum, and nothing in PHOS is thrown or
+     * flicked.
+     *
+     * `--ease-out-soft` is for opacity and colour, where a spring has
+     * nothing to settle into.
+     *
+     * No animation library. `linear()` is native, runs on the
+     * compositor with transform/opacity, and costs nothing to ship —
+     * which matters for an offline-first app whose whole promise is
+     * that it opens instantly.
+     */
+    --ease-spring: linear(
+      0,
+      0.006,
+      0.025 2.8%,
+      0.101 6.1%,
+      0.539 18.9%,
+      0.721 25.3%,
+      0.849 31.5%,
+      0.937 38.1%,
+      0.968 41.8%,
+      0.991 45.7%,
+      1.006 50.1%,
+      1.015 55%,
+      1.017 63.9%,
+      1.001
+    );
+    --ease-out-soft: cubic-bezier(0.32, 0.72, 0, 1);
+
+    /** Press feedback. Short enough to feel like contact, not animation. */
+    --duration-press: 100ms;
+    /** State change: a card settling, a panel arriving. */
+    --duration-settle: 400ms;
   }
 
   .dark {
@@ -252,15 +293,48 @@
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
 
-  /* Heading rhythm */
+  /*
+   * Heading rhythm.
+   *
+   * `tracking-tight` used to be applied to every heading level, which
+   * is one letter-spacing value across sizes from 3xl down to base —
+   * too tight on the small ones and not tight enough on the large. The
+   * type scale in `tailwind.config.ts` now pairs tracking with size, so
+   * the blanket rule is gone and only the font feature remains.
+   */
   h1,
   h2,
   h3,
   h4,
   h5,
   h6 {
-    @apply tracking-tight;
     font-feature-settings: "salt" 1;
+    text-wrap: balance;
+  }
+
+  /*
+   * Feedback on press, not on release.
+   *
+   * The moment a control acknowledges the finger is the difference
+   * between an interface that feels direct and one that feels remote,
+   * and PHOS acknowledged nothing until navigation completed. The scale
+   * is small on purpose: this should register as contact, not as an
+   * animation someone chose.
+   *
+   * Scoped to real controls rather than every element, and paired with
+   * `touch-action: manipulation` to drop the legacy 300ms tap delay —
+   * a latency on the input path that no amount of easing can hide.
+   */
+  button:not(:disabled),
+  a[href],
+  [role="button"]:not([aria-disabled="true"]) {
+    touch-action: manipulation;
+  }
+
+  button:not(:disabled):active,
+  [role="button"]:not([aria-disabled="true"]):active {
+    transform: scale(0.975);
+    transition: transform var(--duration-press) var(--ease-out-soft);
   }
 }
 
@@ -284,18 +358,71 @@
 
   /* Animation utilities */
   .animate-fade-in {
-    animation: fade-in 0.25s ease-out;
+    animation: fade-in var(--duration-settle) var(--ease-spring);
   }
 
   @keyframes fade-in {
     from {
       opacity: 0;
-      transform: translateY(4px);
+      transform: translateY(6px);
     }
     to {
       opacity: 1;
       transform: translateY(0);
     }
+  }
+
+  /*
+   * Scroll edge effects.
+   *
+   * A floating bar separated from content by a 1px rule draws that rule
+   * even when nothing is behind it. These fade the material into the
+   * page instead, so the separation appears exactly where content
+   * passes underneath and nowhere else — the chrome reads as floating
+   * above the page rather than as a strip cut out of it.
+   *
+   * The bright inner edge is the same idea as light catching the top of
+   * a real pane of glass; it is what stops a translucent surface
+   * looking like flat tinted plastic.
+   */
+  .scroll-edge {
+    box-shadow:
+      inset 0 1px 0 0 hsl(0 0% 100% / 0.06),
+      0 1px 0 0 hsl(var(--border) / 0.5),
+      0 8px 16px -12px hsl(24 9% 18% / 0.28);
+  }
+
+  .scroll-edge-top {
+    box-shadow:
+      inset 0 1px 0 0 hsl(0 0% 100% / 0.08),
+      0 -1px 0 0 hsl(var(--border) / 0.5),
+      0 -10px 22px -14px hsl(24 9% 18% / 0.3);
+  }
+
+  /*
+   * A card that responds to being pointed at.
+   *
+   * Only for cards that are themselves a control — a card that merely
+   * displays a number should not imply it can be pressed. The lift is
+   * small and the settle is a critically damped spring, so it reads as
+   * the surface rising to meet the cursor rather than as an effect.
+   */
+  .surface-interactive {
+    transition:
+      box-shadow var(--duration-settle) var(--ease-spring),
+      transform var(--duration-settle) var(--ease-spring);
+  }
+
+  @media (hover: hover) {
+    .surface-interactive:hover {
+      box-shadow: theme("boxShadow.card-hover");
+      transform: translateY(-2px);
+    }
+  }
+
+  .surface-interactive:active {
+    transform: translateY(0) scale(0.995);
+    transition-duration: var(--duration-press);
   }
 
   /*
@@ -312,13 +439,43 @@
    * treatment for users who asked the operating system for it, so the
    * app respects that preference without them finding this setting.
    */
+  /*
+   * Reduced motion means *gentler* motion, not the absence of feedback.
+   *
+   * This used to collapse every duration to 0.01ms, which killed the
+   * useful along with the decorative: a button no longer acknowledged a
+   * press, a progress bar jumped, and state changes happened with no
+   * indication that anything had changed. Someone who asks for reduced
+   * motion is asking not to be made dizzy — they are not asking for an
+   * interface that stops responding to them.
+   *
+   * So: anything that *travels* is stilled, because vestibular
+   * discomfort comes from movement across the screen. Opacity and
+   * colour keep a short cross-fade, because that is how the interface
+   * answers you. This is the WCAG 2.3.3 reading and Apple's.
+   *
+   * Stilling is done by removing `transform` from the transition
+   * property list, and NOT by setting `transform: none`. Transform is
+   * also a *layout* tool: the dialog is centred with
+   * `translate(-50%, -50%)`, so a blanket `transform: none` would throw
+   * every modal in the app into the bottom-right quadrant — for exactly
+   * the users least able to cope with it. The press feedback is
+   * disabled separately below, where it can be named.
+   */
   .reduce-motion *,
   .reduce-motion *::before,
-  .reduce-motion *::after {
+  .reduce-motion *::after,
+  .reduce-motion-media *,
+  .reduce-motion-media *::before,
+  .reduce-motion-media *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+    /* Nothing moves… */
+    transition-property:
+      opacity, background-color, border-color, color, fill, stroke, box-shadow !important;
+    /* …but the interface still replies. */
+    transition-duration: 150ms !important;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -327,8 +484,55 @@
     *::after {
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
+      transition-property:
+        opacity, background-color, border-color, color, fill, stroke, box-shadow !important;
+      transition-duration: 150ms !important;
+    }
+  }
+
+  /*
+   * The press scale, specifically. Named rather than swept up by a
+   * blanket rule, so it is obvious what is being turned off and why:
+   * the button still answers a press through its background colour,
+   * which the cross-fade above preserves.
+   */
+  .reduce-motion button:active,
+  .reduce-motion [role="button"]:active {
+    transform: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    button:active,
+    [role="button"]:active {
+      transform: none;
+    }
+  }
+
+  /*
+   * Translucency is a preference too, and PHOS never honoured it.
+   *
+   * `backdrop-filter` behind the navigation is a material; for someone
+   * who has asked their system to reduce transparency it is a
+   * legibility problem. The surface becomes solid rather than merely
+   * less blurred — a half-frosted panel is the worst of both.
+   */
+  @media (prefers-reduced-transparency: reduce) {
+    .material-chrome {
+      backdrop-filter: none !important;
+      background-color: hsl(var(--card)) !important;
+    }
+  }
+
+  /*
+   * And contrast. At `more`, the decorative/control split in `--border`
+   * and `--input` stops being a useful distinction: every edge should
+   * be a defined one.
+   */
+  @media (prefers-contrast: more) {
+    :root,
+    .dark {
+      --border: var(--input);
     }
   }
 

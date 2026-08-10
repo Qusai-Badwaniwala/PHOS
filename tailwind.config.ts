@@ -114,11 +114,60 @@ const config: Config = {
         "8xl": "90rem",
       },
       /* Subtle shadow scale */
+      /*
+       * Type scale — size, leading and tracking as one decision.
+       *
+       * These override Tailwind's stock `text-*` sizes rather than
+       * adding new names, so every `text-sm` and `text-2xl` already in
+       * the app gets the right optical treatment without touching a
+       * single component. The app previously ran Tailwind's defaults,
+       * which pair every size with the same tracking (none) — and a
+       * fixed letter-spacing is wrong at some size by definition.
+       *
+       * Tracking is size-specific and moves *against* size: large text
+       * reads too loose as it grows, so it tightens; small text needs a
+       * little air to stay legible, so it opens. Leading moves the same
+       * way — tight on a heading, comfortable on body copy.
+       *
+       * This is also why `h1..h6 { tracking-tight }` was removed from
+       * globals.css: one tracking value applied to every heading level
+       * is precisely the mistake this table exists to fix.
+       */
+      fontSize: {
+        xs: ["0.75rem", { lineHeight: "1.45", letterSpacing: "0.01em" }],
+        sm: ["0.875rem", { lineHeight: "1.55", letterSpacing: "0.005em" }],
+        base: ["1rem", { lineHeight: "1.6", letterSpacing: "0em" }],
+        lg: ["1.125rem", { lineHeight: "1.5", letterSpacing: "-0.005em" }],
+        xl: ["1.25rem", { lineHeight: "1.4", letterSpacing: "-0.012em" }],
+        "2xl": ["1.5rem", { lineHeight: "1.25", letterSpacing: "-0.018em" }],
+        "3xl": ["1.875rem", { lineHeight: "1.15", letterSpacing: "-0.022em" }],
+        "4xl": ["2.25rem", { lineHeight: "1.08", letterSpacing: "-0.026em" }],
+        "5xl": ["3rem", { lineHeight: "1.04", letterSpacing: "-0.03em" }],
+      },
+
+      /*
+       * Elevation, and what each level is *for*.
+       *
+       * The app had three near-identical 1px shadows, so every surface
+       * sat at the same height and hierarchy was carried by font size
+       * alone. These separate structural surfaces from interactive ones
+       * and give the floating chrome a genuinely different weight:
+       * bigger surfaces read as thicker.
+       *
+       * Two layers each — a tight contact shadow that grounds the edge,
+       * and a wider ambient one that carries the height. Warm-tinted
+       * rather than neutral black, so a raised card still belongs to the
+       * sand palette instead of greying it.
+       */
       boxShadow: {
-        card: "0 1px 3px 0 hsl(24 9% 18% / 0.06), 0 1px 2px -1px hsl(24 9% 18% / 0.06)",
-        "card-hover": "0 4px 6px -1px hsl(24 9% 18% / 0.08), 0 2px 4px -2px hsl(24 9% 18% / 0.06)",
+        card: "0 1px 2px -1px hsl(24 9% 18% / 0.07), 0 2px 6px -2px hsl(24 9% 18% / 0.06)",
+        "card-hover": "0 2px 4px -2px hsl(24 9% 18% / 0.09), 0 8px 20px -6px hsl(24 9% 18% / 0.10)",
         "primary-card":
-          "0 1px 3px 0 hsl(356 32% 33% / 0.12), 0 1px 2px -1px hsl(356 32% 33% / 0.08)",
+          "0 1px 2px -1px hsl(356 32% 33% / 0.14), 0 4px 14px -4px hsl(356 32% 33% / 0.12)",
+        /** Floating chrome: sheets, popovers, the mobile bar. Thicker on purpose. */
+        raised: "0 2px 6px -2px hsl(24 9% 18% / 0.10), 0 16px 32px -12px hsl(24 9% 18% / 0.16)",
+        /** Pressed state — the surface sinks toward the page. */
+        pressed: "inset 0 1px 2px 0 hsl(24 9% 18% / 0.10)",
       },
     },
   },

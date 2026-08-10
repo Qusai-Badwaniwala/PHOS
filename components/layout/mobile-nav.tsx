@@ -36,7 +36,13 @@ export function MobileNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:hidden"
+      /*
+        The bottom bar is the heaviest floating surface in the app and
+        should read as the thickest: a stronger blur, a real shadow
+        lifting it off the page, and a bright top edge where the light
+        catches the material. See `top-nav.tsx` for why the border went.
+      */
+      className="material-chrome scroll-edge-top fixed bottom-0 left-0 right-0 z-40 bg-background/70 shadow-raised backdrop-blur-xl backdrop-saturate-150 lg:hidden"
       aria-label="Mobile navigation"
       role="navigation"
     >

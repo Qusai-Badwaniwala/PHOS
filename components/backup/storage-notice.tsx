@@ -58,10 +58,7 @@ export function StorageNotice() {
           {report && report.persistence !== "unsupported" && (
             <div className="flex items-start gap-2 text-sm">
               {persistent ? (
-                <ShieldCheck
-                  className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400"
-                  aria-hidden="true"
-                />
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden="true" />
               ) : (
                 <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-gold" aria-hidden="true" />
               )}

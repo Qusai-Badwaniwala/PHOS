@@ -64,10 +64,30 @@ export default function DashboardPage() {
         >
           Today&apos;s Plan
         </h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <TodaySessionCard session={data.session} />
-          <TodayRevisionCard revision={data.revision} />
-        </div>
+        {/*
+          Which card is filled follows the day, and is decided once here
+          so the two can never disagree.
+
+          Revision leads whenever any is outstanding, because that is
+          what PHOS actually asks of the user — "revision comes first so
+          what you already know stays secure" is printed a few lines
+          below, and it was previously contradicted by Session being
+          permanently the filled button. On a half-page-a-day plan there
+          is frequently no new page at all, and the emphatic control
+          still pointed at it.
+
+          Once revision is done, new memorization becomes the primary
+          thing left to do and takes the emphasis back.
+        */}
+        {(() => {
+          const revisionOutstanding = data.revision != null && data.revision.status !== "completed";
+          return (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <TodaySessionCard session={data.session} isPrimaryAction={!revisionOutstanding} />
+              <TodayRevisionCard revision={data.revision} isPrimaryAction={revisionOutstanding} />
+            </div>
+          );
+        })()}
 
         {/* Why the plan looks like this — Requirement 4. Directly
             beneath the plan it explains, so the reasoning is read in

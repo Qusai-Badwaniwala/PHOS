@@ -13,13 +13,13 @@ export function StatusBadge({ status, children, className }: StatusBadgeProps) {
       className={cn(
         "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium tracking-wide",
         status === "success" || status === "completed"
-          ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400"
+          ? "bg-success-muted text-success"
           : status === "warning" || status === "pending"
-            ? "bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400"
+            ? "bg-warning-muted text-warning"
             : status === "error"
-              ? "bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-400"
+              ? "bg-destructive/15 text-destructive"
               : status === "info"
-                ? "bg-sky-50 text-sky-700 dark:bg-sky-900/20 dark:text-sky-400"
+                ? "bg-info-muted text-info"
                 : /* neutral */ "bg-muted text-muted-foreground",
         className,
       )}

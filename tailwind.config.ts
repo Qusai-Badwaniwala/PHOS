@@ -41,6 +41,33 @@ const config: Config = {
           DEFAULT: "hsl(var(--gold))",
           foreground: "hsl(var(--gold-foreground))",
         },
+        /**
+         * Status colours, named for meaning rather than hue.
+         *
+         * `success` not `emerald`, so the next screen that needs "this
+         * went well" reaches for the product's green instead of
+         * inventing one. Twenty files previously used stock Tailwind
+         * palette entries, which belong to a different, cooler colour
+         * system than PHOS's warm sand and maroon.
+         *
+         * `-muted` is the tinted surface each is legible on; every
+         * combination is verified in `tests/unit/design-tokens.test.ts`.
+         */
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+          muted: "hsl(var(--success-muted))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+          muted: "hsl(var(--warning-muted))",
+        },
+        info: {
+          DEFAULT: "hsl(var(--info))",
+          foreground: "hsl(var(--info-foreground))",
+          muted: "hsl(var(--info-muted))",
+        },
         popover: {
           DEFAULT: "hsl(var(--popover))",
           foreground: "hsl(var(--popover-foreground))",

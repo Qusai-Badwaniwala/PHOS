@@ -77,10 +77,7 @@ export function InstallGuide({ className }: InstallGuideProps) {
           className,
         )}
       >
-        <CheckCircle2
-          className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400"
-          aria-hidden="true"
-        />
+        <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" aria-hidden="true" />
         <p className="text-muted-foreground">
           PHOS is installed and running as an app. Nothing else to do.
         </p>

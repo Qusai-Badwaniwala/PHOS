@@ -9,10 +9,16 @@ import type { TodayRevisionDTO } from "@/types/dto";
 
 interface TodayRevisionCardProps {
   revision?: TodayRevisionDTO | null;
+  /** Whether this is the work PHOS wants done first today. See the CTA below. */
+  isPrimaryAction?: boolean;
   className?: string;
 }
 
-export function TodayRevisionCard({ revision, className }: TodayRevisionCardProps) {
+export function TodayRevisionCard({
+  revision,
+  isPrimaryAction = false,
+  className,
+}: TodayRevisionCardProps) {
   const hasAssignment = revision && revision.assignment;
 
   return (
@@ -81,7 +87,13 @@ export function TodayRevisionCard({ revision, className }: TodayRevisionCardProp
         CTA. See `today-session-card.tsx` — this carried the identical
         inverted condition, dead exactly when there was revision waiting.
       */}
-      <Button variant="secondary" className="w-full font-medium" asChild>
+      {/* See `today-session-card.tsx`: emphasis follows the day's real
+          order, from one shared value. */}
+      <Button
+        variant={isPrimaryAction ? "default" : "secondary"}
+        className="w-full font-medium"
+        asChild
+      >
         <Link href="/revision" className="flex items-center justify-center gap-2">
           <Play className="h-4 w-4" aria-hidden="true" />
           {!revision

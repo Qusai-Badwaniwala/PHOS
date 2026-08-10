@@ -99,7 +99,7 @@ export function RevisionControls({
           size="lg"
           onClick={onComplete}
           disabled={pending}
-          className="flex-1 bg-emerald-600 text-white hover:bg-emerald-700 sm:flex-none"
+          className="flex-1 bg-success text-success-foreground hover:bg-success/90 sm:flex-none"
         >
           {pending ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />

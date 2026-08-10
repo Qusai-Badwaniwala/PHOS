@@ -161,7 +161,25 @@ export function GoalSettings({ className }: GoalSettingsProps) {
             disabled={pending || position === null}
             onChange={(event) => setSelected(event.target.value)}
             aria-label="I want to have memorized through"
-            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            /*
+              `min-w-0` is load-bearing, not decoration.
+
+              A native `<select>`'s intrinsic minimum width is the width
+              of its widest option, and the widest here is "Juz 1 — 21
+              pages · already memorized" at roughly 345px. `w-full`
+              cannot shrink it below that on its own, so at a 320px
+              viewport this one control forced the whole Settings page
+              83px wider than the screen and the entire page scrolled
+              sideways — 167 elements pushed past the viewport by a
+              dropdown.
+
+              `min-w-0` lets it shrink; `truncate` keeps the collapsed
+              label readable rather than clipped mid-word. The options
+              themselves are unaffected: the browser renders the open
+              list at its own width, so nothing becomes unreadable at
+              the moment of choosing.
+            */
+            className="flex h-10 w-full min-w-0 items-center justify-between truncate rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <option value="">{position === null ? "Loading your order…" : "Choose a Juz"}</option>
             {milestones.map((milestone) => (

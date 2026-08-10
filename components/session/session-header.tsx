@@ -60,7 +60,15 @@ export function SessionHeader({
       )}
     >
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">{title}</h1>
+        {/*
+          `h2`, not `h1`. `TopNav` already emits the page's only `h1`
+          ("Memorization"), so this rendered a second one — and the cards
+          below are `h3`, which made the outline h1 → h1 → h3 with no h2
+          between them. A screen reader navigating by heading level got
+          two competing page titles and then a skipped rank on the two
+          screens a user opens every day.
+        */}
+        <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">{title}</h2>
         <div className="flex items-center gap-3">
           <StatusBadge status={statusVariant(status)}>{statusLabel(status)}</StatusBadge>
           {estimatedTime && (

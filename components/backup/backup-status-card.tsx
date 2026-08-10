@@ -10,6 +10,8 @@ import type { BackupStatus } from "@/types/dto";
 
 interface BackupStatusCardProps {
   lastBackup?: string;
+  /** When a file was last exported. `undefined` means never. */
+  lastExport?: string;
   status?: BackupStatus;
   onCreate: () => void;
   creating?: boolean;
@@ -19,6 +21,7 @@ interface BackupStatusCardProps {
 
 export function BackupStatusCard({
   lastBackup,
+  lastExport,
   status = "never",
   onCreate,
   creating = false,
@@ -29,7 +32,7 @@ export function BackupStatusCard({
     <ContentCard className={cn(className)}>
       <div className="mb-4 flex items-center gap-2">
         <Database className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
-        <h3 className="font-semibold">Backup Status</h3>
+        <h3 className="font-semibold">Restore points</h3>
       </div>
 
       <div className="space-y-4">
@@ -37,11 +40,11 @@ export function BackupStatusCard({
           <span className="text-sm text-muted-foreground">Status</span>
           {status === "up_to_date" && <StatusBadge status="success">Up to date</StatusBadge>}
           {status === "outdated" && <StatusBadge status="warning">Outdated</StatusBadge>}
-          {status === "never" && <StatusBadge status="neutral">No backup yet</StatusBadge>}
+          {status === "never" && <StatusBadge status="neutral">None yet</StatusBadge>}
         </div>
 
         <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">Last Backup</span>
+          <span className="text-sm text-muted-foreground">Last restore point</span>
           <span className="flex items-center gap-1 text-sm font-medium">
             {lastBackup ? (
               <>
@@ -54,9 +57,35 @@ export function BackupStatusCard({
           </span>
         </div>
 
-        <Button className="w-full" onClick={onCreate} disabled={creating}>
+        {/*
+          The export date sits beside the restore-point date on purpose.
+          They were reported as one thing, which let the screen say "up
+          to date" to somebody whose only copy was inside the browser
+          about to be cleared.
+        */}
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">Last exported file</span>
+          <span className="flex items-center gap-1 text-sm font-medium">
+            {lastExport ? (
+              <>
+                <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                {lastExport}
+              </>
+            ) : (
+              <span className="text-warning">Never</span>
+            )}
+          </span>
+        </div>
+
+        <p className="rounded-md bg-muted p-3 text-xs leading-relaxed text-muted-foreground">
+          A restore point is kept inside this browser, so it can undo an accidental reset — but it
+          is erased along with everything else if this browser&apos;s data is cleared. Only an
+          exported file survives that.
+        </p>
+
+        <Button variant="secondary" className="w-full" onClick={onCreate} disabled={creating}>
           <Download className="mr-2 h-4 w-4" />
-          {creating ? "Creating backup…" : "Create Backup"}
+          {creating ? "Creating restore point…" : "Create restore point"}
         </Button>
 
         {creating && (

@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AUTHOR } from "@/components/about/guide-content";
-import { cn } from "@/lib/utils";
+import { cn, isCurrentPath } from "@/lib/utils";
 import {
   LayoutDashboard,
   BookOpen,
@@ -80,7 +80,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
       <nav className="scrollbar-thin flex-1 overflow-y-auto px-3 py-4" aria-label="Main navigation">
         <ul role="list" className="space-y-0.5">
           {navigation.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive = isCurrentPath(pathname, item.href);
             return (
               <li key={item.name}>
                 <Link

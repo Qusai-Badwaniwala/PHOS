@@ -60,7 +60,12 @@ export function RevisionHeader({
       )}
     >
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">{title}</h1>
+        {/*
+          `h2`, not `h1` — see `session-header.tsx` for the full reason.
+          `TopNav` owns the page's single `h1`; this was the second, and
+          the `h3` cards below it were left with no h2 above them.
+        */}
+        <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">{title}</h2>
         <div className="flex items-center gap-3">
           <StatusBadge status={statusVariant(status)}>{statusLabel(status)}</StatusBadge>
           {estimatedTime && (

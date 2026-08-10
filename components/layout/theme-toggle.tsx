@@ -22,7 +22,11 @@ export function ThemeToggle() {
         onClick={() => setTheme("light")}
         aria-label="Switch to light theme"
       >
-        <Sun className="h-4 w-4" />
+        {/* Icons are hidden from assistive tech: each button already
+            carries its own `aria-label` ("Switch to light theme"), so an
+            announced graphic on top of that is noise repeated on every
+            route in the app. */}
+        <Sun className="h-4 w-4" aria-hidden="true" />
       </Button>
       <Button
         variant={theme === "dark" ? "secondary" : "ghost"}
@@ -31,7 +35,7 @@ export function ThemeToggle() {
         onClick={() => setTheme("dark")}
         aria-label="Switch to dark theme"
       >
-        <Moon className="h-4 w-4" />
+        <Moon className="h-4 w-4" aria-hidden="true" />
       </Button>
       <Button
         variant={theme === "system" ? "secondary" : "ghost"}
@@ -40,7 +44,7 @@ export function ThemeToggle() {
         onClick={() => setTheme("system")}
         aria-label="Switch to system theme"
       >
-        <Laptop className="h-4 w-4" />
+        <Laptop className="h-4 w-4" aria-hidden="true" />
       </Button>
     </div>
   );

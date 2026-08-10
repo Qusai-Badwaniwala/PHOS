@@ -1267,3 +1267,324 @@ became searchable by page number as a side effect — "when did I last do
 
 Gate after both: 508 Vitest + 174 Jest. Five defects injected, five
 caught.
+
+---
+
+# v0.3.0 — the day PHOS stopped assigning new work
+
+Reported by the product owner in two sentences: the onboarding question
+about Juz and pages is confusing, and "when there are 40 pages scheduled
+for revision, PHOS doesn't give any new assignment".
+
+The second turned out to be three independent defects stacked on one
+symptom, and finding them took reproducing it rather than reading the
+scheduler. A first run with entirely ordinary answers — "I have
+memorized several Juz", 60 minutes a day — produced **"No assignment
+scheduled" on day one**. Not at 40 pages. On day one, out of the box.
+
+## The unit switch in onboarding
+
+The wizard offered four choices phrased in Juz ("I have memorized a few
+Juz"), then a stepper asking for **pages**, in steps of five. Juz are
+not a uniform length — Juz 30 is 23 pages, Juz 1 is 21 — so the second
+question could not be answered without doing real arithmetic, and worse
+arithmetic for anyone whose memorization is not one contiguous run.
+
+Three faults, not one:
+
+1. The unit changed mid-question.
+2. The copy said "along your chosen order" — a choice made two steps
+   _later_.
+3. `selectLevel()` overwrote the page count unconditionally, so typing
+   137 and then re-reading the level buttons silently replaced it with 300. Its own comment claimed "unless the user has already edited
+   them"; the code never checked.
+
+**The order step moved before the amount step**, because "three Juz" has
+no page count until PHOS knows _which_ three. The amount is now asked in
+Juz plus optional loose pages, and `pagesForJuzMemorized()` converts
+against the user's own sequence. The level question was deleted rather
+than fixed — asking "have you memorized a few Juz?" and then "how many
+Juz?" was the confusion itself. The stored `memorizationLevel` is
+derived; nothing reads it to make a decision.
+
+Verified by running it: three Juz under _Juz 30 first_ now reports
+"That comes to 64 pages", marks 1–41 and 582–604, and names page 42 as
+the next new one.
+
+## Two modules, two prices for a page
+
+Onboarding sized the seeded revision cycle at `floor(minutes * 0.8)` —
+an independent guess that a page costs about a minute. The Adaptive
+Engine charges `base + difficulty * weight`, which for a seeded page
+(difficulty 0.5) is **105 seconds**.
+
+So PHOS scheduled roughly 75% more revision per day than its own clock
+could fit. Every day. The overflow did not evaporate: revision that
+does not fit rolls forward as _overdue_.
+
+Neither number was unreasonable on its own. The defect lived entirely
+in the gap between them, which is why no test caught it — each side was
+internally consistent. `estimateDailyRevisionCapacity()` now asks the
+engine what a seeded page costs, and `pages.ts` imports it instead of
+carrying a second copy of the formula.
+
+The regression test binds the two modules deliberately rather than
+asserting a number: it asks the real duration calculator with the real
+config, then asserts the seeded cycle fits the day. Retuning
+`baseDurationSeconds` keeps it green; a new independent guess anywhere
+fails it. Against the old formula it failed with "expected 5040 to be
+less than or equal to 3600" — the bug, quantified.
+
+## Postponed is not the same as abandoned
+
+`allocateStudyTime()` filled the day greedily in priority order, and
+`NewMemorization` has the lowest category score. The SDS calls that
+"new memorization shall be postponed before revision", and it is right
+for a heavy day.
+
+It is wrong forever. Revision that does not fit today is still due
+tomorrow, by then _more_ overdue and ranked higher still — so a user
+whose revision fills their day is never offered another new page as
+long as they live. The rule described a delay and implemented a
+permanent stop.
+
+The allocator now admits the highest-priority new page even when the
+clock is full, displacing the **least** urgent revision already
+allocated — never the last of it, because a day with room for one page
+is a genuinely tight day rather than a stall, and clearing revision to
+make room for expansion would invert "retention always wins" instead of
+bounding it. The plan still fits the minutes the user said they had.
+
+The floor only protects a page that survived the pacing rules; on a day
+the daily target says to skip new work, nothing is smuggled back in.
+
+## The pace PHOS invented for itself
+
+With the backlog gone, the dashboard _still_ said "No new assignment".
+The third cause: seeding stamped `firstStudiedAt` on every page of
+declared prior memorization, dating pages memorized over years across
+the last few weeks.
+
+Exactly two things read that field, and both took the estimate for
+evidence:
+
+- `daysSinceLastNewPage()` read the most recent stamp as "you started a
+  new page yesterday", so the sub-one-page-a-day pacing rule withheld
+  new memorization for a new user's first days.
+- `GoalCalculator.measurePace()` counted 304 seeded pages inside its
+  30-day window. Setting a goal produced: **"At about 16 pages a day,
+  you'd reach 424 pages around 18/08/2026 — about 10 months before your
+  goal"**, printed directly above **"Nothing recorded in the last seven
+  days."**
+
+The comment defending the stamp called it "the closest honest answer".
+It was not an answer at all. PHOS does not know when those pages were
+memorized, `null` is how this schema spells that, and both consumers
+already handled `null` correctly — pace ignores undated pages, and the
+pacing rule treats "never started one" as "available now".
+
+## A repair that changes what the user sees
+
+Fixing the rule does not reach the dates already on somebody's device,
+and PHOS has users. `repairEstimatedFirstStudiedDates()` clears them
+once, on next open.
+
+This is the first repair to break the rule that a repair must not
+change what the user experiences — and the rule was **narrowed rather
+than bent**, per rule 10. It exists so a repair cannot silently move
+somebody's workload. This moves none: `firstStudiedAt` steers nothing
+that picks pages. What it changes is a _claim_, from a flattering
+fiction to "PHOS will estimate a finish date once it has watched you
+memorize for about a week." Preserving a wrong number for the sake of a
+stable screen would have inverted the point of repairing it. The rule
+now reads: a repair may correct what PHOS claims; it may not change
+what PHOS asks of you.
+
+Identifying a seeded page is exact rather than heuristic: it carries
+`firstStudiedAt` with **no recall event behind it**. That field has only
+ever been written by `recordRecall()`, which always creates an event,
+and by seeding, which never does.
+
+## Memorized Pages read zero
+
+Found while looking at the above. `totalPagesMemorized` counted only
+`Stable` and `Mastered`; seeded pages start at `Growing`. A user who had
+just told PHOS they knew 300 pages saw **"Memorized Pages: 0"** beside
+"Revision Queue: 34" built from those same pages. Now counts everything
+that is not `Unseen`, which is what the label means to a reader. How
+firmly the pages are held is already reported, separately and honestly,
+by Memory Health.
+
+## Smaller things
+
+`NumberStepper`'s buttons were labelled a bare "Decrease" / "Increase".
+Survivable while every screen showed one stepper; the new amount step
+shows two, and a screen-reader user hearing "Increase, button" twice
+cannot tell which number they are about to change. They now name their
+field.
+
+The pacing explanation said "the rest of the Mushaf waits its turn",
+which explains _why_ today has nothing new but never _when_ that
+changes — at a page every four days that reads as PHOS having stopped
+working. It now names the day, from the same `daysUntilNextNewPage()`
+the cap reads, so the sentence cannot promise a day the scheduler
+disagrees with.
+
+`browserPersistenceEngine.test.ts` was failing intermittently at the
+5-second default — it seeds all 604 pages per test and crosses 5s under
+parallel load while taking 2.4s alone. Given a 20-second budget. The
+assertions are untouched; only the clock is honest about the work.
+
+`docs/HANDOFF.md` had claimed "309 + 107 tests passing" since v0.1.0,
+several hundred tests out of date, in the very section telling a new
+session what a green baseline looks like.
+
+## What this cost, and what caught it
+
+Every one of these passed the full gate. All were found by opening the
+app, onboarding as a real user, and reading the screen — the Dashboard's
+own explanation text is what exposed the second and third causes,
+because it said two contradictory things at once.
+
+Gate: 543 Vitest + 175 Jest. Four defects restored and confirmed to fail
+their new tests before the fixes went back — five, counting the
+duplicated capacity formula in `pages.ts`, which failed with "expected
+2520 to be less than or equal to 1800".
+
+---
+
+# v0.3.0, part two — the design audit
+
+Two isolated assessments: a design review, and a detector-plus-measurement
+pass that never saw it. They agreed on the biggest finding to two
+decimal places, which is the main reason to run them apart.
+
+## "You are here" had never worked
+
+`next.config.mjs` sets `trailingSlash: true` — PHOS is a static export,
+and directory-style URLs are what let an offline route resolve to its own
+`index.html`. So `usePathname()` returns `"/settings/"` while the
+navigation arrays hold `"/settings"`, and both navs computed
+`pathname === item.href`.
+
+False on every route, in the shipped build, since the move to static
+export. Nothing was ever highlighted; and because the same expression
+drives `aria-current`, a screen reader was never told where it was
+either.
+
+The kind of defect a screenshot hides — navigation still worked, so
+nothing looked broken enough to investigate. `isCurrentPath()` in
+`lib/utils.ts` normalises both sides now. Every case in
+`tests/ui/navigation-active.test.tsx` uses the trailing-slash form
+deliberately: a test written against `"/settings"` passes against the
+original defect and proves nothing, which is exactly how this survived.
+Six of its eight cases fail against the old expression.
+
+## Light mode failed WCAG AA, and nobody saw it
+
+`--muted-foreground` measured **3.59:1** on its own background, against
+a 4.5:1 requirement. It carries every field description, every card
+subtitle, every empty state and the whole of About — roughly half the
+text in the application. Dark mode passed at 5.27:1; the theme that
+failed was the under-exercised one.
+
+`--border` was worse in a quieter way: **1.39:1 light, 1.33:1 dark**,
+against 3:1 for a UI boundary. Every card edge, input and divider,
+effectively invisible.
+
+Low contrast reads as "calm" on a good monitor at midday. PHOS is read
+at Fajr and Maghrib on a phone.
+
+Every token was moved to the _lightest_ value that clears the threshold,
+so the palette stays as close to its authored warmth as compliance
+allows rather than lurching toward black. `--border` and `--input` were
+split, because the rule does not govern them equally: 1.4.11 is about
+the boundary that identifies a **control**, so `--input` goes to 3:1
+while `--border` — decorative separation between cards — is merely made
+visible. Dragging every card edge to 3:1 would have drawn the whole app
+in hard lines and cost the calm the product is for.
+
+`tests/unit/design-tokens.test.ts` parses the real `globals.css` and
+computes the ratios rather than restating them, which would only prove
+the test agrees with itself. It caught a regression _I_ introduced
+within a minute: lightening dark `--destructive` so it passes as text
+made near-white sit on a lighter red at 3.29:1, so the delete button's
+own label failed the moment its label colour elsewhere passed. The
+foreground had to move with it.
+
+## Twenty files were using a different colour system
+
+`emerald`, `amber`, `rose`, `sky` — stock Tailwind, cooler and more
+saturated than PHOS's warm sand and maroon. A green tick from another
+application, sitting on the onboarding screen. `session-controls.tsx`
+and `revision-controls.tsx` both hard-coded `bg-emerald-600` for the
+primary action; `session-summary` and `revision-summary` were duplicated
+colour blocks; three different overlay scrims.
+
+Rule 9 in a dimension nobody had checked. `--success`, `--warning` and
+`--info` are now real tokens, named for meaning rather than hue so the
+next screen that needs "this went well" cannot invent its own green.
+Because they are theme-aware, every `dark:` variant at those call sites
+disappeared. The last case in the token test fails if any stock palette
+class reappears anywhere in `app/` or `components/`.
+
+## The Backup screen recommended the option that does not protect you
+
+The order was Status → **Create Backup** → Restore → Import → **Export**.
+"Create Backup" writes into the same IndexedDB the page's own copy warns
+may be cleared. Export — the only copy that survives — was the fourth
+heading, below the fold on a phone, styled as an outline button. Status
+read `No backup yet` in muted grey.
+
+On a product with no server and no recovery, the emphatic control
+pointed at the option that offers no protection against the thing the
+page exists to warn about.
+
+Export now leads the page as its primary action. Restore points are
+grouped below and named for what they are, with a line saying plainly
+that they are erased along with everything else. And PHOS now records
+`lastExportedAt`, because it was the one fact the screen could not
+derive: an export writes a file and leaves no other trace, so "you have
+never exported" was unsayable. It is now said, in a real alert, above
+everything else.
+
+## The Dashboard's buttons argued with the Dashboard's own sentence
+
+Start Session was primary-filled and Start Revision `secondary`, both
+hardcoded — directly above the app's own guidance reading "Revision
+comes first so what you already know stays secure." On a half-page-a-day
+plan there is frequently no new page at all, and the emphatic control
+still pointed at it.
+
+The product's central claim, losing an argument with its own CSS, on the
+screen people open every day. Emphasis now follows the day's real order
+from a single value computed on the Dashboard, so the two cards can
+never both be filled and never both be quiet.
+
+## Smaller, and worth naming
+
+`/settings` scrolled sideways at 320px — 83px of overflow, 167 elements
+past the viewport, from one `<select>`. Its 31 options include "Juz 1 —
+21 pages · already memorized", and a native select's intrinsic minimum
+width is its widest option. `min-w-0` and `truncate`.
+
+`/session` and `/revision` each rendered **two `<h1>`s** — `TopNav` emits
+one and the section header emitted another — then skipped to `h3`. Two
+competing page titles and a skipped rank, on the two screens a user
+opens daily.
+
+The `HANDOFF` claimed PHOS "never stores, renders or displays Quran
+text", while the Dashboard's largest element is a rotating ayah. The
+rule was reworded rather than the feature removed, with the boundary
+stated explicitly — a reminder, never a reading surface, and a named
+list of what crossing the line would look like.
+
+## What the split assessment bought
+
+The design pass found the nav bug, the button contradiction, the Backup
+ordering and the ayah conflict — judgement calls a scanner cannot make.
+The measurement pass found `--border`, the two `h1`s, the 320px overflow
+and the twenty colour files — facts a reviewer's eye slides over. Both
+independently computed light `--muted-foreground` at 3.59:1.
+
+Gate: 580 Vitest + 183 Jest.

@@ -20,10 +20,7 @@ export function ExpectationsPanel({ className }: { className?: string }) {
           <ul className="space-y-2">
             {PHOS_DOES.map((item) => (
               <li key={item} className="flex gap-2 text-sm text-muted-foreground">
-                <Check
-                  className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400"
-                  aria-hidden="true"
-                />
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden="true" />
                 <span>{item}</span>
               </li>
             ))}

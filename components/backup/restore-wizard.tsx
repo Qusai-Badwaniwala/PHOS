@@ -105,9 +105,9 @@ export function RestoreWizard({ entries, onRestored, className }: RestoreWizardP
             </Select>
 
             {selectedId && (
-              <div className="flex gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/20">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                <p className="text-xs text-amber-800 dark:text-amber-300">
+              <div className="flex gap-2 rounded-md border border-warning/30 bg-warning-muted p-3">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                <p className="text-xs text-warning">
                   Restoring replaces all current data with the backup contents. A safety copy of the
                   current database is taken first.
                 </p>

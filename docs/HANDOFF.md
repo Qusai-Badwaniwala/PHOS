@@ -12,17 +12,30 @@ memorizing the Quran. It schedules new memorization and revision from
 evidence-based memory research, explains every decision it makes, and
 stores everything on the user's own device.
 
-It is **not** a Quran reader. It never stores, renders or displays
-Quran text or Mushaf images — the user reads from their own physical
-Mushaf and PHOS only says which page to open. It has no gamification,
-no streaks, no accounts and no social features. These are product
-constraints, not oversights; do not "helpfully" add any of them.
+It is **not** a Quran reader. It never renders the Mushaf, and never
+provides a surface anyone could read from: no page images, no
+continuous text, no search, no ayah-by-ayah display of a passage being
+memorized. The user reads from their own physical Mushaf and PHOS only
+says which page to open.
+
+The one deliberate exception, stated here because the rule as written
+did not survive contact with the build: **the Dashboard shows a single
+rotating ayah with its translation**, as a reminder rather than as
+reading material. It is never the page you are working on, it cannot be
+navigated, and nothing in PHOS will ever grow from it toward a reading
+surface. If you find yourself adding a second ayah, a next-ayah
+control, or the text of the page being memorized, you have crossed the
+line this paragraph exists to draw.
+
+It has no gamification, no streaks, no accounts and no social features.
+These are product constraints, not oversights; do not "helpfully" add
+any of them.
 
 Author and product owner: **Qusai**.
 
 ---
 
-## Current state — v0.2.1, shipped and in use
+## Current state — v0.3.0, shipped and in use
 
 |               |                                                    |
 | ------------- | -------------------------------------------------- |
@@ -30,12 +43,51 @@ Author and product owner: **Qusai**.
 | Repository    | https://github.com/Qusai-Badwaniwala/PHOS (public) |
 | Project root  | `phos-handoff/phos-integrated/`                    |
 | First shipped | 2026-08-04 (v0.1.0, phases 0–8)                    |
-| Current       | 2026-08-05 (v0.2.1, phases 10–12 + fixes)          |
-| Database      | version 2 · service worker cache `phos-v4`         |
+| Current       | 2026-08-10 (v0.3.0, the scheduling-truth fixes)    |
+| Database      | version 2 · service worker cache `phos-v5`         |
 
 Twelve build phases complete. **PHOS has real users beyond Qusai**,
 which changes what is safe to do: see "If you change how stored data is
 produced" below.
+
+### What v0.3.0 fixed
+
+Five defects, all found by opening the app rather than by any test, and
+all of them variations on the same theme: **PHOS was telling users
+things that were not true.**
+
+- **Onboarding asked for the wrong unit.** It offered four choices
+  phrased in Juz, then demanded a page count — arithmetic the user had
+  to do unaided, since Juz are not a uniform length. It now asks for the
+  **order first**, then for Juz, and converts. "Three Juz" resolves
+  against the user's own order, so _Juz 30 first_ gives 64 pages and
+  _Standard_ gives something else. `pagesForJuzMemorized()` in
+  `client/operations/settings.ts` owns that rule, and both the preview
+  and the write call it.
+- **Seeding scheduled ~75% more revision per day than the clock could
+  fit.** Onboarding sized the cycle at `floor(minutes × 0.8)`, an
+  independent guess that a page costs a minute; the Adaptive Engine
+  charges 105 seconds for a seeded page. The overflow rolled forward as
+  overdue revision every single day.
+- **New memorization could be starved forever.** Overdue revision
+  outranks new work, and revision that does not fit only gets _more_
+  overdue — so once a user's revision filled their day they were never
+  offered another new page. `allocateStudyTime()` now admits one new
+  page by displacing the least urgent revision, never the last of it.
+- **The goal projection invented a pace.** Seeding stamped
+  `firstStudiedAt` on pages memorized before PHOS existed, so 304 of
+  them read as 304 pages memorized in three weeks. The Dashboard
+  announced "at about 16 pages a day" beside "nothing recorded in the
+  last seven days". Seeding no longer writes a date it does not know.
+- **"Memorized Pages" read 0** for a user who had just declared 300,
+  because it counted only `Stable`/`Mastered`.
+
+Plus: the `NumberStepper` buttons announced a bare "Increase"/"Decrease"
+with no field name, which only mattered once a screen had two of them.
+
+**One repair ships with this**, `repairEstimatedFirstStudiedDates()` —
+see the migration rules below, and note it is the first repair that
+deliberately _does_ change what the user sees.
 
 ### What v0.2.0 added
 
@@ -108,8 +160,8 @@ opens.
 npm run format
 npm run lint
 npm run typecheck
-npm run test           # 508 engine + repository tests (Vitest)
-npm run test:ui        # 174 component + page + service-worker tests (Jest)
+npm run test           # 591 engine + repository tests (Vitest)
+npm run test:ui        # 183 component + page + service-worker tests (Jest)
 npm run build          # static export into out/
 ```
 
@@ -155,6 +207,25 @@ caught it, and prove the test fails without the fix.
 codebase was confirmed to fail against the original behaviour before
 being accepted. A test that has never failed is not yet a test.
 
+**Two modules agreeing on a value is not the same as sharing one.**
+The seeding path and the scheduler each held their own answer to "how
+long does a page take" — 60 seconds and 105 seconds. Neither was
+unreasonable alone; the bug lived entirely in the gap, and it
+compounded daily until PHOS stopped assigning new work. The fix was to
+make one ask the other. `tests/unit/operations/seedingCapacity.test.ts`
+now binds them: it asks the real duration calculator with the real
+config what a seeded page costs, then asserts the seeded cycle fits the
+day. Retuning `baseDurationSeconds` keeps it passing; reintroducing an
+independent guess of the per-page cost anywhere fails it.
+
+**A number PHOS derives from its own estimates is not evidence.**
+Seeding wrote `firstStudiedAt` because a date seemed better than none.
+Two features then read those dates as though the user had earned them,
+and the Dashboard told a brand-new user their pace was 16 pages a day
+while also telling them nothing had been recorded in seven days. When
+PHOS does not know something, the honest representation is `null`, and
+every consumer already handled `null` correctly.
+
 **Assert what a control _does_, not what it says.** "Start Session" and
 "Start Revision" rendered as a bare `<span>` — no href, no handler —
 from the first commit until v0.2.1. Both screens stayed reachable from
@@ -188,12 +259,30 @@ Three rules, all of them load-bearing:
    never to the new default, and in exactly one place — the repository
    boundary. See `revisionMode ?? RevisionMode.Adaptive` and the goal
    fields in `BrowserSettingsRepository`.
-3. **A repair must not change what the user experiences.**
-   `MemoryEngine.reblockSeededRevision()` recomputes nothing: it sorts
-   the dates already stored and re-pairs them with pages in order, so
-   the number of pages due on any day is arithmetically identical
-   before and after. Repairs live in `client/operations/migrations.ts`
-   and run once from the storage bootstrap.
+3. **A repair must not change what the user experiences —
+   _by way of workload_.** `MemoryEngine.reblockSeededRevision()`
+   recomputes nothing: it sorts the dates already stored and re-pairs
+   them with pages in order, so the number of pages due on any day is
+   arithmetically identical before and after. Repairs live in
+   `client/operations/migrations.ts` and run once from the storage
+   bootstrap.
+
+   **v0.3.0 narrowed this rule rather than bending it, and it is worth
+   knowing why.** `repairEstimatedFirstStudiedDates()` deliberately
+   changes what the user is _told_: their goal projection stops
+   claiming "about 16 pages a day" and says it needs a week of real
+   sessions first. The rule was written to stop a repair silently
+   moving somebody's daily load, and this moves none — `firstStudiedAt`
+   steers nothing that picks pages. Keeping a flattering wrong number
+   on screen in the name of stability would have inverted the point of
+   repairing it. The rule now says what it always meant: **a repair may
+   correct what PHOS claims; it may not change what PHOS asks of you.**
+
+   The identification test is worth copying if you write another
+   repair: a seeded page is one carrying `firstStudiedAt` with **no
+   recall event behind it**. That is exact rather than heuristic —
+   `firstStudiedAt` has only ever been written by `recordRecall()`,
+   which always creates an event, and by seeding, which never does.
 
 **Adding a store means wiring it into every path that crosses all
 stores** — reset, backup, export, import, restore. The `exams` store
@@ -252,7 +341,11 @@ npm install
 npm run format && npm run lint && npm run typecheck && npm run test && npm run test:ui && npm run build
 ```
 
-Expected: **0 errors, 0 warnings, 309 + 107 tests passing, build
+Expected: **0 errors, 0 warnings, 591 + 183 tests passing, build
 succeeds.** If that is not what you see, fix it before changing
 anything else — you have found drift, and it is now the most
 interesting thing in the repository.
+
+(This line said "309 + 107" from v0.1.0 until v0.3.0, long after both
+numbers were wrong. If you change the counts, change them here too —
+a baseline nobody can verify is not a baseline.)

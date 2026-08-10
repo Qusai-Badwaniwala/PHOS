@@ -27,9 +27,27 @@
     --card-foreground: 24 15% 16%;
     --popover-foreground: 24 15% 16%;
 
-    /* Muted text & surfaces */
+    /*
+     * Muted text & surfaces
+     *
+     * `--muted-foreground` was `28 12% 50%`, which measured 3.59:1 on
+     * `--background`, 3.90:1 on `--card` and 3.37:1 on `--muted` —
+     * failing WCAG AA's 4.5:1 for normal text against all three, in the
+     * theme that fails. Dark mode's equivalent already passed at 5.27:1.
+     *
+     * This token carries every field description in Settings, every card
+     * subtitle, every empty state, and the whole of About: roughly half
+     * the text in the application. Hifz is often read at Fajr and
+     * Maghrib on a phone, which is exactly the condition the ratio
+     * exists for.
+     *
+     * 41% is the *lightest* value that clears 4.5:1 on all three
+     * surfaces (4.99 / 5.41 / 4.67), chosen so the palette stays as
+     * close to its authored warmth as compliance allows rather than
+     * lurching toward black.
+     */
     --muted: 36 20% 93%;
-    --muted-foreground: 28 12% 50%;
+    --muted-foreground: 28 12% 41%;
 
     /* Primary action — PHOS dark rose */
     --primary: 356 32% 33%;
@@ -43,13 +61,30 @@
     --accent: 31 17% 85%;
     --accent-foreground: 24 15% 20%;
 
-    /* Destructive */
-    --destructive: 0 72% 51%;
+    /* Destructive — 50% is the lightest that holds 4.5:1 as *text* on
+       both background and card (4.51 / 4.89). It is used as a label
+       colour, not only as a button fill. */
+    --destructive: 0 72% 50%;
     --destructive-foreground: 0 0% 98%;
 
-    /* Borders & inputs */
-    --border: 31 14% 82%;
-    --input: 31 14% 82%;
+    /*
+     * Borders and inputs, deliberately no longer the same value.
+     *
+     * Both were `31 14% 82%`, which is 1.39:1 on the background and
+     * 1.51:1 on a card — nowhere near WCAG 1.4.11's 3:1 for non-text
+     * contrast.
+     *
+     * They are split because the rule does not apply to them equally.
+     * `--input` outlines form controls, and 1.4.11 is explicit that the
+     * boundary needed to *identify* a control must reach 3:1; 54% is the
+     * lightest value that does (3.07 / 3.33). `--border` mostly performs
+     * decorative separation between cards and sections, which the rule
+     * does not govern — so it is lifted to a genuinely visible 70%
+     * (1.90 / 2.06) rather than dragged to 3:1, which would draw every
+     * card edge in hard lines and wreck the calm the product is for.
+     */
+    --border: 31 14% 70%;
+    --input: 31 14% 54%;
     --ring: 356 32% 33%;
 
     /*
@@ -63,8 +98,40 @@
      * Reserved for attribution. Using it for status or emphasis would
      * cost it the only thing it is for.
      */
-    --gold: 39 42% 46%;
+    /* 37%, not 46%: at 46% it measured 3.21:1 on the background — below
+       AA for the attribution text it exists to set. 37% is the lightest
+       value that clears 4.5:1 (4.68 / 5.07) and keeps the hue. */
+    --gold: 39 42% 37%;
     --gold-foreground: 36 27% 96%;
+
+    /*
+     * Status — success, warning, info.
+     *
+     * These exist because they were already in the product, just not in
+     * the palette. Twenty component files reached straight for stock
+     * Tailwind (`emerald`, `amber`, `rose`, `sky`), which is a different
+     * colour system: cool, saturated, and belonging to no part of the
+     * warm sand-and-maroon world the rest of PHOS is built from. The
+     * effect was a green tick from another application sitting on the
+     * onboarding screen.
+     *
+     * Named for meaning rather than for hue, so the next screen that
+     * needs "this went well" cannot invent its own green. Each is
+     * desaturated toward the warm ground and lightness-tuned to clear
+     * 4.5:1 as text on both `--background` and `--card` — the stock
+     * Tailwind 500-weights did not.
+     */
+    --success: 152 38% 30%;
+    --success-foreground: 36 27% 96%;
+    --success-muted: 152 32% 92%;
+
+    --warning: 32 62% 32%;
+    --warning-foreground: 36 27% 96%;
+    --warning-muted: 38 60% 91%;
+
+    --info: 210 34% 36%;
+    --info-foreground: 36 27% 96%;
+    --info-muted: 210 40% 93%;
 
     /* Border radius */
     --radius: 0.5rem;
@@ -81,12 +148,17 @@
     --card-foreground: 36 20% 90%;
     --popover-foreground: 36 20% 90%;
 
-    /* Muted */
+    /* Muted. 58%, not 55%: 55% cleared AA on background and card but
+       measured 4.11:1 on `--muted` itself, which is the ground for
+       badges and inset panels. 58% clears all three (5.84 / 5.20 / 4.54). */
     --muted: 24 10% 18%;
-    --muted-foreground: 28 10% 55%;
+    --muted-foreground: 28 10% 58%;
 
-    /* Primary — lighter rose for dark mode */
-    --primary: 356 32% 55%;
+    /* Primary — lighter rose for dark mode.
+       60%, not 55%: primary doubles as a link/label colour, and at 55%
+       it measured 4.21:1 on the background, under AA for text. 60% is
+       the lowest that clears it (5.06 / 4.51). */
+    --primary: 356 32% 60%;
     --primary-foreground: 24 12% 10%;
 
     /* Secondary */
@@ -97,19 +169,48 @@
     --accent: 24 10% 22%;
     --accent-foreground: 36 20% 88%;
 
-    /* Destructive */
-    --destructive: 0 62% 50%;
-    --destructive-foreground: 0 0% 98%;
+    /*
+     * Destructive — 63%, up from 50%, so it holds 4.5:1 as text on the
+     * deep warm ground (5.09 / 4.53) and not only as a button fill.
+     *
+     * The foreground had to move with it, and this is the pairing that
+     * caught the mistake. Raising the fill for legibility as *text* made
+     * near-white sit on a lighter red: 3.29:1, so the delete button's own
+     * label failed the moment its label colour elsewhere passed. Dark
+     * ink is what every other dark-theme fill already uses — see
+     * `--primary-foreground` directly above.
+     */
+    --destructive: 0 62% 63%;
+    --destructive-foreground: 24 12% 10%;
 
-    /* Borders */
-    --border: 24 10% 22%;
-    --input: 24 10% 22%;
-    --ring: 356 32% 55%;
+    /* Borders and inputs, split for the same reason as the light theme:
+       `--input` must reach 3:1 to identify a control (3.42 / 3.05),
+       `--border` performs decorative separation and is merely made
+       visible (2.14 / 1.91) rather than hardened. Both were 22%, which
+       measured 1.49:1 and 1.33:1 — effectively invisible. */
+    --border: 24 10% 31%;
+    --input: 24 10% 43%;
+    --ring: 356 32% 60%;
 
     /* Lifted and slightly desaturated so it stays legible on the deep
        warm dark ground without turning brassy. */
     --gold: 39 46% 62%;
     --gold-foreground: 24 12% 10%;
+
+    /* Status, lifted for the deep warm ground and desaturated so they
+       do not glow against it. Same 4.5:1-as-text rule as the light
+       theme. */
+    --success: 152 42% 62%;
+    --success-foreground: 24 12% 10%;
+    --success-muted: 152 24% 18%;
+
+    --warning: 38 62% 62%;
+    --warning-foreground: 24 12% 10%;
+    --warning-muted: 36 26% 18%;
+
+    --info: 210 46% 66%;
+    --info-foreground: 24 12% 10%;
+    --info-muted: 210 24% 19%;
   }
 }
 

@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { cn } from "@/lib/utils";
+import { cn, isCurrentPath } from "@/lib/utils";
 import {
   LayoutDashboard,
   BookOpen,
@@ -42,7 +42,7 @@ export function MobileNav() {
     >
       <div className="safe-area-bottom flex items-stretch">
         {mobileNavigation.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive = isCurrentPath(pathname, item.href);
           return (
             <Link
               key={item.name}

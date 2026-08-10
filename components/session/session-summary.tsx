@@ -19,15 +19,10 @@ export function SessionSummary({
   className,
 }: SessionSummaryProps) {
   return (
-    <ContentCard
-      className={cn("border-emerald-500/20 bg-emerald-50/50 dark:bg-emerald-950/20", className)}
-    >
+    <ContentCard className={cn("border-success/20 bg-success-muted/50", className)}>
       <div className="flex flex-col items-center gap-4 py-4 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30">
-          <CheckCircle
-            className="h-6 w-6 text-emerald-600 dark:text-emerald-400"
-            aria-hidden="true"
-          />
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-success-muted">
+          <CheckCircle className="h-6 w-6 text-success" aria-hidden="true" />
         </div>
 
         <div className="space-y-1">

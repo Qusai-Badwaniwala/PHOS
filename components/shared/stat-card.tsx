@@ -30,8 +30,8 @@ export function StatCard({ title, value, description, trend, className }: StatCa
           <span
             className={cn(
               "inline-flex items-center text-xs font-medium",
-              trend === "up" && "text-emerald-600 dark:text-emerald-400",
-              trend === "down" && "text-rose-600 dark:text-rose-400",
+              trend === "up" && "text-success",
+              trend === "down" && "text-destructive",
               trend === "neutral" && "text-muted-foreground",
             )}
             aria-label={`Trending ${trend}`}

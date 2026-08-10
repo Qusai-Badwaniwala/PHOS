@@ -9,10 +9,16 @@ import type { TodaySessionDTO } from "@/types/dto";
 
 interface TodaySessionCardProps {
   session?: TodaySessionDTO | null;
+  /** Whether this is the work PHOS wants done first today. See the CTA below. */
+  isPrimaryAction?: boolean;
   className?: string;
 }
 
-export function TodaySessionCard({ session, className }: TodaySessionCardProps) {
+export function TodaySessionCard({
+  session,
+  isPrimaryAction = true,
+  className,
+}: TodaySessionCardProps) {
   const hasAssignment = session && session.assignment;
 
   return (
@@ -100,7 +106,25 @@ export function TodaySessionCard({ session, className }: TodaySessionCardProps) 
 
         Only the label varies. The destination never does.
       */}
-      <Button className="w-full font-medium" asChild>
+      {/*
+        Emphasis follows the day's real order, rather than being fixed.
+
+        Both CTAs used to be hardcoded — Session filled, Revision
+        secondary — directly above a line of the app's own guidance
+        reading "Revision comes first so what you already know stays
+        secure." The product's central claim was losing an argument with
+        its own CSS on the screen people open every day, and visual
+        weight is what users obey, not the paragraph.
+
+        `isPrimaryAction` is computed once on the Dashboard and passed to
+        both cards from the same value, so they can never both be filled
+        and never both be quiet.
+      */}
+      <Button
+        variant={isPrimaryAction ? "default" : "secondary"}
+        className="w-full font-medium"
+        asChild
+      >
         <Link href="/session" className="flex items-center justify-center gap-2">
           <Play className="h-4 w-4" aria-hidden="true" />
           {!session

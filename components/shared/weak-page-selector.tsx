@@ -85,9 +85,7 @@ export function WeakPageSelector({
                 "rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
                 !isSurahDense && "tabular-nums",
                 "disabled:cursor-not-allowed disabled:opacity-50",
-                isWeak
-                  ? "border-amber-400 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200"
-                  : "hover:bg-accent",
+                isWeak ? "border-warning bg-warning-muted text-warning" : "hover:bg-accent",
               )}
             >
               {label}

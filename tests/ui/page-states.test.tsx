@@ -206,8 +206,19 @@ describe("Analytics", () => {
 
     render(<AnalyticsPage />);
 
+    // No charts and no tabbed report — the point of the empty state is
+    // that it does not present zeros as though they were findings.
     expect(screen.queryByRole("tab", { name: "Overview" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Analytics" })).not.toBeInTheDocument();
+
+    /*
+     * But the page still says what it is. This used to assert the
+     * *absence* of the heading, which was a proxy for "the full page did
+     * not render" and quietly locked in a real defect: every empty
+     * component returned before its page rendered `PageHeader`, so an
+     * empty screen lost its title and the outline skipped from the
+     * TopNav h1 straight to the empty state's h3.
+     */
+    expect(screen.getByRole("heading", { name: "Analytics", level: 2 })).toBeInTheDocument();
   });
 
   it("shows the tabs and their content once there is data", () => {

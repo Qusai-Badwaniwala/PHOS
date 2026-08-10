@@ -63,6 +63,8 @@ const AboutPage = require("@/app/about/page").default as React.ComponentType;
 const BACKUP_STATUS: BackupStatusDTO = {
   status: "up_to_date",
   lastBackup: "08/04/2026 9:00 AM",
+  lastExport: "08/04/2026 9:05 AM",
+  neverExported: false,
   history: [
     {
       id: "backup-1",
@@ -124,7 +126,9 @@ describe("Backup page", () => {
 
   it("renders with no backups yet, without pretending one exists", () => {
     useBackup.mockReturnValue(
-      hookResult({ data: { status: "never", history: [] } as BackupStatusDTO }),
+      hookResult({
+        data: { status: "never", history: [], neverExported: true } as BackupStatusDTO,
+      }),
     );
 
     render(<BackupPage />);

@@ -4,14 +4,23 @@ import { cn } from "@/lib/utils";
 import React from "react";
 import { ContentCard } from "@/components/shared/content-card";
 import { Button } from "@/components/ui/button";
-import { downloadJson, exportData } from "@/lib/api/backup";
+import { downloadJson, exportData, markExported } from "@/lib/api/backup";
 import { Download, FileDown } from "lucide-react";
 
 interface ExportWizardProps {
+  /**
+   * Refreshes the page after a successful export.
+   *
+   * Exporting now changes what the screen should say — the
+   * "never exported" alert and the "Last exported file" row both read
+   * `lastExportedAt` — so without this the user exports, is told it
+   * worked, and goes on being warned that they never have.
+   */
+  onExported?: () => void;
   className?: string;
 }
 
-export function ExportWizard({ className }: ExportWizardProps) {
+export function ExportWizard({ onExported, className }: ExportWizardProps) {
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [outcome, setOutcome] = React.useState<string | null>(null);
@@ -23,7 +32,10 @@ export function ExportWizard({ className }: ExportWizardProps) {
     try {
       const result = await exportData();
       downloadJson(result.filename, result.content);
+      // Recorded only once the file has actually been handed over.
+      await markExported();
       setOutcome(`Exported to ${result.filename}.`);
+      onExported?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to export data.");
     } finally {
@@ -50,7 +62,17 @@ export function ExportWizard({ className }: ExportWizardProps) {
           </p>
         </div>
 
-        <Button variant="outline" className="w-full" onClick={handleExport} disabled={pending}>
+        {/*
+          The page's primary action, not an outline button.
+
+          Export and "Create Backup" were presented as peers, and they
+          are not: a backup is written into the same IndexedDB that
+          clearing site data erases, while this file is the only copy
+          that survives it. The quieter styling sat on the option that
+          actually protects the user, on the one screen in PHOS where
+          choosing wrong is unrecoverable.
+        */}
+        <Button className="w-full" onClick={handleExport} disabled={pending}>
           <Download className="mr-2 h-4 w-4" />
           {pending ? "Preparing export…" : "Export Data"}
         </Button>

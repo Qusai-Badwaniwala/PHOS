@@ -24,11 +24,9 @@ export function IconWrapper({
         variant === "default" && "border bg-background",
         variant === "muted" && "bg-muted",
         variant === "primary" && "bg-primary/10 text-primary",
-        variant === "success" &&
-          "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400",
-        variant === "warning" &&
-          "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400",
-        variant === "error" && "bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400",
+        variant === "success" && "bg-success-muted text-success",
+        variant === "warning" && "bg-warning-muted text-warning",
+        variant === "error" && "bg-destructive/15 text-destructive",
         className,
       )}
     >

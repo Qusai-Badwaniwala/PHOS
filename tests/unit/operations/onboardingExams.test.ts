@@ -25,9 +25,9 @@ vi.mock("@/client/container", () => ({
 const { completeOnboarding } = await import("@/client/operations/settings");
 
 const ANSWERS = {
-  memorizationLevel: "Intermediate",
   memorizationOrder: "Standard",
-  pagesAlreadyMemorized: 0,
+  juzAlreadyMemorized: 0,
+  extraPagesMemorized: 0,
   dailyAvailableMinutes: 30,
   comfortableDailyPages: 1,
   followsExistingSchedule: false,

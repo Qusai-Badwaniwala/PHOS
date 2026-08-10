@@ -1,6 +1,6 @@
 ﻿import "fake-indexeddb/auto";
 import { IDBFactory } from "fake-indexeddb";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryState, SessionType, ConfidenceLevel } from "@/shared/types";
 import { TOTAL_MUSHAF_PAGES } from "@/shared/constants";
 import {
@@ -16,6 +16,20 @@ import {
 } from "@/repositories/browser";
 import { BrowserPersistenceEngine } from "@/engines/persistence/browser";
 import { BackupCreationError, RestoreFailedError } from "@/engines/persistence";
+
+/*
+ * A longer budget than Vitest's 5-second default, because these tests
+ * genuinely do more work than most: every one of them builds a fresh
+ * `fake-indexeddb` and seeds all 604 pages into it before it starts,
+ * and the export tests then round-trip the lot.
+ *
+ * Run alone the slowest takes about 2.4 seconds; run alongside the rest
+ * of the suite it has crossed 5 and failed intermittently — a flake
+ * that says nothing about the code and trains everyone to re-run the
+ * gate instead of reading it. The assertions are untouched; only the
+ * clock they are given is honest about the work.
+ */
+vi.setConfig({ testTimeout: 20_000, hookTimeout: 20_000 });
 
 const APPLICATION_VERSION = "0.1.0";
 
@@ -156,14 +170,50 @@ describe("restoreBackup", () => {
     expect((await pages.findByPageNumber(4))?.memoryState).toBe(MemoryState.Stable);
   });
 
-  it("refuses a backup written by a different application version", async () => {
+  /*
+   * Compatibility is a property of the data *format*, not of the release
+   * that wrote it. This used to compare `applicationVersion` with
+   * `!==`, so every release orphaned the previous release's backups —
+   * including the safety backup taken automatically before a reset,
+   * which exists so an accidental wipe is recoverable.
+   */
+  it("restores a backup written by an older application version", async () => {
+    await markPageStudied(4, MemoryState.Stable);
     const backup = await engine.createBackup();
 
     const db = await getDatabase();
     const record = (await db.get("backups", backup.metadata.id))!;
-    record.manifest.applicationVersion = "0.0.1";
+    record.manifest.applicationVersion = "0.2.1";
     await db.put("backups", record);
 
+    await expect(engine.restoreBackup(backup.metadata.id)).resolves.toMatchObject({
+      verified: true,
+    });
+  });
+
+  it("restores a backup written before the format version existed", async () => {
+    const backup = await engine.createBackup();
+
+    const db = await getDatabase();
+    const record = (await db.get("backups", backup.metadata.id))!;
+    // Every backup written by v0.1.0 through v0.2.1 looks like this.
+    delete (record.manifest as { backupFormatVersion?: string }).backupFormatVersion;
+    await db.put("backups", record);
+
+    await expect(engine.restoreBackup(backup.metadata.id)).resolves.toMatchObject({
+      verified: true,
+    });
+  });
+
+  it("refuses a backup in a format this build cannot read", async () => {
+    const backup = await engine.createBackup();
+
+    const db = await getDatabase();
+    const record = (await db.get("backups", backup.metadata.id))!;
+    record.manifest.backupFormatVersion = "99";
+    await db.put("backups", record);
+
+    // Declining beats importing half of somebody's Hifz.
     await expect(engine.restoreBackup(backup.metadata.id)).rejects.toBeInstanceOf(
       RestoreFailedError,
     );
@@ -214,15 +264,40 @@ describe("export and import", () => {
     expect(restored?.memoryStrength).toBeCloseTo(0.8);
   });
 
-  it("rejects a file from a different application version without writing anything", async () => {
+  it("imports a file written by an older application version", async () => {
+    await markPageStudied(5, MemoryState.Stable);
+    const exported = await engine.exportData();
+
+    // A file the user exported from v0.2.1 and kept. Refusing this is
+    // what the format version exists to prevent.
+    const older = { ...exported.content, applicationVersion: "0.2.1" };
+    const result = await engine.importData(JSON.stringify(older));
+
+    expect(result.validationErrors).toEqual([]);
+    expect(result.success).toBe(true);
+  });
+
+  it("imports a file written before the format version existed", async () => {
+    await markPageStudied(5, MemoryState.Stable);
+    const exported = await engine.exportData();
+
+    const legacy: Record<string, unknown> = { ...exported.content, applicationVersion: "0.1.0" };
+    delete legacy.formatVersion;
+    const result = await engine.importData(JSON.stringify(legacy));
+
+    expect(result.validationErrors).toEqual([]);
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a file in a future format without writing anything", async () => {
     await markPageStudied(6, MemoryState.Growing);
     const exported = await engine.exportData();
 
-    const foreign = { ...exported.content, applicationVersion: "9.9.9" };
-    const result = await engine.importData(JSON.stringify(foreign));
+    const future = { ...exported.content, formatVersion: 99 };
+    const result = await engine.importData(JSON.stringify(future));
 
     expect(result.success).toBe(false);
-    expect(result.validationErrors[0]).toContain("9.9.9");
+    expect(result.validationErrors[0]).toContain("99");
     expect(result.importedAt).toBeNull();
     // Unchanged: the invalid import failed before touching the data.
     expect((await pages.findByPageNumber(6))?.memoryState).toBe(MemoryState.Growing);

@@ -225,12 +225,28 @@ describe("staggering seeded prior memorization", () => {
     expect(cycle).toBeLessThanOrEqual(30);
   });
 
-  it("records when each page was first studied", async () => {
+  /*
+   * Seeding must not invent a first-studied date.
+   *
+   * It used to stamp each seeded page with its staggered review date,
+   * so pages memorized over years read as pages memorized in the last
+   * few weeks. Both readers of that field took the estimate for
+   * evidence: the goal projection announced "about 16 pages a day"
+   * beside "nothing recorded in the last seven days", and the pacing
+   * rule below read the most recent stamp as "you started a new page
+   * yesterday" and withheld new memorization from brand-new users.
+   *
+   * PHOS does not know when these pages were memorized, and `null` is
+   * how this schema spells that.
+   */
+  it("does not invent a first-studied date for memorization that predates PHOS", async () => {
     const { engine, pages } = buildSeedingEngine(5);
     await engine.seedPriorMemorization([...pages.keys()], true, 5);
 
     for (const page of pages.values()) {
-      expect(page.firstStudiedAt).not.toBeNull();
+      expect(page.firstStudiedAt).toBeNull();
+      // The review dates it *does* know are still written.
+      expect(page.lastReviewedAt).not.toBeNull();
     }
   });
 });

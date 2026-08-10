@@ -132,6 +132,10 @@ export interface Settings
    * Settings only because that is where PHOS keeps its single row.
    */
   readonly revisionBlocksRepairedAt: Date | null;
+  /** When the invented first-studied dates were cleared. Same kind of record as above. */
+  readonly estimatedDatesRepairedAt: Date | null;
+  /** When the user last exported to a file. `null` means never. */
+  readonly lastExportedAt: Date | null;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }

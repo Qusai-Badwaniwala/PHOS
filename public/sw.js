@@ -25,7 +25,7 @@
  * cache the wrong origin path in the second case.
  */
 
-const CACHE_VERSION = "phos-v4";
+const CACHE_VERSION = "phos-v5";
 
 /** `…/` — where this worker's scope begins, root or subdirectory alike. */
 const SCOPE = new URL("./", self.location).href;

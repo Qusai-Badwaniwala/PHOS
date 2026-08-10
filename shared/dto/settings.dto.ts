@@ -72,6 +72,15 @@ export interface SettingsDTO {
   readonly memorizationOrder: string;
   readonly goal: GoalDTO | null;
   readonly revision: RevisionScheduleDTO;
+  /**
+   * When the user last exported to a file, ISO. `null` means never.
+   *
+   * Top-level rather than inside `onboarding`, because it is not an
+   * answer the user gave — it is a fact about the safety of their data.
+   * Surfaced through the DTO because the Backup screen needs it and the
+   * adapter layer must not reach past the operations into a repository.
+   */
+  readonly lastExportedAt: string | null;
 }
 
 export interface UpdateSettingsRequestDTO {

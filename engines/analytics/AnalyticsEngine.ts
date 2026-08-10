@@ -218,9 +218,24 @@ export class AnalyticsEngine implements IAnalyticsEngine {
         this.generateProgressReport(ReportingPeriod.Monthly),
       ]);
 
+      /*
+       * Every page the user has memorized — which is every page PHOS is
+       * tracking at all, since `Unseen` is precisely "not memorized".
+       *
+       * This counted only `Stable` and `Mastered`, so somebody who told
+       * onboarding they had memorized 300 pages was shown "Memorized
+       * Pages: 0" beside a 34-page revision queue built from those same
+       * pages. Seeded prior memorization starts at `Growing` and reaches
+       * `Stable` only after real recalls, so the dashboard contradicted
+       * itself on the first screen of a first run.
+       *
+       * The old number was not meaningless — "how much has settled" is
+       * worth knowing — but it is not what the label says, and the
+       * label is what the user reads. How firmly these pages are held
+       * is already reported, honestly and separately, by Memory Health.
+       */
       const totalPagesMemorized = allPages.filter(
-        (page) =>
-          page.memoryState === MemoryState.Stable || page.memoryState === MemoryState.Mastered,
+        (page) => page.memoryState !== MemoryState.Unseen,
       ).length;
 
       const reviewDistribution = Object.fromEntries(

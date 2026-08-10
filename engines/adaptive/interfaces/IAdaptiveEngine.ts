@@ -38,7 +38,7 @@ export interface IAdaptiveEngine {
   /** Whether Recovery Mode should be emphasized today, given the current set of pages (SDS Part 11 "RECOVERY MODE"). */
   recommendRecovery(pages: readonly Page[]): boolean;
 
-  estimateSessionDuration(page: Page): number;
+  estimateSessionDuration(page: Pick<Page, "difficulty">): number;
 
   explainPlan(plan: DailyStudyPlan): Promise<readonly PlanItemExplanation[]>;
 

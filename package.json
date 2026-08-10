@@ -1,6 +1,6 @@
 {
   "name": "phos",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": true,
   "description": "PHOS — Personal Hifz Operating System. A local-first, offline-first, single-user application for scientifically informed Quran memorization scheduling.",
   "engines": {

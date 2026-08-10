@@ -32,10 +32,10 @@ describe("NumberStepper", () => {
 
     const field = screen.getByLabelText("Daily minutes");
 
-    await user.click(screen.getByLabelText("Increase"));
+    await user.click(screen.getByLabelText("Increase Daily minutes"));
     expect(field).toHaveValue(35);
 
-    await user.click(screen.getByLabelText("Decrease"));
+    await user.click(screen.getByLabelText("Decrease Daily minutes"));
     expect(field).toHaveValue(30);
   });
 
@@ -45,10 +45,10 @@ describe("NumberStepper", () => {
 
     // Disabled rather than silently clamping, so the limit is visible
     // before it is hit.
-    expect(screen.getByLabelText("Decrease")).toBeDisabled();
+    expect(screen.getByLabelText("Decrease Daily minutes")).toBeDisabled();
 
-    await user.click(screen.getByLabelText("Increase"));
-    expect(screen.getByLabelText("Decrease")).toBeEnabled();
+    await user.click(screen.getByLabelText("Increase Daily minutes"));
+    expect(screen.getByLabelText("Decrease Daily minutes")).toBeEnabled();
   });
 
   it("lets a value be retyped digit by digit without mangling it", async () => {
@@ -117,9 +117,9 @@ describe("NumberStepper", () => {
 
     // Floating-point accumulation would eventually show the user
     // "1.5000000000000002" for half a page.
-    await user.click(screen.getByLabelText("Increase"));
-    await user.click(screen.getByLabelText("Increase"));
-    await user.click(screen.getByLabelText("Decrease"));
+    await user.click(screen.getByLabelText("Increase Pages per day"));
+    await user.click(screen.getByLabelText("Increase Pages per day"));
+    await user.click(screen.getByLabelText("Decrease Pages per day"));
 
     expect(screen.getByLabelText("Pages per day")).toHaveValue(1.5);
   });
@@ -146,7 +146,7 @@ describe("NumberStepper", () => {
     const field = screen.getByLabelText("Daily minutes");
     await user.clear(field);
     await user.type(field, "4");
-    await user.click(screen.getByLabelText("Increase"));
+    await user.click(screen.getByLabelText("Increase Daily minutes"));
 
     // Pressing + first blurs the field, which clamps the half-typed 4
     // up to the minimum of 5; the step then moves on from there. The

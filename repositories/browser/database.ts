@@ -143,6 +143,25 @@ export interface StoredSettings {
    * that were always blocked.
    */
   revisionBlocksRepairedAt?: string | null;
+  /**
+   * When the one-time clearing of invented first-studied dates ran.
+   *
+   * Optional and absent-means-not-yet, exactly like the field above and
+   * for the same reason: every settings row written before this repair
+   * existed lacks it, and reading that as "still to do" is correct.
+   * Stored rather than derived because a cleared date is
+   * indistinguishable from one that was never written.
+   */
+  estimatedDatesRepairedAt?: string | null;
+  /**
+   * When the user last exported their data to a file.
+   *
+   * Absent means never, which is correct for every row written before
+   * this existed — and "never" is precisely the state the Backup screen
+   * needs to warn about. Not derivable from anything else: an export
+   * writes a file and leaves no other trace.
+   */
+  lastExportedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

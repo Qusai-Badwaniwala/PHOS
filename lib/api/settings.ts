@@ -156,9 +156,14 @@ export async function resetSettings(): Promise<AppSettings> {
 // ---------------------------------------------------------------
 
 export interface OnboardingAnswers {
-  memorizationLevel: string;
   memorizationOrder: string;
-  pagesAlreadyMemorized: number;
+  /**
+   * Complete Juz memorized, along `memorizationOrder` — not Juz
+   * numbers. Three means the first three Juz of the user's own order.
+   */
+  juzAlreadyMemorized: number;
+  /** Pages into the Juz after those, for anyone who did not stop on a boundary. */
+  extraPagesMemorized: number;
   dailyAvailableMinutes: number;
   comfortableDailyPages: number;
   followsExistingSchedule: boolean;
@@ -194,9 +199,10 @@ export async function getGoalPosition(): Promise<settingsOps.GoalPosition> {
  */
 export async function previewOnboarding(
   order: string,
-  pages: number,
+  juzCount: number,
+  extraPages: number,
 ): Promise<settingsOps.OnboardingPreview> {
-  return settingsOps.previewOnboarding(order, pages);
+  return settingsOps.previewOnboarding(order, juzCount, extraPages);
 }
 
 export interface OnboardingResult extends AppSettings {

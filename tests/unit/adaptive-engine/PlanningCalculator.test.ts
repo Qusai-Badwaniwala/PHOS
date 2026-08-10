@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { MemoryState } from "@/shared/types";
+import { MemoryState, WorkloadCategory } from "@/shared/types";
 import type { Page } from "@/shared/types";
+import type { RankedPage } from "@/engines/adaptive/calculators";
 import { allocateStudyTime, rankPages } from "@/engines/adaptive/calculators";
 import { DEFAULT_ADAPTIVE_CONFIG } from "@/engines/adaptive/constants";
+
+/** The pool as it would be with no new memorization permitted at all. */
+function backlogOnly(ranked: readonly RankedPage[]): readonly RankedPage[] {
+  return ranked.filter((r) => r.category !== WorkloadCategory.NewMemorization);
+}
 
 const REFERENCE_DATE = new Date("2026-07-30T00:00:00.000Z");
 
@@ -59,6 +65,105 @@ describe("rankPages + allocateStudyTime", () => {
 
     expect(allocated).toHaveLength(1);
     expect(allocated[0]?.page.id).toBe("overdue-1");
+  });
+
+  /*
+   * The defect this guards: postponed became abandoned.
+   *
+   * Revision that does not fit today is still due tomorrow, by then
+   * *more* overdue and so ranked higher still. With pure priority order
+   * a user whose revision fills their day was never offered another new
+   * page again — not that day, not ever. Reproduced on a first run with
+   * entirely ordinary answers ("several Juz", 60 minutes): 34 pages of
+   * revision, 9 pages of daily overflow, and "No assignment scheduled".
+   */
+  describe("the new-memorization floor", () => {
+    function backlog(count: number) {
+      return Array.from({ length: count }, (_, i) =>
+        buildPage({
+          id: `rev-${i + 1}`,
+          pageNumber: i + 1,
+          memoryState: MemoryState.Growing,
+          memoryStrength: 0.6,
+          memoryStability: 3,
+          lastReviewedAt: new Date("2026-07-20T00:00:00.000Z"),
+          lastSuccessfulRecallAt: new Date("2026-07-20T00:00:00.000Z"),
+        }),
+      );
+    }
+
+    it("still offers a new page when revision alone would fill the whole day", () => {
+      const pages = [...backlog(40), buildPage({ id: "new-1", pageNumber: 300 })];
+      const ranked = rankPages(pages, REFERENCE_DATE, DEFAULT_ADAPTIVE_CONFIG);
+
+      // 60 minutes fits 34 pages at 105s each; the 40 due pages alone
+      // would take every second of it.
+      const allocated = allocateStudyTime(ranked, 60);
+
+      expect(allocated.filter((r) => r.category === WorkloadCategory.NewMemorization)).toHaveLength(
+        1,
+      );
+    });
+
+    it("pays for it out of the least urgent revision, never out of the clock", () => {
+      const pages = [...backlog(40), buildPage({ id: "new-1", pageNumber: 300 })];
+      const ranked = rankPages(pages, REFERENCE_DATE, DEFAULT_ADAPTIVE_CONFIG);
+      const withoutNew = allocateStudyTime(backlogOnly(ranked), 60);
+      const allocated = allocateStudyTime(ranked, 60);
+
+      const seconds = allocated.reduce((sum, r) => sum + r.estimatedDurationSeconds, 0);
+      expect(seconds).toBeLessThanOrEqual(60 * 60);
+
+      // Exactly one revision page gave way — the one it could most
+      // afford to defer, not a wholesale reshuffle.
+      const revision = allocated.filter((r) => r.category !== WorkloadCategory.NewMemorization);
+      expect(revision).toHaveLength(withoutNew.length - 1);
+      expect(revision.map((r) => r.page.id)).not.toContain(
+        withoutNew[withoutNew.length - 1]!.page.id,
+      );
+    });
+
+    it("takes the next page in roadmap order, never an arbitrary one", () => {
+      const pages = [
+        ...backlog(40),
+        buildPage({ id: "new-later", pageNumber: 320 }),
+        buildPage({ id: "new-next", pageNumber: 300 }),
+      ];
+      const ranked = rankPages(pages, REFERENCE_DATE, DEFAULT_ADAPTIVE_CONFIG);
+      const allocated = allocateStudyTime(ranked, 60);
+
+      const newPages = allocated.filter((r) => r.category === WorkloadCategory.NewMemorization);
+      expect(newPages.map((r) => r.page.id)).toEqual(["new-next"]);
+    });
+
+    /*
+     * The floor bounds "retention wins"; it must not invert it. A day
+     * with room for a single page is a genuinely tight day, not the
+     * permanent stall the floor exists to break — so revision keeps it.
+     */
+    it("leaves revision the day when only one page fits at all", () => {
+      const pages = [...backlog(1), buildPage({ id: "new-1", pageNumber: 300 })];
+      const ranked = rankPages(pages, REFERENCE_DATE, DEFAULT_ADAPTIVE_CONFIG);
+      const allocated = allocateStudyTime(ranked, 2);
+
+      expect(allocated).toHaveLength(1);
+      expect(allocated[0]!.category).not.toBe(WorkloadCategory.NewMemorization);
+    });
+
+    /*
+     * The floor may only protect a new page that survived the pacing
+     * rules. `capNewMemorization()` strips new memorization entirely on
+     * a day the daily target says to skip — half a page a day means one
+     * page every second day — and the floor must not smuggle it back.
+     */
+    it("adds nothing when the day's pacing has already withheld new work", () => {
+      const ranked = rankPages(backlog(40), REFERENCE_DATE, DEFAULT_ADAPTIVE_CONFIG);
+      const allocated = allocateStudyTime(ranked, 60);
+
+      expect(allocated.filter((r) => r.category === WorkloadCategory.NewMemorization)).toHaveLength(
+        0,
+      );
+    });
   });
 
   it("produces a fully, contiguously ordered result with no gaps", () => {

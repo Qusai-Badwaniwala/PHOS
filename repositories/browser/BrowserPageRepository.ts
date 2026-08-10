@@ -69,8 +69,10 @@ export class BrowserPageRepository implements IPageRepository {
       ...(timestamps.lastSuccessfulRecallAt !== undefined
         ? { lastSuccessfulRecallAt: timestamps.lastSuccessfulRecallAt.toISOString() }
         : {}),
+      // `null` is a value here, not an absence: it means "PHOS has no
+      // honest date for this page". Only `undefined` leaves it alone.
       ...(timestamps.firstStudiedAt !== undefined
-        ? { firstStudiedAt: timestamps.firstStudiedAt.toISOString() }
+        ? { firstStudiedAt: timestamps.firstStudiedAt?.toISOString() ?? null }
         : {}),
     }));
   }

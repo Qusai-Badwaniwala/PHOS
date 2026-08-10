@@ -43,8 +43,17 @@ const MILLISECONDS_PER_DAY = 86_400_000;
  * within days.
  */
 const PRIOR_MEMORIZATION_STRENGTH = 0.6;
-/** Neutral: no reason yet to think these pages are easy or hard for this user. */
-const PRIOR_MEMORIZATION_DIFFICULTY = 0.5;
+/**
+ * Neutral: no reason yet to think these pages are easy or hard for this
+ * user.
+ *
+ * Exported because how long a seeded page takes to revise is derived
+ * from it, and the caller sizing the revision cycle has to charge the
+ * same price the scheduler will. It used to assume "about a minute",
+ * which was 45 seconds short of what the Adaptive Engine actually
+ * charges for a page at this difficulty.
+ */
+export const PRIOR_MEMORIZATION_DIFFICULTY = 0.5;
 
 /**
  * Bounds on the initial revision cycle for seeded pages.
@@ -321,17 +330,121 @@ export class MemoryEngine implements IMemoryEngine {
       await this.deps.pageRepository.updateReviewTimestamps(page.id, {
         lastReviewedAt: reviewedAt,
         lastSuccessfulRecallAt: reviewedAt,
-        // Seeded pages were first studied before PHOS existed. Dating
-        // them at their staggered review point is the closest honest
-        // answer, and keeps them from looking like brand-new work to
-        // the pacing check.
-        firstStudiedAt: reviewedAt,
+        /*
+         * `firstStudiedAt` is left unset, and that is the honest answer.
+         *
+         * These pages were memorized before PHOS existed; it does not
+         * know when. It used to stamp them with their staggered review
+         * date, on the reasoning that a date was better than none — and
+         * both things that read this field then took the estimate for
+         * evidence:
+         *
+         * - `GoalCalculator.measurePace()` counts pages first studied
+         *   inside a 30-day window. A user seeding 304 pages was told
+         *   "at about 16 pages a day, you'd reach 424 pages around
+         *   18/08/2026", on the same screen as "nothing recorded in
+         *   the last seven days".
+         * - `daysSinceLastNewPage()` in the Adaptive Engine read the
+         *   most recent stamp as "you started a new page yesterday",
+         *   so the sub-one-page-a-day pacing rule withheld new
+         *   memorization for the user's first days with no explanation
+         *   that mentioned seeding.
+         *
+         * Both handle `null` correctly and always did: pace measurement
+         * ignores undated pages, and the pacing rule treats "never
+         * started one" as "the first page is available now".
+         */
       });
 
       seeded += 1;
     }
 
     return seeded;
+  }
+
+  /**
+   * Clears the invented `firstStudiedAt` dates that seeding used to
+   * write, on devices that already carry them.
+   *
+   * WHY THIS EXISTS
+   * ---------------
+   * Seeding stamped every page of declared prior memorization with its
+   * staggered review date, so 304 pages a user memorized over years
+   * looked like 304 pages memorized in the last three weeks. Two things
+   * read that field and both took the estimate for evidence — the goal
+   * projection announced a pace of "about 16 pages a day" beside
+   * "nothing recorded in the last seven days", and the pacing rule
+   * withheld new memorization from users in their first days.
+   *
+   * The rule is fixed, but a fix to a rule cannot reach the dates it
+   * already wrote to somebody's device.
+   *
+   * HOW A SEEDED PAGE IS IDENTIFIED
+   * -------------------------------
+   * By the absence of any recall event — the same test
+   * `reblockSeededRevision()` uses, and it is exact rather than
+   * heuristic here. `firstStudiedAt` has only ever been written by two
+   * paths: `recordRecall()`, which always creates a recall event, and
+   * seeding, which never does. So a page carrying the date with no
+   * event behind it was seeded, with no timestamp coincidence to rely
+   * on.
+   *
+   * WHAT THE USER WILL NOTICE
+   * -------------------------
+   * Their goal projection stops claiming a pace they never had. Unlike
+   * `reblockSeededRevision()` this repair is *not* invisible, and that
+   * is deliberate: the number it removes was wrong, and leaving a
+   * flattering wrong number in place to avoid a visible change would be
+   * the opposite of what a repair is for. No scheduling changes — the
+   * field is read by nothing that picks pages.
+   */
+  async clearEstimatedFirstStudied(): Promise<number> {
+    const pages = await this.deps.pageRepository.findAll();
+    let cleared = 0;
+
+    for (const page of pages) {
+      if (!page.firstStudiedAt || !page.lastReviewedAt) continue;
+
+      const recalls = await this.deps.recallEventRepository.findByPage(page.id);
+
+      /*
+       * "Has a recall event" is not the same as "PHOS knows when this
+       * page was first studied", and treating them as the same left the
+       * bug alive.
+       *
+       * A seeded page the user has since *revised* has recall events —
+       * but its `firstStudiedAt` is still the date seeding invented, not
+       * anything observed. Those are also the pages carrying the most
+       * recent invented dates, and `daysSinceLastNewPage()` takes the
+       * maximum across all pages, so a single one left behind would keep
+       * withholding new memorization exactly as before.
+       *
+       * The two cases separate exactly. When PHOS genuinely watched a
+       * page leave `Unseen`, `recordRecall()` stamped `firstStudiedAt`
+       * with that first event's timestamp, so the two agree. When
+       * seeding wrote the date, they do not — seeding creates no events
+       * at all, and any later revision event is necessarily *after* the
+       * fabricated date.
+       */
+      if (recalls.length > 0) {
+        const earliest = recalls.reduce((a, b) => (a.timestamp <= b.timestamp ? a : b));
+        // Evidence. Left exactly as it is.
+        if (earliest.timestamp.getTime() === page.firstStudiedAt.getTime()) continue;
+      }
+
+      await this.deps.pageRepository.updateReviewTimestamps(page.id, {
+        // Re-stated unchanged: the update takes the review date it is
+        // given, and this repair has no business moving it.
+        lastReviewedAt: page.lastReviewedAt,
+        ...(page.lastSuccessfulRecallAt
+          ? { lastSuccessfulRecallAt: page.lastSuccessfulRecallAt }
+          : {}),
+        firstStudiedAt: null,
+      });
+      cleared += 1;
+    }
+
+    return cleared;
   }
 
   /**
@@ -397,17 +510,21 @@ export class MemoryEngine implements IMemoryEngine {
       if (reviewedAt.getTime() === entry.reviewedAt.getTime()) continue;
 
       /*
-       * All three timestamps move together, exactly as seeding sets
+       * Both review timestamps move together, exactly as seeding sets
        * them together. Leaving `lastSuccessfulRecallAt` behind would
        * make `didLastReviewFail()` in the Adaptive Engine read
        * "reviewed but never recalled successfully" and file the page
        * under Recovery — telling a user their Hifz was failing as a
        * side effect of a repair.
+       *
+       * `firstStudiedAt` is deliberately not among them. This repair
+       * rearranges *review* dates; when a page was first memorized is a
+       * different fact, and for seeded pages PHOS does not know it. See
+       * `seedPriorMemorization()`.
        */
       await this.deps.pageRepository.updateReviewTimestamps(entry.page.id, {
         lastReviewedAt: reviewedAt,
         lastSuccessfulRecallAt: reviewedAt,
-        firstStudiedAt: reviewedAt,
       });
       changed += 1;
     }

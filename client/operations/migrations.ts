@@ -76,7 +76,48 @@ export async function repairSeededRevisionBlocks(): Promise<RepairResult> {
   }
 }
 
+/**
+ * Clears the invented first-studied dates seeding used to write.
+ *
+ * Seeding stamped declared prior memorization with its staggered review
+ * date, so pages memorized over years looked like pages memorized in
+ * the last few weeks. The goal projection read those estimates as
+ * evidence — "at about 16 pages a day, you'd reach 424 pages around
+ * 18/08/2026", printed beside "nothing recorded in the last seven
+ * days" — and the pacing rule read the most recent of them as "you
+ * started a new page yesterday" and withheld new memorization.
+ *
+ * NOTE ON RULE 2 ABOVE. This repair is the deliberate exception: it
+ * *does* change what the user sees. Their projection stops naming a
+ * pace and says it needs real sessions first. That rule exists so a
+ * repair cannot quietly move somebody's workload, and this moves no
+ * workload at all — the field steers nothing that picks pages. What it
+ * removes is a wrong number, and preserving a flattering wrong number
+ * to keep the screen stable would invert the point of repairing it.
+ */
+export async function repairEstimatedFirstStudiedDates(): Promise<RepairResult> {
+  try {
+    const settings = await container.settingsRepository.getSettings();
+    if (settings.estimatedDatesRepairedAt !== null) {
+      return { ran: false, pagesRepaired: 0 };
+    }
+
+    const pagesRepaired = await container.memoryEngine.clearEstimatedFirstStudied();
+    await container.settingsRepository.markEstimatedDatesRepaired();
+
+    return { ran: true, pagesRepaired };
+  } catch {
+    // Silent and unmarked, so a half-finished repair retries next
+    // launch rather than being skipped forever. See above.
+    return { ran: false, pagesRepaired: 0 };
+  }
+}
+
 /** Runs every outstanding repair. Called once, from the storage bootstrap. */
 export async function runPendingRepairs(): Promise<void> {
   await repairSeededRevisionBlocks();
+  // After the reblock, which rewrites review timestamps: this one reads
+  // `lastReviewedAt` to restate it unchanged, and should see the
+  // settled value rather than the one about to be replaced.
+  await repairEstimatedFirstStudiedDates();
 }

@@ -313,6 +313,18 @@ export interface BackupStatusDTO {
   status: BackupStatus;
   lastBackup?: string;
   history: BackupEntryDTO[];
+  /**
+   * When the user last exported to a file, already formatted for
+   * display. `undefined` means never.
+   *
+   * Deliberately separate from `lastBackup`. A backup lives in the same
+   * IndexedDB that clearing site data erases; an export is the only copy
+   * that survives it. Reporting them as one number is what let the
+   * screen tell somebody they were protected when they were not.
+   */
+  lastExport?: string;
+  /** True when no export has ever been taken. The state worth warning about. */
+  neverExported: boolean;
 }
 
 export interface BackupEntryDTO {

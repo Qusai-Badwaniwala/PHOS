@@ -181,19 +181,35 @@ describe("what it refuses to touch", () => {
     expect(pages.get("page-1")!.lastReviewedAt).toBeNull();
   });
 
-  it("moves all three timestamps together, never just one", async () => {
+  it("moves both review timestamps together, never just one", async () => {
     /*
-     * Seeding sets `lastReviewedAt`, `lastSuccessfulRecallAt` and
-     * `firstStudiedAt` to the same instant. Leaving the success stamp
-     * behind would make the Adaptive Engine read "reviewed but never
-     * recalled successfully" and file the page under Recovery — telling
-     * a user their Hifz was failing, as a side effect of a repair.
+     * Seeding sets `lastReviewedAt` and `lastSuccessfulRecallAt` to the
+     * same instant. Leaving the success stamp behind would make the
+     * Adaptive Engine read "reviewed but never recalled successfully"
+     * and file the page under Recovery — telling a user their Hifz was
+     * failing, as a side effect of a repair.
      */
     await engine.reblockSeededRevision(inOrder());
 
     for (const page of pages.values()) {
       expect(page.lastSuccessfulRecallAt!.getTime()).toBe(page.lastReviewedAt!.getTime());
-      expect(page.firstStudiedAt!.getTime()).toBe(page.lastReviewedAt!.getTime());
+    }
+  });
+
+  /*
+   * `firstStudiedAt` is a different fact from "when was this last
+   * revised", and this repair only rearranges the latter. It used to
+   * drag the first-studied date along with it, which meant the repair
+   * kept refreshing an estimate that PHOS should never have written —
+   * see `clearEstimatedFirstStudied()`.
+   */
+  it("leaves the first-studied date alone, because it is not a review date", async () => {
+    const before = new Map([...pages].map(([id, page]) => [id, page.firstStudiedAt]));
+
+    await engine.reblockSeededRevision(inOrder());
+
+    for (const [id, page] of pages) {
+      expect(page.firstStudiedAt).toEqual(before.get(id));
     }
   });
 });

@@ -27,6 +27,7 @@ const { OnboardingWizard } = require("@/components/onboarding/onboarding-wizard"
 };
 
 const PREVIEW = {
+  pagesAlreadyMemorized: 75,
   ranges: [
     { start: 1, end: 52 },
     { start: 582, end: 604 },
@@ -54,6 +55,12 @@ async function goToStep(user: User, target: number) {
   for (let step = 0; step < target; step += 1) await next(user);
 }
 
+/** Steps are named because their order is load-bearing — see below. */
+const ORDER_STEP = 1;
+const AMOUNT_STEP = 2;
+const PACE_STEP = 3;
+const READY_STEP = 4;
+
 describe("moving through the steps", () => {
   it("opens on the expectations screen with nowhere to go back to", () => {
     render(<OnboardingWizard onComplete={onComplete} />);
@@ -62,39 +69,100 @@ describe("moving through the steps", () => {
     expect(screen.getByRole("button", { name: /Back/ })).toBeDisabled();
   });
 
+  /*
+   * Order before amount, and this is the one ordering the wizard cannot
+   * get wrong.
+   *
+   * "Three Juz" has no page count until PHOS knows *which* three, and
+   * those differ by order — Juz 30, 29, 28 for someone working back from
+   * the end of the Mushaf. Asked the other way round, the amount screen
+   * had to refer to "your chosen order" two steps before that choice
+   * existed, and the user had to convert Juz into pages unaided.
+   */
+  it("asks for the memorization order before asking how much is done", async () => {
+    const user = userEvent.setup();
+    render(<OnboardingWizard onComplete={onComplete} />);
+
+    await goToStep(user, ORDER_STEP);
+    expect(screen.getByText("Step 2 of 5 · Your order")).toBeInTheDocument();
+    expect(screen.getByText("In what order will you memorize?")).toBeInTheDocument();
+
+    await next(user);
+    expect(screen.getByText("Step 3 of 5 · Your Hifz")).toBeInTheDocument();
+    expect(screen.getByText("How much of that have you already done?")).toBeInTheDocument();
+  });
+
   it("goes forward and back without losing an answer", async () => {
     const user = userEvent.setup();
     render(<OnboardingWizard onComplete={onComplete} />);
 
-    await goToStep(user, 1);
-    await user.click(screen.getByRole("button", { name: "I have memorized a few Juz" }));
+    await goToStep(user, AMOUNT_STEP);
+    await user.click(screen.getByRole("button", { name: "Increase Complete Juz memorized" }));
     await next(user);
 
-    expect(screen.getByText("Step 3 of 5 · Your pace")).toBeInTheDocument();
+    expect(screen.getByText("Step 4 of 5 · Your pace")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /Back/ }));
 
-    expect(screen.getByRole("button", { name: "I have memorized a few Juz" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    expect(screen.getByLabelText("Complete Juz memorized")).toHaveValue(1);
   });
 });
 
-describe("choosing a level", () => {
-  it("moves the numeric estimates with it, so most users can accept the defaults", async () => {
+describe("how much is already memorized", () => {
+  /*
+   * The reported defect: the wizard offered four choices phrased in Juz
+   * ("I have memorized a few Juz"), then demanded a page count. People
+   * hold their Hifz in Juz, Juz are not a uniform length, and so the
+   * question could not be answered without doing arithmetic first —
+   * worse still for anyone whose memorization is not one contiguous run.
+   */
+  it("asks in Juz, which is the unit people actually know", async () => {
     const user = userEvent.setup();
     render(<OnboardingWizard onComplete={onComplete} />);
 
-    await goToStep(user, 1);
+    await goToStep(user, AMOUNT_STEP);
 
-    expect(screen.getByLabelText("Pages already memorized")).toHaveValue(0);
+    expect(screen.getByLabelText("Complete Juz memorized")).toHaveValue(0);
+    expect(screen.getByLabelText("Extra pages into the next Juz")).toHaveValue(0);
+    expect(screen.queryByLabelText("Pages already memorized")).not.toBeInTheDocument();
+  });
 
-    await user.click(screen.getByRole("button", { name: "I am a Hafiz, maintaining my Hifz" }));
+  it("converts the Juz answer to pages and shows its working", async () => {
+    const user = userEvent.setup();
+    render(<OnboardingWizard onComplete={onComplete} />);
 
-    // Requirement 1 asks for setup in "only a few minutes"; a Hafiz
-    // should not have to press + 604 times.
-    expect(screen.getByLabelText("Pages already memorized")).toHaveValue(604);
+    await goToStep(user, AMOUNT_STEP);
+    await user.click(screen.getByRole("button", { name: "Increase Complete Juz memorized" }));
+
+    // The user never has to work out that three Juz is 75 pages.
+    expect(await screen.findByText(/75 pages/)).toBeInTheDocument();
+    expect(screen.getByText(/pages 1–52/)).toBeInTheDocument();
+    expect(screen.getByText(/page 53/)).toBeInTheDocument();
+  });
+
+  it("asks for the preview using the order and the Juz the user actually chose", async () => {
+    const user = userEvent.setup();
+    render(<OnboardingWizard onComplete={onComplete} />);
+
+    await goToStep(user, AMOUNT_STEP);
+    await user.click(screen.getByRole("button", { name: "Increase Complete Juz memorized" }));
+    await user.click(
+      screen.getByRole("button", { name: "Increase Extra pages into the next Juz" }),
+    );
+
+    // A preview built from different answers than the ones being saved
+    // would be worse than no preview at all.
+    await waitFor(() => expect(previewOnboarding).toHaveBeenCalledWith("Standard", 1, 1));
+  });
+
+  it("shows nothing when the user has memorized nothing yet", async () => {
+    const user = userEvent.setup();
+    previewOnboarding.mockResolvedValue({ ...PREVIEW, pagesAlreadyMemorized: 0 });
+    render(<OnboardingWizard onComplete={onComplete} />);
+
+    await goToStep(user, AMOUNT_STEP);
+
+    expect(screen.queryByText(/That comes to/)).not.toBeInTheDocument();
   });
 });
 
@@ -103,7 +171,7 @@ describe("the pace question", () => {
     const user = userEvent.setup();
     render(<OnboardingWizard onComplete={onComplete} />);
 
-    await goToStep(user, 2);
+    await goToStep(user, PACE_STEP);
 
     // Asking for "0.5 pages per day" is not how anyone describes their
     // own memorization.
@@ -113,71 +181,11 @@ describe("the pace question", () => {
       "true",
     );
 
-    await goToStep(user, 2);
+    await next(user);
     await user.click(screen.getByRole("button", { name: "Start using PHOS" }));
 
     await waitFor(() => expect(completeOnboarding).toHaveBeenCalled());
     expect(completeOnboarding.mock.calls[0]![0]).toMatchObject({ comfortableDailyPages: 0.5 });
-  });
-});
-
-describe("the preview of what will be recorded", () => {
-  /*
-   * This panel exists because the outcome genuinely surprises people: a
-   * user who picks "Juz 30 first" and reports 75 memorized pages is
-   * told their next new page is 53, which is correct but looks like a
-   * bug if nothing explains it.
-   *
-   * It is therefore only useful if it appears while the user is still
-   * on the screen where they choose the order.
-   */
-  it("appears on the order step, without having to leave and come back", async () => {
-    const user = userEvent.setup();
-    render(<OnboardingWizard onComplete={onComplete} />);
-
-    await goToStep(user, 1);
-    await user.click(screen.getByRole("button", { name: "I have memorized a few Juz" }));
-    await goToStep(user, 2);
-
-    expect(screen.getByText("Step 4 of 5 · Your order")).toBeInTheDocument();
-    expect(await screen.findByText("What PHOS will record from your answers")).toBeInTheDocument();
-    expect(screen.getByText(/pages 1–52/)).toBeInTheDocument();
-    expect(screen.getByText(/page 53/)).toBeInTheDocument();
-  });
-
-  it("asks for the preview using the order and page count the user actually chose", async () => {
-    const user = userEvent.setup();
-    render(<OnboardingWizard onComplete={onComplete} />);
-
-    await goToStep(user, 1);
-    await user.click(screen.getByRole("button", { name: "I have memorized a few Juz" }));
-    await goToStep(user, 2);
-
-    // A preview built from different answers than the ones being saved
-    // would be worse than no preview at all.
-    await waitFor(() => expect(previewOnboarding).toHaveBeenCalledWith("Standard", 100));
-  });
-
-  it("shows nothing when the user has memorized nothing yet", async () => {
-    const user = userEvent.setup();
-    render(<OnboardingWizard onComplete={onComplete} />);
-
-    await goToStep(user, 3);
-
-    expect(screen.queryByText("What PHOS will record from your answers")).not.toBeInTheDocument();
-  });
-
-  it("never blocks finishing when it cannot be built", async () => {
-    const user = userEvent.setup();
-    previewOnboarding.mockRejectedValue(new Error("engine unavailable"));
-    render(<OnboardingWizard onComplete={onComplete} />);
-
-    await goToStep(user, 4);
-    await user.click(screen.getByRole("button", { name: "Start using PHOS" }));
-
-    // The preview is an explanation. Losing it must never cost the user
-    // their setup.
-    await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
   });
 });
 
@@ -186,20 +194,40 @@ describe("finishing", () => {
     const user = userEvent.setup();
     render(<OnboardingWizard onComplete={onComplete} />);
 
-    await goToStep(user, 1);
-    await user.click(screen.getByRole("button", { name: "I have memorized several Juz" }));
-    await goToStep(user, 3);
+    await goToStep(user, AMOUNT_STEP);
+    await user.click(screen.getByRole("button", { name: "Increase Complete Juz memorized" }));
+    await goToStep(user, READY_STEP - AMOUNT_STEP);
     await user.click(screen.getByRole("button", { name: "Start using PHOS" }));
 
     await waitFor(() => expect(completeOnboarding).toHaveBeenCalledTimes(1));
+
+    /*
+     * The Juz answer is sent as a Juz answer. The page count is derived
+     * by the operation from the same sequence that seeds the pages, so
+     * the screen's promise and the write cannot disagree — a conversion
+     * done here would be a second implementation of that rule.
+     */
     expect(completeOnboarding.mock.calls[0]![0]).toMatchObject({
-      memorizationLevel: "Advanced",
       memorizationOrder: "Standard",
-      pagesAlreadyMemorized: 300,
-      dailyAvailableMinutes: 60,
+      juzAlreadyMemorized: 1,
+      extraPagesMemorized: 0,
+      dailyAvailableMinutes: 30,
       revisionStartsImmediately: true,
     });
     expect(onComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it("never blocks finishing when the preview cannot be built", async () => {
+    const user = userEvent.setup();
+    previewOnboarding.mockRejectedValue(new Error("engine unavailable"));
+    render(<OnboardingWizard onComplete={onComplete} />);
+
+    await goToStep(user, READY_STEP);
+    await user.click(screen.getByRole("button", { name: "Start using PHOS" }));
+
+    // The preview explains the answer rather than producing it. Losing
+    // it must never cost the user their setup.
+    await waitFor(() => expect(onComplete).toHaveBeenCalledTimes(1));
   });
 
   it("tells the user what went wrong and lets them try again", async () => {
@@ -207,7 +235,7 @@ describe("finishing", () => {
     completeOnboarding.mockRejectedValue(new Error("Storage is full."));
     render(<OnboardingWizard onComplete={onComplete} />);
 
-    await goToStep(user, 4);
+    await goToStep(user, READY_STEP);
     await user.click(screen.getByRole("button", { name: "Start using PHOS" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Storage is full.");
@@ -221,7 +249,7 @@ describe("finishing", () => {
     const user = userEvent.setup();
     render(<OnboardingWizard onComplete={onComplete} />);
 
-    await goToStep(user, 4);
+    await goToStep(user, READY_STEP);
 
     // Someone who never opens About should still learn that their
     // record is device-local and what would erase it.

@@ -22,6 +22,7 @@ import {
 } from "@/lib/api/settings";
 import { InstallGuide } from "@/components/shared/install-guide";
 import { EXAM_LADDER } from "@/shared/constants";
+import { TOTAL_JUZ } from "@/shared/types";
 import {
   ArrowLeft,
   ArrowRight,
@@ -32,13 +33,6 @@ import {
   RotateCcw,
   Target,
 } from "lucide-react";
-
-const LEVEL_LABELS: Record<string, string> = {
-  Beginner: "I am just starting",
-  Intermediate: "I have memorized a few Juz",
-  Advanced: "I have memorized several Juz",
-  Hafiz: "I am a Hafiz, maintaining my Hifz",
-};
 
 const ORDER_LABELS: Record<string, string> = {
   Standard: "Juz 1 → 30 (standard)",
@@ -61,19 +55,6 @@ const ORDER_NOTES: Record<string, string> = {
 };
 
 /**
- * Sensible starting points per level, so most users can accept the
- * defaults and finish quickly — Requirement 1 asks for "only a few
- * minutes". Every value stays editable, and none of them is binding:
- * real performance replaces these estimates as soon as PHOS has data.
- */
-const LEVEL_DEFAULTS: Record<string, { pages: number; minutes: number; daily: number }> = {
-  Beginner: { pages: 0, minutes: 30, daily: 0.5 },
-  Intermediate: { pages: 100, minutes: 45, daily: 1 },
-  Advanced: { pages: 300, minutes: 60, daily: 1 },
-  Hafiz: { pages: 604, minutes: 60, daily: 1 },
-};
-
-/**
  * Memorization pace, offered the way people actually describe it.
  *
  * Asking for "pages per day" forced anyone slower than a page a day to
@@ -91,20 +72,34 @@ const PACE_OPTIONS: readonly { label: string; pagesPerDay: number }[] = [
   { label: "3 pages a day or more", pagesPerDay: 3 },
 ];
 
-const STEPS = ["Welcome", "Your Hifz", "Your pace", "Your order", "Ready"] as const;
+/**
+ * Order is asked *before* amount, and that sequence is load-bearing.
+ *
+ * "Three Juz" only has a page count once PHOS knows which three — Juz
+ * 30, 29, 28 for someone starting at the end of the Mushaf, Juz 1, 2, 3
+ * for someone starting at the beginning, and those are not the same
+ * number of pages. Asking amount first meant the screen had to say
+ * "along your chosen order" about a choice two steps in the future, and
+ * left the user converting Juz to pages in their head because PHOS
+ * could not yet do it for them.
+ */
+const STEPS = ["Welcome", "Your order", "Your Hifz", "Your pace", "Ready"] as const;
+
+const ORDER_STEP = STEPS.indexOf("Your order");
 
 /**
- * The step that both chooses the memorization order and shows what that
- * choice will record.
+ * The step that asks how much is already memorized and shows what that
+ * answer will record.
  *
- * Named rather than written as a bare `3`, because the preview is
+ * Named rather than written as a bare index, because the preview is
  * fetched and rendered in two different places and they must agree. The
- * preview was previously fetched on the *final* step while being
- * rendered on this one, so it was empty every time the user was
- * actually looking at it — the explanation only appeared if they
- * happened to continue to "Ready" and then press Back.
+ * preview was once fetched on the *final* step while being rendered on
+ * another, so it was empty every time the user was actually looking at
+ * it.
  */
-const ORDER_STEP = STEPS.indexOf("Your order");
+const AMOUNT_STEP = STEPS.indexOf("Your Hifz");
+const PACE_STEP = STEPS.indexOf("Your pace");
+const READY_STEP = STEPS.indexOf("Ready");
 
 interface OnboardingWizardProps {
   onComplete: () => void;
@@ -126,9 +121,9 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   const [preview, setPreview] = React.useState<OnboardingPreview | null>(null);
 
   const [answers, setAnswers] = React.useState<OnboardingAnswers>({
-    memorizationLevel: "Beginner",
     memorizationOrder: "Standard",
-    pagesAlreadyMemorized: 0,
+    juzAlreadyMemorized: 0,
+    extraPagesMemorized: 0,
     dailyAvailableMinutes: 30,
     comfortableDailyPages: 0.5,
     followsExistingSchedule: false,
@@ -139,16 +134,21 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   const patch = (update: Partial<OnboardingAnswers>) =>
     setAnswers((current) => ({ ...current, ...update }));
 
-  // Previewed on the order step, where both the page count and the
-  // order are known and where the result is shown. Re-fetched whenever
-  // either answer changes, so switching order updates the explanation
-  // in place. A failed preview is silent: it is an explanation, and
-  // losing it must never block finishing setup.
-  const onOrderStep = step === ORDER_STEP;
+  // Fetched from the order step onward, so the amount step already has
+  // its answer rendered rather than flashing in. Re-fetched whenever any
+  // of the three inputs changes, so switching order updates the page
+  // count in place. A failed preview is silent: it explains the answer
+  // rather than producing it — `completeOnboarding` derives the page
+  // count itself — so losing it must never block finishing setup.
+  const previewing = step === ORDER_STEP || step === AMOUNT_STEP;
   React.useEffect(() => {
-    if (!onOrderStep) return;
+    if (!previewing) return;
     let current = true;
-    void previewOnboarding(answers.memorizationOrder, answers.pagesAlreadyMemorized)
+    void previewOnboarding(
+      answers.memorizationOrder,
+      answers.juzAlreadyMemorized,
+      answers.extraPagesMemorized,
+    )
       .then((result) => {
         if (current) setPreview(result);
       })
@@ -156,22 +156,12 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
     return () => {
       current = false;
     };
-  }, [onOrderStep, answers.memorizationOrder, answers.pagesAlreadyMemorized]);
-
-  /** Choosing a level moves the numeric estimates with it, unless the user has already edited them. */
-  const selectLevel = (memorizationLevel: string) => {
-    const defaults = LEVEL_DEFAULTS[memorizationLevel];
-    patch({
-      memorizationLevel,
-      ...(defaults
-        ? {
-            pagesAlreadyMemorized: defaults.pages,
-            dailyAvailableMinutes: defaults.minutes,
-            comfortableDailyPages: defaults.daily,
-          }
-        : {}),
-    });
-  };
+  }, [
+    previewing,
+    answers.memorizationOrder,
+    answers.juzAlreadyMemorized,
+    answers.extraPagesMemorized,
+  ]);
 
   const finish = async () => {
     setPending(true);
@@ -212,57 +202,104 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
           </div>
         )}
 
-        {step === 1 && (
+        {step === AMOUNT_STEP && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-xl font-semibold">Where are you starting from?</h2>
+              <h2 className="text-xl font-semibold">How much of that have you already done?</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                This only sets PHOS&apos;s first estimate. It adjusts to how you actually memorize,
-                and nothing here locks you in.
+                An estimate is fine. This only sets PHOS&apos;s first picture of where you are — it
+                adjusts to how you actually memorize, and nothing here locks you in.
               </p>
             </div>
 
+            {/*
+              Asked in Juz because that is how people hold the answer.
+              Nobody knows their Hifz as a page count, and Juz are not a
+              uniform length, so asking for pages made the user do real
+              arithmetic before they could answer at all. PHOS does the
+              conversion instead, against the order chosen on the
+              previous step, and shows its working below.
+            */}
             <div className="space-y-2">
-              {Object.entries(LEVEL_LABELS).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => selectLevel(value)}
-                  aria-pressed={answers.memorizationLevel === value}
-                  className={`w-full rounded-md border p-3 text-left text-sm transition-colors ${
-                    answers.memorizationLevel === value
-                      ? "border-primary bg-accent"
-                      : "hover:bg-accent/50"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
+              <label htmlFor="juz-memorized" className="text-sm font-medium">
+                Complete Juz memorized
+              </label>
+              <NumberStepper
+                id="juz-memorized"
+                value={answers.juzAlreadyMemorized}
+                onChange={(juzAlreadyMemorized) => patch({ juzAlreadyMemorized })}
+                min={0}
+                max={TOTAL_JUZ}
+                step={1}
+                suffix="Juz"
+                aria-label="Complete Juz memorized"
+              />
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="pages-memorized" className="text-sm font-medium">
-                Roughly how many pages have you memorized so far?
+              <label htmlFor="extra-pages" className="text-sm font-medium">
+                And any pages into the next Juz{" "}
+                <span className="font-normal text-muted-foreground">(optional)</span>
               </label>
               <NumberStepper
-                id="pages-memorized"
-                value={answers.pagesAlreadyMemorized}
-                onChange={(pagesAlreadyMemorized) => patch({ pagesAlreadyMemorized })}
+                id="extra-pages"
+                value={answers.extraPagesMemorized}
+                onChange={(extraPagesMemorized) => patch({ extraPagesMemorized })}
                 min={0}
-                max={604}
-                step={5}
+                max={30}
+                step={1}
                 suffix="pages"
-                aria-label="Pages already memorized"
+                aria-label="Extra pages into the next Juz"
               />
               <p className="text-xs text-muted-foreground">
-                An estimate is fine. PHOS will mark this many pages along your chosen order as
-                already memorized, and schedule them for revision rather than as new work.
+                Leave this at zero if you finished on a Juz boundary.
+              </p>
+            </div>
+
+            {preview && preview.pagesAlreadyMemorized > 0 && (
+              <div className="rounded-md border border-border bg-muted/50 p-4 text-sm">
+                <p className="font-medium text-foreground">
+                  That comes to{" "}
+                  <span className="text-primary">{preview.pagesAlreadyMemorized} pages</span>
+                </p>
+                <p className="mt-2 text-muted-foreground">
+                  PHOS will mark{" "}
+                  <span className="font-medium text-foreground">
+                    {preview.ranges
+                      .map((r) =>
+                        r.start === r.end ? `page ${r.start}` : `pages ${r.start}–${r.end}`,
+                      )
+                      .join(", ")}
+                  </span>
+                  {preview.juzCovered.length > 0 && <> (Juz {preview.juzCovered.join(", ")})</>} as
+                  already memorized, and schedule them for revision rather than as new work.
+                </p>
+                {preview.nextPage && (
+                  <p className="mt-2 text-muted-foreground">
+                    Your next new page will be{" "}
+                    <span className="font-medium text-foreground">
+                      page {preview.nextPage.pageNumber}
+                      {preview.nextPage.surah ? ` · ${preview.nextPage.surah}` : ""}
+                      {` · Juz ${preview.nextPage.juzNumber}`}
+                    </span>
+                    .
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="rounded-md bg-muted p-4 text-sm text-muted-foreground">
+              <p className="font-medium text-foreground">You can change everything here later.</p>
+              <p className="mt-1">
+                These answers only give PHOS somewhere to start. As you study, it learns from your
+                real recall and adjusts — what you tell it today never limits what it expects of you
+                later.
               </p>
             </div>
           </div>
         )}
 
-        {step === 2 && (
+        {step === PACE_STEP && (
           <div className="space-y-6">
             <div>
               <h2 className="text-xl font-semibold">How much time do you have?</h2>
@@ -423,50 +460,10 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                 {ORDER_NOTES[answers.memorizationOrder]}
               </p>
             )}
-
-            {preview && answers.pagesAlreadyMemorized > 0 && (
-              <div className="rounded-md border border-border bg-muted/50 p-4 text-sm">
-                <p className="font-medium text-foreground">
-                  What PHOS will record from your answers
-                </p>
-                <p className="mt-2 text-muted-foreground">
-                  Your {answers.pagesAlreadyMemorized} memorized pages will be marked as{" "}
-                  <span className="font-medium text-foreground">
-                    {preview.ranges
-                      .map((r) =>
-                        r.start === r.end ? `page ${r.start}` : `pages ${r.start}–${r.end}`,
-                      )
-                      .join(", ")}
-                  </span>
-                  {preview.juzCovered.length > 0 && <> (Juz {preview.juzCovered.join(", ")})</>},
-                  following the order you chose.
-                </p>
-                {preview.nextPage && (
-                  <p className="mt-2 text-muted-foreground">
-                    Your next new page will be{" "}
-                    <span className="font-medium text-foreground">
-                      page {preview.nextPage.pageNumber}
-                      {preview.nextPage.surah ? ` · ${preview.nextPage.surah}` : ""}
-                      {` · Juz ${preview.nextPage.juzNumber}`}
-                    </span>
-                    .
-                  </p>
-                )}
-              </div>
-            )}
-
-            <div className="rounded-md bg-muted p-4 text-sm text-muted-foreground">
-              <p className="font-medium text-foreground">You can change everything here later.</p>
-              <p className="mt-1">
-                These answers only give PHOS somewhere to start. As you study, it learns from your
-                real recall and adjusts — what you tell it today never limits what it expects of you
-                later.
-              </p>
-            </div>
           </div>
         )}
 
-        {step === 4 && (
+        {step === READY_STEP && (
           <div className="space-y-6">
             <div>
               <h2 className="text-xl font-semibold">You&apos;re ready</h2>

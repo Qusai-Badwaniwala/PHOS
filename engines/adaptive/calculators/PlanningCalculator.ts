@@ -93,6 +93,18 @@ export function rankPages(
 }
 
 /**
+ * How many pages of new memorization the day's plan protects from being
+ * crowded out by revision entirely.
+ *
+ * One, deliberately: enough that progress can never reach zero, small
+ * enough that a user whose revision is already over capacity is not
+ * handed more to forget. Above this floor the ordinary priority rules
+ * still apply, so a heavy day still postpones new work — it just cannot
+ * postpone all of it, forever.
+ */
+const RESERVED_NEW_MEMORIZATION_PAGES = 1;
+
+/**
  * Allocates available study time across ranked pages (SDS Part 11
  * `allocateStudyTime()` / `balanceWorkload()`).
  *
@@ -105,6 +117,22 @@ export function rankPages(
  * rather than through a separate reserved-quota mechanism the SDS does
  * not specify. The engine never exceeds the supplied duration (SDS
  * Part 11 "AVAILABLE TIME CONTRACT").
+ *
+ * **With one floor: postponed is not the same as abandoned.**
+ *
+ * Pure priority order made the postponement permanent. Revision that
+ * does not fit today is still due tomorrow, by then *more* overdue and
+ * so ranked higher still, which means a user whose revision fills their
+ * day is never offered another new page as long as they live. Observed
+ * on a first run with entirely ordinary answers — "I have memorized
+ * several Juz", 60 minutes a day — which produced 34 pages of revision,
+ * 9 pages of daily overflow, and "No assignment scheduled" on day one.
+ *
+ * So the highest-priority new page is admitted even when the clock is
+ * full, displacing the *least* urgent revision already allocated rather
+ * than extending the day. Retention still wins — it keeps every page it
+ * had but the one it could most afford to defer — and the plan still
+ * fits inside the minutes the user said they had.
  */
 export function allocateStudyTime(
   rankedPages: readonly RankedPage[],
@@ -122,7 +150,53 @@ export function allocateStudyTime(
     usedSeconds += ranked.estimatedDurationSeconds;
   }
 
-  return allocated;
+  const isNew = (item: RankedPage) => item.category === WorkloadCategory.NewMemorization;
+  if (allocated.filter(isNew).length >= RESERVED_NEW_MEMORIZATION_PAGES) {
+    return allocated;
+  }
+
+  // `rankedPages` is sorted, so the first match is the new page the
+  // roadmap says comes next — never an arbitrary one.
+  const alreadyAllocated = new Set(allocated);
+  const nextNewPage = rankedPages.find((item) => isNew(item) && !alreadyAllocated.has(item));
+  if (!nextNewPage) {
+    return allocated;
+  }
+
+  /*
+   * Give up the least urgent revision until the new page fits — but
+   * never the last of it (`index > 0`).
+   *
+   * A day with room for only one page is a day revision should simply
+   * win: that is a genuinely tight day rather than the permanent stall
+   * this floor exists to prevent, and clearing the plan of revision to
+   * make room for expansion would invert "retention always wins"
+   * instead of merely bounding it.
+   */
+  const revisionIndexes = allocated
+    .map((item, index) => (isNew(item) ? -1 : index))
+    .filter((index) => index >= 0);
+
+  const evicted = new Set<number>();
+  let freedSeconds = 0;
+  for (let i = revisionIndexes.length - 1; i > 0; i -= 1) {
+    if (usedSeconds - freedSeconds + nextNewPage.estimatedDurationSeconds <= availableSeconds) {
+      break;
+    }
+    const index = revisionIndexes[i]!;
+    freedSeconds += allocated[index]!.estimatedDurationSeconds;
+    evicted.add(index);
+  }
+
+  // Still short even after giving up everything it was allowed to. The
+  // user's own time budget wins over the floor.
+  if (usedSeconds - freedSeconds + nextNewPage.estimatedDurationSeconds > availableSeconds) {
+    return allocated;
+  }
+
+  return [...allocated.filter((_, index) => !evicted.has(index)), nextNewPage].sort(
+    (a, b) => b.priorityScore - a.priorityScore,
+  );
 }
 
 /** Converts allocated, ranked pages into the ordered StudyItems that make up a DailyStudyPlan. */

@@ -21,6 +21,7 @@ import {
   validateNumericRange,
   validateString,
 } from "@/validators";
+import { PRIOR_MEMORIZATION_DIFFICULTY } from "@/engines/memory";
 import type { PreferencesUpdate } from "@/repositories";
 import { toRoadmapDTO, toSettingsDTO } from "@/shared/mappers";
 import type { RoadmapDTO, SettingsDTO } from "@/shared/dto";
@@ -99,6 +100,27 @@ export async function updatePreferences(patch: Record<string, unknown>): Promise
  * without a typed confirmation while "Delete All Data" requires one —
  * the two actions differ in kind, not just in degree.
  */
+/**
+ * Records that the user has an exported file, after one has actually
+ * reached them.
+ *
+ * Separate from `exportData()` and called *after* the download, because
+ * producing the bytes is not the same as the user having the file. A
+ * blocked or cancelled download would otherwise clear the "you have
+ * never exported" warning while leaving them with nothing — the one
+ * warning on the one screen where being wrong is unrecoverable.
+ *
+ * Non-fatal by design: the export has already succeeded and the file is
+ * in their hands, so failing to note it must never surface as an error.
+ */
+export async function markDataExported(): Promise<void> {
+  try {
+    await container.settingsRepository.markDataExported();
+  } catch {
+    // Ignored for the reason above.
+  }
+}
+
 export async function resetSettings(): Promise<SettingsDTO> {
   return toSettingsDTO(await container.settingsRepository.resetToDefaults());
 }
@@ -178,13 +200,42 @@ export interface OnboardingResult extends SettingsDTO {
 /**
  * Roughly how many pages a day this user can revise.
  *
- * A page is estimated at about a minute (matching the Adaptive
- * Engine's own `baseDurationSeconds`). Most of a day is left for
- * revision because that is where the bulk of a Hifz routine goes, and
- * because new memorization is separately capped by the daily target.
+ * The per-page cost is asked of the Adaptive Engine rather than
+ * assumed, using the difficulty seeding will actually write. This used
+ * to read `Math.floor(minutes * 0.8)` — an independent guess that a
+ * page costs about a minute. The engine charges
+ * `base + difficulty × weight`, which for a seeded page is 105 seconds,
+ * so onboarding sized every cycle roughly 75% denser than the scheduler
+ * could fit. The overflow rolled forward as *overdue* revision, and
+ * because overdue revision outranks new memorization, that shortfall
+ * compounded until PHOS stopped assigning new pages at all. See
+ * `RESERVED_NEW_MEMORIZATION_PAGES` in the Adaptive Engine for the
+ * other half of that fix.
+ *
+ * Deliberately spends the whole budget on revision: new memorization is
+ * separately paced by the daily target and separately protected by the
+ * floor in the allocator, so holding time back here would only make the
+ * cycle slacker than the user asked for.
  */
-function estimateDailyRevisionCapacity(dailyAvailableMinutes: number): number {
-  return Math.max(1, Math.floor(dailyAvailableMinutes * 0.8));
+export function estimateDailyRevisionCapacity(dailyAvailableMinutes: number): number {
+  const secondsPerPage = container.adaptiveEngine.estimateSessionDuration({
+    difficulty: PRIOR_MEMORIZATION_DIFFICULTY,
+  });
+  return Math.max(1, Math.floor((dailyAvailableMinutes * 60) / secondsPerPage));
+}
+
+/**
+ * The level stored for a user, derived from how many Juz they report.
+ *
+ * Kept only because the field exists in every stored settings row;
+ * nothing reads it to make a scheduling decision. The wizard no longer
+ * asks for it — see `completeOnboarding()`.
+ */
+function levelForJuz(juzCount: number): MemorizationLevel {
+  if (juzCount >= TOTAL_JUZ) return MemorizationLevel.Hafiz;
+  if (juzCount >= 10) return MemorizationLevel.Advanced;
+  if (juzCount >= 1) return MemorizationLevel.Intermediate;
+  return MemorizationLevel.Beginner;
 }
 
 /**
@@ -206,21 +257,21 @@ export async function completeOnboarding(
 ): Promise<OnboardingResult> {
   const correlationId = generateCorrelationId();
 
-  const memorizationLevel = validateEnum(
-    answers.memorizationLevel,
-    Object.values(MemorizationLevel),
-    "memorizationLevel",
-    correlationId,
-  );
   const memorizationOrder = validateEnum(
     answers.memorizationOrder,
     Object.values(MemorizationOrder),
     "memorizationOrder",
     correlationId,
   );
-  const pagesAlreadyMemorized = validateNumericRange(
-    answers.pagesAlreadyMemorized,
-    "pagesAlreadyMemorized",
+  const juzAlreadyMemorized = validateNumericRange(
+    answers.juzAlreadyMemorized,
+    "juzAlreadyMemorized",
+    { min: 0, max: TOTAL_JUZ, integer: true },
+    correlationId,
+  );
+  const extraPagesMemorized = validateNumericRange(
+    answers.extraPagesMemorized,
+    "extraPagesMemorized",
     { min: 0, max: TOTAL_MUSHAF_PAGES, integer: true },
     correlationId,
   );
@@ -265,10 +316,38 @@ export async function completeOnboarding(
       ].sort((a, b) => a - b)
     : [];
 
-  // Order is recorded first, because the memorization sequence used for
-  // seeding below is derived from it. Someone who began at Juz 30 has
-  // memorized the end of the Mushaf, and seeding page numbers 1..N
-  // would attribute their Hifz to pages they have never read.
+  /*
+   * The sequence is loaded from the order the user just chose, passed
+   * explicitly rather than read back from settings.
+   *
+   * Someone who began at Juz 30 has memorized the end of the Mushaf,
+   * and resolving their answer against page numbers 1..N would
+   * attribute their Hifz to pages they have never read. Passing the
+   * order removes the ordering dependency that made that correctness
+   * rest on which line ran first.
+   */
+  const hasPriorMemorization = juzAlreadyMemorized > 0 || extraPagesMemorized > 0;
+  const sequence = hasPriorMemorization
+    ? await container.adaptiveEngine.getMemorizationSequence(memorizationOrder)
+    : [];
+  const pagesAlreadyMemorized = pagesForJuzMemorized(
+    sequence,
+    juzAlreadyMemorized,
+    extraPagesMemorized,
+  );
+
+  /*
+   * The stored level is derived from the answer rather than asked for.
+   *
+   * The wizard used to ask both — four buttons phrased in Juz ("I have
+   * memorized a few Juz"), then a page count — which put the same
+   * question twice in two different units and made the user do the
+   * conversion. Nothing reads this field to make a decision; it is
+   * kept because it is already in the schema and in every existing
+   * user's settings row.
+   */
+  const memorizationLevel = levelForJuz(juzAlreadyMemorized);
+
   const updated = await container.settingsRepository.completeOnboarding({
     memorizationLevel,
     memorizationOrder,
@@ -281,14 +360,13 @@ export async function completeOnboarding(
 
   let seededPages = 0;
   if (pagesAlreadyMemorized > 0) {
-    const sequence = await container.adaptiveEngine.getMemorizationSequence();
     const alreadyMemorized = sequence.slice(0, pagesAlreadyMemorized);
     seededPages = await container.memoryEngine.seedPriorMemorization(
       alreadyMemorized.map((page) => page.id),
       revisionStartsImmediately,
       // Derived from the user's own time budget rather than assumed, so
       // the revision cycle they are seeded into is one they can
-      // actually keep up with. A page takes roughly a minute.
+      // actually keep up with.
       estimateDailyRevisionCapacity(dailyAvailableMinutes),
     );
   }
@@ -322,6 +400,8 @@ export async function completeOnboarding(
 }
 
 export interface OnboardingPreview {
+  /** The page count the Juz answer resolves to — what actually gets seeded. */
+  readonly pagesAlreadyMemorized: number;
   /** Contiguous page runs that will be marked as already memorized. */
   readonly ranges: { start: number; end: number }[];
   readonly juzCovered: number[];
@@ -334,19 +414,58 @@ export interface OnboardingPreview {
 }
 
 /**
+ * Converts "I have memorized N Juz, plus a few more pages" into the
+ * page count PHOS actually stores.
+ *
+ * People describe their Hifz in Juz; PHOS schedules in pages. Asking
+ * for pages directly made the user perform this conversion themselves,
+ * which is real arithmetic rather than a mental shortcut — Juz are not
+ * a uniform length (Juz 30 is 23 pages, Juz 1 is 21), so there is no
+ * "about twenty each" that survives contact with a real answer.
+ *
+ * It has to be done against the *sequence*, not against Juz numbers,
+ * because "3 Juz" means the first three Juz of the user's own order —
+ * Juz 30, 29, 28 for somebody starting at the end of the Mushaf.
+ *
+ * Exported so the preview and the write path cannot disagree: the
+ * screen that promises "73 pages" and the code that seeds 73 pages call
+ * this same function on the same sequence.
+ */
+export function pagesForJuzMemorized(
+  sequence: readonly { juzNumber: number }[],
+  juzCount: number,
+  extraPages: number,
+): number {
+  // Each Juz is one contiguous block in the sequence, so the boundary
+  // after `juzCount` Juz is simply the first index whose Juz is not
+  // among the first `juzCount` distinct ones.
+  const juzOrder: number[] = [];
+  for (const page of sequence) {
+    if (juzOrder[juzOrder.length - 1] !== page.juzNumber) juzOrder.push(page.juzNumber);
+  }
+  const wanted = new Set(juzOrder.slice(0, juzCount));
+  const wholeJuzPages = sequence.filter((page) => wanted.has(page.juzNumber)).length;
+
+  return Math.min(sequence.length, wholeJuzPages + Math.max(0, extraPages));
+}
+
+/**
  * Shows what the onboarding answers *will* do, before they are saved.
  *
  * This exists because the outcome genuinely surprises people. A user
- * who picks "Juz 30 first" and reports 75 memorized pages is told their
- * next new page is 53 — which is correct (Juz 30 is only 23 pages, so
- * 75 covers all of it plus pages 1–52) but looks like a bug if nothing
- * explains it.
+ * who picks "Juz 30 first" and says three Juz is told their next new
+ * page is 53 — which is correct (Juz 30, 29 and 28 are 52 pages between
+ * them) but looks like a bug if nothing explains it.
  *
  * Nothing is written. The sequence comes from the same
  * `getMemorizationSequence()` the real seeding uses, so this preview
  * cannot drift from what actually happens.
  */
-export async function previewOnboarding(order: string, pages: number): Promise<OnboardingPreview> {
+export async function previewOnboarding(
+  order: string,
+  juzCount: number,
+  extraPages: number,
+): Promise<OnboardingPreview> {
   const correlationId = generateCorrelationId();
   const validatedOrder = validateEnum(
     order,
@@ -354,18 +473,26 @@ export async function previewOnboarding(order: string, pages: number): Promise<O
     "order",
     correlationId,
   );
-  const validatedPages = validateNumericRange(
-    pages,
-    "pages",
+  const validatedJuz = validateNumericRange(
+    juzCount,
+    "juzCount",
+    { min: 0, max: TOTAL_JUZ, integer: true },
+    correlationId,
+  );
+  const validatedExtra = validateNumericRange(
+    extraPages,
+    "extraPages",
     { min: 0, max: TOTAL_MUSHAF_PAGES, integer: true },
     correlationId,
   );
 
   const sequence = await container.adaptiveEngine.getMemorizationSequence(validatedOrder);
-  const alreadyMemorized = sequence.slice(0, validatedPages);
-  const next = sequence[validatedPages];
+  const pages = pagesForJuzMemorized(sequence, validatedJuz, validatedExtra);
+  const alreadyMemorized = sequence.slice(0, pages);
+  const next = sequence[pages];
 
   return {
+    pagesAlreadyMemorized: pages,
     ranges: toContiguousRanges(alreadyMemorized.map((page) => page.pageNumber)),
     juzCovered: [...new Set(alreadyMemorized.map((page) => page.juzNumber))].sort((a, b) => a - b),
     nextPage: next

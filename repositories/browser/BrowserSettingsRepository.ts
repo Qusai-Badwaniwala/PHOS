@@ -160,6 +160,14 @@ export class BrowserSettingsRepository implements ISettingsRepository {
     return this.applyUpdate({ revisionBlocksRepairedAt: new Date().toISOString() });
   }
 
+  async markEstimatedDatesRepaired(): Promise<Settings> {
+    return this.applyUpdate({ estimatedDatesRepairedAt: new Date().toISOString() });
+  }
+
+  async markDataExported(): Promise<Settings> {
+    return this.applyUpdate({ lastExportedAt: new Date().toISOString() });
+  }
+
   /** Begins a fresh pass from the start of the user's order. */
   async restartCycle(): Promise<Settings> {
     return this.applyUpdate({ cycleStartedAt: new Date().toISOString() });
@@ -268,6 +276,15 @@ function toDomainSettings(record: StoredSettings): Settings {
     revisionBlocksRepairedAt: record.revisionBlocksRepairedAt
       ? new Date(record.revisionBlocksRepairedAt)
       : null,
+    // Absent means the repair has not run for this user — correct for
+    // every row written before it existed.
+    estimatedDatesRepairedAt: record.estimatedDatesRepairedAt
+      ? new Date(record.estimatedDatesRepairedAt)
+      : null,
+    // Absent means the user has never exported. That is the state the
+    // Backup screen exists to warn about, so it must not silently
+    // become "unknown".
+    lastExportedAt: record.lastExportedAt ? new Date(record.lastExportedAt) : null,
     createdAt: new Date(record.createdAt),
     updatedAt: new Date(record.updatedAt),
   };

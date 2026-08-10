@@ -79,6 +79,7 @@ const FAKE_SETTINGS = {
   memorizationOrder: "Standard",
   goal: null,
   revision: { mode: "Adaptive", cycleLengthDays: 7, cycleStartedAt: null },
+  lastExportedAt: null,
 } satisfies SettingsDTO;
 
 /**

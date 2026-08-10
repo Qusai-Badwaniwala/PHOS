@@ -190,11 +190,8 @@ export class AdaptiveEngine implements IAdaptiveEngine {
       // policy, so a returning user is never given *more* than the
       // break allowed.
       const workload = await this.recommendWorkloadFromHistory(referenceDate);
-      const pool = capNewMemorization(
-        afterReturn,
-        workload.recommendedNewPages,
-        daysSinceLastNewPage(allPages, referenceDate),
-      );
+      const sinceLastNewPage = daysSinceLastNewPage(allPages, referenceDate);
+      const pool = capNewMemorization(afterReturn, workload.recommendedNewPages, sinceLastNewPage);
 
       // Re-allocated from the reduced pool, so the time freed by holding
       // back new memorization is spent on revision rather than lost.
@@ -230,6 +227,10 @@ export class AdaptiveEngine implements IAdaptiveEngine {
           withheldByDailyTarget:
             countNewMemorization(naturalPlan) - countNewMemorization(allocated) - withheld,
           dailyTarget: workload.recommendedNewPages,
+          daysUntilNextNewPage: daysUntilNextNewPage(
+            workload.recommendedNewPages,
+            sinceLastNewPage,
+          ),
           // Revision genuinely is time-bound: these were due and lost
           // the competition for the day's minutes.
           revisionDroppedForTime: countRevision(ranked) - countRevision(allocated),
@@ -291,7 +292,7 @@ export class AdaptiveEngine implements IAdaptiveEngine {
     return ranked.some((rankedPage) => rankedPage.category === WorkloadCategory.Recovery);
   }
 
-  estimateSessionDuration(page: Page): number {
+  estimateSessionDuration(page: Pick<Page, "difficulty">): number {
     return estimatePageDurationSeconds(page, this.config);
   }
 
@@ -744,6 +745,29 @@ const DEFAULT_COMFORTABLE_DAILY_PAGES = 1;
  * wrong: revising an old page would look like starting a new one and
  * would keep pushing the next page further away.
  */
+/**
+ * How many days until the pacing rule will offer another new page, or
+ * `null` if it would offer one today.
+ *
+ * The single expression of the sub-one-page-a-day interval: both the
+ * cap that withholds the page and the sentence that explains the
+ * withholding read it, so the screen cannot promise a day the scheduler
+ * disagrees with. Telling the user only *that* today has no new page,
+ * without saying when the next one comes, was the part that read as a
+ * fault rather than a pace.
+ */
+function daysUntilNextNewPage(
+  recommendedNewPages: number,
+  daysSinceLastNewPage: number | null,
+): number | null {
+  // At a page a day or more the interval does not apply, and a user who
+  // has never started one is never made to wait.
+  if (recommendedNewPages >= 1 || daysSinceLastNewPage === null) return null;
+
+  const remaining = 1 / recommendedNewPages - daysSinceLastNewPage;
+  return remaining > 0 ? Math.max(1, Math.ceil(remaining)) : null;
+}
+
 function daysSinceLastNewPage(pages: readonly Page[], referenceDate: Date): number | null {
   let latest: number | null = null;
   for (const page of pages) {
@@ -809,11 +833,8 @@ function capNewMemorization(
    */
   if (recommendedNewPages <= 0) return withoutNewMemorization(ranked);
 
-  if (recommendedNewPages < 1 && daysSinceLastNewPage !== null) {
-    const requiredIntervalDays = 1 / recommendedNewPages;
-    if (daysSinceLastNewPage < requiredIntervalDays) {
-      return withoutNewMemorization(ranked);
-    }
+  if (daysUntilNextNewPage(recommendedNewPages, daysSinceLastNewPage) !== null) {
+    return withoutNewMemorization(ranked);
   }
 
   // At or above one page a day the target is a per-day count, rounded

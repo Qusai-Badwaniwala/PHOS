@@ -32,6 +32,16 @@ export interface BackupVerificationResult {
  */
 export interface PhosExportData {
   readonly applicationVersion: string;
+  /**
+   * The data format this file is written in — the thing import actually
+   * has to be compatible with.
+   *
+   * Absent on every file written before v0.3.0, all of which are format
+   * 1. Import used to compare `applicationVersion` exactly, so each
+   * release silently orphaned the previous release's export files; see
+   * `canReadFormat()`.
+   */
+  readonly formatVersion?: number;
   readonly exportedAt: string;
   readonly pages: readonly Page[];
   readonly sessions: readonly Session[];

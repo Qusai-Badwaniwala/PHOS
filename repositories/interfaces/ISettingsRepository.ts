@@ -99,6 +99,18 @@ export interface ISettingsRepository {
    * run, so it never runs twice.
    */
   markRevisionBlocksRepaired(): Promise<Settings>;
+  /**
+   * Records that the one-time clearing of invented first-studied dates
+   * has run, so it never runs twice.
+   */
+  markEstimatedDatesRepaired(): Promise<Settings>;
+  /**
+   * Records that the user exported their data to a file.
+   *
+   * The only copy that survives this browser being cleared, and the
+   * only fact the Backup screen cannot derive from anything else.
+   */
+  markDataExported(): Promise<Settings>;
   /** Begins a fresh traditional pass from the start of the user's order. */
   restartCycle(): Promise<Settings>;
   save(settings: Settings): Promise<Settings>;

@@ -105,6 +105,7 @@ export function historicalReport(sessions: SessionStatisticsDTO[]): HistoricalRe
 
 export function engineSettings(overrides: Partial<SettingsDTO> = {}): SettingsDTO {
   return {
+    lastExportedAt: null,
     theme: "system",
     ayahRotationFrequency: 1,
     personalization: { theme: "system", ayahRotationFrequency: 1 },

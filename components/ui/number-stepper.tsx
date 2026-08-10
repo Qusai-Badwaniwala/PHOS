@@ -78,6 +78,17 @@ export function NumberStepper({
    */
   const [draft, setDraft] = React.useState<string | null>(null);
 
+  /*
+   * The stepper buttons name the field they belong to.
+   *
+   * They used to be labelled bare "Decrease" and "Increase", which was
+   * survivable only while every screen showed one stepper at a time. The
+   * onboarding amount step now shows two — complete Juz, and pages into
+   * the next one — and a screen-reader user hearing "Increase, button"
+   * twice has no way to tell which number they are about to change.
+   */
+  const describe = (action: string) => (ariaLabel ? `${action} ${ariaLabel}` : action);
+
   const handleType = (raw: string) => {
     setDraft(raw);
     const parsed = Number(raw);
@@ -101,7 +112,7 @@ export function NumberStepper({
     <div className={cn("flex items-center gap-2", className)}>
       <button
         type="button"
-        aria-label="Decrease"
+        aria-label={describe("Decrease")}
         disabled={disabled || value <= min}
         // Any half-typed text is abandoned: pressing a stepper is an
         // unambiguous request for the committed value ± one step.
@@ -141,7 +152,7 @@ export function NumberStepper({
 
       <button
         type="button"
-        aria-label="Increase"
+        aria-label={describe("Increase")}
         disabled={disabled || value >= max}
         onClick={() => {
           setDraft(null);

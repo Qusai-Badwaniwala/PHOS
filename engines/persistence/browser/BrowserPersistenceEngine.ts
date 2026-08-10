@@ -1,5 +1,5 @@
 import { generateCorrelationId } from "@/shared/utils";
-import { TOTAL_MUSHAF_PAGES } from "@/shared/constants";
+import { canReadFormat, EXPORT_FORMAT_VERSION, TOTAL_MUSHAF_PAGES } from "@/shared/constants";
 import type {
   BackupCreationResult,
   BackupMetadata,
@@ -130,6 +130,9 @@ export class BrowserPersistenceEngine implements IBrowserPersistenceEngine {
         createdAt,
         // Recomputed from the captured snapshot; see `recordBackup`.
         fileSizeBytes: 0,
+        // The format version is stamped by the repository, which already
+        // writes `backupFormatVersion` into every snapshot manifest —
+        // stamping a second copy here would be two sources for one fact.
         applicationVersion: this.deps.applicationVersion,
       });
     } catch (error) {
@@ -164,9 +167,18 @@ export class BrowserPersistenceEngine implements IBrowserPersistenceEngine {
     if (!record) {
       throw new RestoreFailedError(`No backup found with id "${backupId}".`, correlationId);
     }
-    if (record.manifest.applicationVersion !== this.deps.applicationVersion) {
+    /*
+     * Judged on the data *format*, not the application version.
+     *
+     * This compared version strings with `!==`, which quietly made every
+     * backup unrestorable the moment any release shipped — including the
+     * safety backup taken automatically before a full reset, whose only
+     * purpose is to make an accidental wipe recoverable. The user would
+     * have discovered it at the worst possible moment.
+     */
+    if (!canReadFormat(record.manifest.backupFormatVersion)) {
       throw new RestoreFailedError(
-        `Backup was created by application version "${record.manifest.applicationVersion}", which is incompatible with the running version "${this.deps.applicationVersion}".`,
+        `This backup was written in data format ${record.manifest.backupFormatVersion}, which this version of PHOS (format ${EXPORT_FORMAT_VERSION}) cannot read. Update PHOS and try again.`,
         correlationId,
       );
     }
@@ -252,6 +264,7 @@ export class BrowserPersistenceEngine implements IBrowserPersistenceEngine {
       const exportedAt = new Date();
       const content: PhosExportData = {
         applicationVersion: this.deps.applicationVersion,
+        formatVersion: EXPORT_FORMAT_VERSION,
         exportedAt: exportedAt.toISOString(),
         pages,
         sessions,
@@ -299,9 +312,12 @@ export class BrowserPersistenceEngine implements IBrowserPersistenceEngine {
     const candidate = parsed as Partial<PhosExportData>;
     if (typeof candidate.applicationVersion !== "string") {
       validationErrors.push('Missing or invalid "applicationVersion".');
-    } else if (candidate.applicationVersion !== this.deps.applicationVersion) {
+    }
+    // See `restoreBackup()`: compatibility is a property of the data
+    // format, and files older than this field are all format 1.
+    if (!canReadFormat(candidate.formatVersion)) {
       validationErrors.push(
-        `Export was created by application version "${candidate.applicationVersion}", which is incompatible with the running version "${this.deps.applicationVersion}".`,
+        `This file was written in data format ${candidate.formatVersion}, which this version of PHOS (format ${EXPORT_FORMAT_VERSION}) cannot read. Update PHOS and try again.`,
       );
     }
     if (!Array.isArray(candidate.pages)) validationErrors.push('Missing or invalid "pages".');

@@ -17,7 +17,14 @@ const backupOps = vi.hoisted(() => ({
   DATA_RESET_CONFIRMATION: "DELETE",
 }));
 
-vi.mock("@/client/operations", () => ({ backupOps }));
+/*
+ * The status now reads settings too, because an *exported file* is a
+ * different promise from an in-browser backup and only settings records
+ * when one was last taken. See `markDataExported()`.
+ */
+const settingsOps = vi.hoisted(() => ({ getSettings: vi.fn() }));
+
+vi.mock("@/client/operations", () => ({ backupOps, settingsOps }));
 
 const { getBackupStatus, createBackup } = await import("@/lib/api/backup");
 
@@ -38,6 +45,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.useFakeTimers();
   vi.setSystemTime(NOW);
+  settingsOps.getSettings.mockResolvedValue({ lastExportedAt: null });
   backupOps.listBackups.mockResolvedValue({ backups: [], count: 0 });
 });
 

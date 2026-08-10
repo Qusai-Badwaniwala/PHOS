@@ -3,6 +3,7 @@ import { TOTAL_MUSHAF_PAGES } from "@/shared/constants";
 import { generateCorrelationId } from "@/shared/utils";
 import { ValidationError, validateBoolean, validateNumericRange } from "@/validators";
 import { container } from "../container";
+import { estimateDailyRevisionCapacity } from "./settings";
 
 export interface LogMemorizedInput {
   readonly count?: number;
@@ -50,12 +51,16 @@ export async function logMemorizedOutside(input: LogMemorizedInput): Promise<Log
   const pageIds = await resolvePageIds(input, correlationId);
 
   // Same staggering as onboarding, sized to the user's own time budget,
-  // so pages logged in bulk do not all fall due together.
+  // so pages logged in bulk do not all fall due together. The capacity
+  // is imported rather than recomputed: this line used to hold its own
+  // copy of the formula, and when onboarding's copy was corrected to
+  // charge the engine's real per-page cost, this one would have been
+  // left seeding cycles 75% too dense.
   const settings = await container.settingsRepository.getSettings();
   const loggedPages = await container.memoryEngine.seedPriorMemorization(
     pageIds,
     startRevisionNow,
-    Math.max(1, Math.floor(settings.dailyAvailableMinutes * 0.8)),
+    estimateDailyRevisionCapacity(settings.dailyAvailableMinutes),
   );
 
   return {

@@ -26,6 +26,13 @@ export interface ExplanationInputs {
   readonly withheldByDailyTarget: number;
   /** Today's new-memorization target, in pages. */
   readonly dailyTarget: number;
+  /**
+   * Days until the pacing rule offers another new page, or `null` if it
+   * would offer one today. Supplied by the engine rather than derived
+   * here, so the sentence cannot name a day the scheduler disagrees
+   * with.
+   */
+  readonly daysUntilNextNewPage?: number | null;
   /** Revision pages that were genuinely due but did not fit in the time budget. */
   readonly revisionDroppedForTime: number;
   /** Why the workload target moved, if it did. Empty when it held steady. */
@@ -62,6 +69,7 @@ export function explainPlan(inputs: ExplanationInputs): PlanExplanation {
     withheldByReturnPolicy,
     withheldByDailyTarget,
     dailyTarget,
+    daysUntilNextNewPage = null,
     revisionDroppedForTime,
     workloadRationale,
   } = inputs;
@@ -116,8 +124,37 @@ export function explainPlan(inputs: ExplanationInputs): PlanExplanation {
   // it is explained as a pace decision. Saying these pages "did not fit"
   // would blame the time budget for a limit the user themselves set.
   if (withheldByDailyTarget > 0) {
+    // Naming the day matters more than the principle. "The rest of the
+    // Mushaf waits its turn" told the user why today had nothing new
+    // but not when that would change, which reads as a fault rather
+    // than a pace — especially at a page every four days, where the
+    // wait is long enough to look like PHOS has stopped working.
+    const whenNext =
+      daysUntilNextNewPage === null
+        ? ""
+        : daysUntilNextNewPage === 1
+          ? ` Your next new page arrives tomorrow.`
+          : ` Your next new page arrives in ${daysUntilNextNewPage} days.`;
+
+    /*
+     * "Revision only" is a claim about the day, and it is only true when
+     * the day actually has no new page in it.
+     *
+     * `withheldByDailyTarget` counts pages the target held back relative
+     * to the *uncapped* plan, which is routinely positive on a day that
+     * still contains new memorization — hundreds of pages qualify and
+     * one is scheduled. Asserting "today is revision only" from that
+     * counter alone told a first-run user with a one-page target that
+     * their day was revision only, directly above the new page they had
+     * been given.
+     */
+    const restHeld =
+      newCount === 0
+        ? `so today is revision only.${whenNext}`
+        : `so the rest of the Mushaf waits its turn.`;
+
     details.push(
-      `Your daily target is ${formatPages(dailyTarget)}, so the rest of the Mushaf waits its turn. ` +
+      `Your daily target is ${formatPages(dailyTarget)}, ${restHeld} ` +
         `PHOS deliberately does not hand you more new pages than you can hold — pace is set by what ` +
         `your recall sustains, not by how much time is free.`,
     );

@@ -50,6 +50,7 @@ export function toSettingsDTO(settings: Settings): SettingsDTO {
       cycleLengthDays: settings.cycleLengthDays,
       cycleStartedAt: settings.cycleStartedAt ? settings.cycleStartedAt.toISOString() : null,
     },
+    lastExportedAt: settings.lastExportedAt ? settings.lastExportedAt.toISOString() : null,
   };
 }
 

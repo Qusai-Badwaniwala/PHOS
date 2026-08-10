@@ -113,6 +113,34 @@ describe("AnalyticsEngine", () => {
     expect(dashboard.dashboardStatistics.totalPagesMemorized).toBe(1);
   });
 
+  /*
+   * Prior memorization the user declared during onboarding is seeded as
+   * `Growing`, not `Stable` — PHOS has no evidence about those pages
+   * yet. Counting only `Stable`/`Mastered` therefore showed somebody who
+   * had just reported 300 memorized pages a dashboard reading
+   * "Memorized Pages: 0", directly beside a revision queue built from
+   * those very pages.
+   */
+  it("counts memorization the user declared, not only what has settled", async () => {
+    const engine = new AnalyticsEngine({
+      pageRepository: new FakePageRepository([
+        buildPage({ id: "seeded-1", pageNumber: 1, memoryState: MemoryState.Growing }),
+        buildPage({ id: "seeded-2", pageNumber: 2, memoryState: MemoryState.Fragile }),
+        buildPage({ id: "seeded-3", pageNumber: 3, memoryState: MemoryState.Encoding }),
+        buildPage({ id: "settled", pageNumber: 4, memoryState: MemoryState.Stable }),
+        buildPage({ id: "untouched", pageNumber: 5, memoryState: MemoryState.Unseen }),
+      ]) as unknown as IPageRepository,
+      sessionRepository: new FakeSessionRepository([], new Map()) as unknown as ISessionRepository,
+      recallEventRepository: new FakeRecallEventRepository([]) as unknown as IRecallEventRepository,
+    });
+
+    const dashboard = await engine.generateDashboard();
+
+    // Four memorized, one never touched. `Unseen` is exactly "not
+    // memorized", and is the only thing this number should exclude.
+    expect(dashboard.dashboardStatistics.totalPagesMemorized).toBe(4);
+  });
+
   it("summarizes learning progress", async () => {
     const summary = await buildEngine().summarizeLearningProgress();
     expect(summary.summary).toContain("1 of 1 pages");

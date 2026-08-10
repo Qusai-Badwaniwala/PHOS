@@ -1,4 +1,4 @@
-import { backupOps } from "@/client/operations";
+import { backupOps, settingsOps } from "@/client/operations";
 import { formatDateTimePreferred } from "@/lib/format";
 import type { BackupMetadataDTO } from "@/shared/dto";
 import type { BackupEntryDTO, BackupStatusDTO } from "@/types/dto";
@@ -40,9 +40,18 @@ export async function getBackupStatus(): Promise<BackupStatusDTO> {
       ? "up_to_date"
       : "outdated";
 
+  // Read from settings rather than from the backup list, because an
+  // export leaves no entry there — it writes a file and vanishes. See
+  // `markDataExported()`.
+  const settings = await settingsOps.getSettings();
+
   return {
     status,
     lastBackup: latest ? formatDateTimePreferred(latest.createdAt) : undefined,
+    lastExport: settings.lastExportedAt
+      ? formatDateTimePreferred(settings.lastExportedAt)
+      : undefined,
+    neverExported: !settings.lastExportedAt,
     history: sorted.map(toBackupEntry),
   };
 }
@@ -50,6 +59,11 @@ export async function getBackupStatus(): Promise<BackupStatusDTO> {
 /** Creates and verifies a new backup. */
 export async function createBackup(): Promise<BackupEntryDTO> {
   return toBackupEntry(await backupOps.createBackup());
+}
+
+/** Records that an exported file reached the user. Call after the download. */
+export async function markExported(): Promise<void> {
+  return settingsOps.markDataExported();
 }
 
 /** Deletes a backup and the snapshot it holds. */

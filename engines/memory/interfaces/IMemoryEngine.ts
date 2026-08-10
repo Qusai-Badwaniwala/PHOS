@@ -88,4 +88,7 @@ export interface IMemoryEngine {
    * Returns how many pages were rewritten.
    */
   reblockSeededRevision(pageIdsInMemorizationOrder: readonly string[]): Promise<number>;
+
+  /** Clears the invented first-studied dates seeding used to write. Returns how many pages changed. */
+  clearEstimatedFirstStudied(): Promise<number>;
 }

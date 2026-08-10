@@ -21,8 +21,14 @@ export interface ReviewTimestampUpdate {
    * Set only on a page's first study, when it leaves `Unseen`. Once
    * written it is never changed — "when did I start this page" cannot
    * happen twice.
+   *
+   * `undefined` leaves it alone. Explicit `null` clears it, which is
+   * what "PHOS does not know when this page was first memorized" has to
+   * look like: pages the user reports having memorized before PHOS
+   * existed have no honest date, and inventing one made the goal
+   * projection read those estimates as evidence of a real pace.
    */
-  readonly firstStudiedAt?: Date;
+  readonly firstStudiedAt?: Date | null;
 }
 
 /**

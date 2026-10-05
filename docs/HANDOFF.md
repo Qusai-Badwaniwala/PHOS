@@ -14,10 +14,13 @@ implementation is also adopted into the main project working tree. The previous
 implementation remains recoverable at `d3fe97b`. Release evidence is recorded in
 `VERIFICATION.md`; do not claim deployment until the workflow and live app agree.
 
-The current application version is **v0.4.1**, including the audit follow-up
+The current application version is **v0.4.2**, including the audit follow-up
 developed on `fix/phos-logic-audit` after publishing v0.4.0 first. It preserves the
 approved frontend and domain rules while correcting transaction, calendar, recall
 evidence, exam lifecycle, export/restore and stale study-state defects.
+The final release check also found mixed cached HTML; the isolated
+`fix/phos-fresh-precache` correction downloads fresh resources and rejects pages
+whose executable assets belong to a different build.
 
 On this machine:
 
@@ -156,6 +159,9 @@ including all routes, route payloads, JavaScript, CSS, icons, and three local fo
 scope and a content-derived build identifier. Installation is atomic; errors never
 become cached app pages. Activation cleans only PHOS caches for this scope and keeps
 one prior build for already-open tabs.
+Installation bypasses browser HTTP cache with explicit reload requests, then rejects
+HTML whose Next assets are absent from that build's manifest. A failed candidate is
+removed without clearing the prior app or any record. Keep this coherence check.
 
 New workers wait. Check on launch, foreground return, restored connection and every
 ten minutes while visible. Apply update checks the live active session before activation.

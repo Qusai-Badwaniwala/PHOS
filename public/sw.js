@@ -16,7 +16,23 @@ self.addEventListener("install", (event) => {
     (async () => {
       const cache = await caches.open(CACHE);
       try {
-        await cache.addAll(self.PHOS_PRECACHE.urls.map(scoped));
+        const resources = self.PHOS_PRECACHE.urls.map(scoped);
+        const expected = new Set(resources);
+        // Stable route URLs may still have HTML from a previous release in HTTP cache.
+        await cache.addAll(resources.map((url) => new Request(url, { cache: "reload" })));
+        // A stale hosting response must not turn a new build into an unusable offline app.
+        for (const path of self.PHOS_PRECACHE.urls) {
+          if (!path.endsWith("/") && !path.endsWith(".html")) continue;
+          const response = await cache.match(scoped(path));
+          if (!response) throw new Error("The complete PHOS page was not saved.");
+          const html = await response.text();
+          for (const match of html.matchAll(
+            /(?:src|href)=["']([^"']*\/_next\/static\/[^"']+)["']/g,
+          )) {
+            const asset = normalize(new URL(match[1], SCOPE).href);
+            if (!expected.has(asset)) throw new Error("A PHOS page belongs to another build.");
+          }
+        }
       } catch (error) {
         await caches.delete(CACHE);
         throw error;

@@ -9,8 +9,12 @@ Apply update action activated the waiting release, and its browser console had n
 warnings or errors. This browser started without a Hifz record; it does not prove
 the owner's physical-phone upgrade or stand in for that record.
 
-The v0.4.1 follow-up was implemented on `fix/phos-logic-audit`. The published
-redesign and the earlier `preservation/phos-v0.3.0` reference remain recoverable.
+The v0.4.1 follow-up was implemented on `fix/phos-logic-audit` and published as
+`b7d9a60`; its [Pages run 37313796758](https://github.com/Qusai-Badwaniwala/PHOS/actions/runs/37313796758)
+and [CI run 37313796922](https://github.com/Qusai-Badwaniwala/PHOS/actions/runs/37313796922)
+succeeded. A final real release check established the mixed-cache installation defect
+below; v0.4.2 corrects it on `fix/phos-fresh-precache`. The published redesign and the
+earlier `preservation/phos-v0.3.0` reference remain recoverable.
 Release gates and observed deployment are recorded in [VERIFICATION.md](VERIFICATION.md).
 
 ## Storage boundary
@@ -37,6 +41,23 @@ a code change looks. Regressions use the real browser repositories with fake Ind
 for controlled failures; separate real-browser journeys exercise the actual product.
 
 ### High
+
+**Confirmed issue — mixed cached release:** after the v0.4.1 deployment, a cold
+public revision reload rendered the older navigation without styling. Its DOM
+referenced obsolete Next 14 script/CSS names; a separate uncached HTTP request
+returned the correct current HTML and manifest. The user's study was still saved.
+The precise browser cache history cannot be reconstructed from that observation.
+**Likely cause:** plain precache requests can reuse earlier route HTML from HTTP
+cache. Installation did not verify that returned HTML matched its build's asset list.
+
+**Correction:** new installations use explicit `Request` objects with `cache: reload`
+and validate every saved HTML page's Next assets against the build manifest. A mixed
+hosting response rejects installation and deletes the incomplete new cache, preserving
+the existing app and record. Both new regressions failed before correction; fresh
+download policy, mixed-page rejection and valid-page acceptance now pass in
+`service-worker.test.tsx`. Active-study protection and explicit Apply update remain.
+Cache behavior is documented by [MDN Request.cache](https://developer.mozilla.org/en-US/docs/Web/API/Request/cache)
+and [Cache.addAll](https://developer.mozilla.org/en-US/docs/Web/API/Cache/addAll).
 
 | Finding                                | Before / impact                                                                                                                                              | After / evidence                                                                                                                                                                                                                                                                                                                 |
 | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

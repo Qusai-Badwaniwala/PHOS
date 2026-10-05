@@ -2,11 +2,14 @@
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 const source = readFileSync("public/sw.js", "utf8");
+type InstallRequest = { url: string; cache: string };
 function worker(scope = "https://example.test/PHOS/sw.js") {
   const handlers: Record<string, (event: Record<string, unknown>) => void> = {};
   const records = new Map<string, Map<string, unknown>>();
   const deleted: string[] = [];
   const installed: string[][] = [];
+  const installRequests: InstallRequest[] = [];
+  const htmlOverrides = new Map<string, string>();
   const self = {
     location: new URL(scope),
     PHOS_PRECACHE: {
@@ -32,9 +35,19 @@ function worker(scope = "https://example.test/PHOS/sw.js") {
       if (!records.has(name)) records.set(name, new Map());
       const store = records.get(name)!;
       return {
-        addAll: async (urls: string[]) => {
-          installed.push(urls);
-          for (const url of urls) store.set(url, { cached: url });
+        addAll: async (inputs: (string | InstallRequest)[]) => {
+          const requests = inputs.map((input) =>
+            typeof input === "string" ? { url: input, cache: "default" } : input,
+          );
+          installRequests.push(...requests);
+          installed.push(requests.map((request) => request.url));
+          for (const { url } of requests)
+            store.set(
+              url,
+              Object.defineProperty({ cached: url }, "text", {
+                value: async () => htmlOverrides.get(url) ?? "<html></html>",
+              }),
+            );
         },
         match: async (url: string) => store.get(url),
         put: async (url: string, value: unknown) => {
@@ -54,6 +67,14 @@ function worker(scope = "https://example.test/PHOS/sw.js") {
     caches,
     fetch: network,
     URL,
+    Request: class {
+      readonly url: string;
+      readonly cache: string;
+      constructor(url: string, options: { cache: string }) {
+        this.url = url;
+        this.cache = options.cache;
+      }
+    },
     importScripts: () => undefined,
     Response: { redirect: (url: string) => ({ redirect: url }), error: () => ({ error: true }) },
   });
@@ -77,8 +98,46 @@ function worker(scope = "https://example.test/PHOS/sw.js") {
     });
     return result;
   }
-  return { self, caches, records, deleted, installed, network, lifecycle, request };
+  return {
+    self,
+    caches,
+    records,
+    deleted,
+    installed,
+    installRequests,
+    htmlOverrides,
+    network,
+    lifecycle,
+    request,
+  };
 }
+it("downloads each new build resource without reusing the browser HTTP cache", async () => {
+  const w = worker();
+  await w.lifecycle("install");
+  expect(w.installRequests.length).toBe(w.self.PHOS_PRECACHE.urls.length);
+  expect(w.installRequests.every((request) => request.cache === "reload")).toBe(true);
+});
+it("rejects HTML from another build before offering the new offline installation", async () => {
+  const w = worker();
+  w.htmlOverrides.set(
+    "https://example.test/PHOS/session/",
+    '<html><script src="/PHOS/_next/static/obsolete.js"></script></html>',
+  );
+  await expect(w.lifecycle("install")).rejects.toThrow("another build");
+  expect(w.records.size).toBe(0);
+  expect(w.self.skipWaiting).not.toHaveBeenCalled();
+});
+it("accepts a page whose executable resources belong to this scoped build", async () => {
+  const w = worker();
+  w.htmlOverrides.set(
+    "https://example.test/PHOS/session/",
+    '<html><script src="/PHOS/_next/static/app.js"></script><link href="/PHOS/_next/static/font.woff2" rel="preload"></html>',
+  );
+  await w.lifecycle("install");
+  expect(await w.request("https://example.test/PHOS/session/")).toEqual({
+    cached: "https://example.test/PHOS/session/",
+  });
+});
 it("installs all manifest resources at the deployment scope without taking over", async () => {
   const w = worker();
   await w.lifecycle("install");

@@ -11,6 +11,9 @@ recall evidence, explicit expired exam outcomes, validated restore, and PHOS-onl
 full reset. The shared GitHub Pages origin remains a browser-clearing boundary;
 never clear origin-wide storage to reset PHOS. Current durable docs take precedence
 over historical phase instructions. Publication is authorized for this work.
+v0.4.2 additionally validates HTML/asset coherence during fresh offline installation.
+Keep the explicit waiting update and active-study protection; never clear a user's
+record to repair an update. Bump application version for each new release.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

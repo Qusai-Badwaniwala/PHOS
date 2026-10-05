@@ -1,9 +1,36 @@
 # PHOS verification record — 2026-10-05
 
-This records the observed v0.4.0 redesign release and the v0.4.1 audit follow-up.
+This records the observed v0.4.0 redesign release, v0.4.1 audit follow-up and
+v0.4.2 correction to coherent offline installation.
 The redesign was developed on `codex/phos-reimagined` from `d3fe97b`; the follow-up
 uses `fix/phos-logic-audit` from the published `da5f22d`. The owner authorized
 publication on 2026-10-05. Local checks do not establish physical-phone acceptance.
+
+## v0.4.2 offline installation correction
+
+The complete `npm run gate` passed: format, lint, TypeScript, **640 Vitest tests in
+62 files and 205 Jest tests in 20 suites (845 total)**, production build and all
+121 offline-resource checks. The root build identifier was `510a57b0615e1111b6cd`.
+
+After v0.4.1's successful release, a public cold revision reload showed legacy
+unstyled HTML referencing Next 14 assets. Separate HTTP reads showed the correctly
+deployed current pages and manifest. The saved study and dark theme remained intact;
+launching through Today restored the working frontend. Applying its waiting update
+was correctly blocked by the open paused study and offered Resume.
+
+The v0.4.2 worker uses fresh HTTP downloads and checks HTML's executable resources
+against its own manifest before offering installation. Mixed HTML now rejects the
+installation and removes the incomplete new cache. Two new regressions failed before
+correction; all **12 worker policy tests** now pass, including matching-page acceptance.
+The isolated `/PHOS` export passed its 15-page path check and contained 121 resources,
+about 3.79 MiB, local build `0f0045713380ac8a8318`.
+
+On the existing scratch record, the real waiting update installed and was explicitly
+applied. Its Manzil receipt survived, and the guide rendered **0.4.2** with the saved
+theme. No record or origin-wide cache was cleared. Broader full-reset, restore and
+logic evidence below remains applicable; this correction changes only installation.
+With its server stopped, the updated guide reloaded at 0.4.2 and revision cold-loaded
+as the fully styled empty state. The preceding offline Manzil receipt was preserved.
 
 ## v0.4.1 automated checks
 

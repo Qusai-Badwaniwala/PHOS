@@ -4,7 +4,7 @@ A local-first phone PWA for Quran memorization and retention with a physical
 604-page Madinah / Misri Mushaf. PHOS plans Sabaq, Sabaqi, Manzil, recovery, and exam
 preparation, and keeps progress entirely in the browser.
 
-**PHOS v0.4.1 includes the adopted redesign and the complete logic/storage audit
+**PHOS v0.4.2 includes the adopted redesign and the complete logic/storage audit
 follow-up. The owner authorized its GitHub Pages release on 2026-10-05.** The v0.3.0 implementation
 remains recoverable at `d3fe97b`. Development was isolated on `codex/phos-reimagined`.
 

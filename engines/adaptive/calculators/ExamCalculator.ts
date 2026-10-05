@@ -10,7 +10,9 @@ import {
   type Page,
 } from "@/shared/types";
 import { describeJuzScope, EXAM_LADDER } from "@/shared/constants";
-import { startOfLocalDay } from "@/shared/utils";
+import { startOfLocalDay, daysBetweenLocalDates, addLocalDays } from "@/shared/utils";
+import { DEFAULT_ADAPTIVE_CONFIG, type AdaptiveEngineConfig } from "../constants";
+import { estimatePageDurationSeconds } from "./DurationCalculator";
 
 const MILLISECONDS_PER_DAY = 86_400_000;
 
@@ -24,7 +26,6 @@ const MILLISECONDS_PER_DAY = 86_400_000;
  * Used only to decide whether to *warn*, never to decide what to
  * schedule.
  */
-const EXAM_REVISION_SECONDS_PER_PAGE = 45;
 
 /**
  * Whole days between two dates, counted by calendar day.
@@ -34,9 +35,7 @@ const EXAM_REVISION_SECONDS_PER_PAGE = 45;
  * 72 hours.
  */
 export function daysUntil(from: Date, to: Date): number {
-  return Math.round(
-    (startOfLocalDay(to).getTime() - startOfLocalDay(from).getTime()) / MILLISECONDS_PER_DAY,
-  );
+  return daysBetweenLocalDates(from, to);
 }
 
 /**
@@ -135,21 +134,29 @@ export function calculateExamPlan(
   pages: readonly Page[],
   availableStudyMinutes: number,
   referenceDate: Date,
+  config: AdaptiveEngineConfig = DEFAULT_ADAPTIVE_CONFIG,
 ): ExamPlan {
-  const { scope, daysRemaining, pagesPerDay } = divideScope(exam, pages, referenceDate);
+  const { scope, totalPagesInScope, daysRemaining, pagesPerDay } = divideScope(
+    exam,
+    pages,
+    referenceDate,
+  );
 
   const todaysPageNumbers = scope.slice(0, pagesPerDay).map((page) => page.pageNumber);
 
-  const estimatedMinutesPerDay = Math.round((pagesPerDay * EXAM_REVISION_SECONDS_PER_PAGE) / 60);
+  const seconds = scope
+    .slice(0, pagesPerDay)
+    .reduce((total, page) => total + estimatePageDurationSeconds(page, config), 0);
+  const estimatedMinutesPerDay = Math.ceil(seconds / 60);
 
   return {
     examId: exam.id,
     examDate: exam.examDate ?? referenceDate,
     daysRemaining,
-    pagesInScope: scope.length,
+    pagesInScope: totalPagesInScope,
     todaysPageNumbers,
     pagesPerDay,
-    exceedsDailyBudget: estimatedMinutesPerDay > availableStudyMinutes,
+    exceedsDailyBudget: seconds > availableStudyMinutes * 60,
     estimatedMinutesPerDay,
   };
 }
@@ -168,8 +175,13 @@ function divideScope(
   exam: Exam,
   pages: readonly Page[],
   referenceDate: Date,
-): { scope: readonly Page[]; daysRemaining: number; pagesPerDay: number } {
-  const scope = pages
+): {
+  scope: readonly Page[];
+  totalPagesInScope: number;
+  daysRemaining: number;
+  pagesPerDay: number;
+} {
+  const allInScope = pages
     // Unmemorized pages are excluded: the run-up revises, and a page
     // never memorized cannot be revised.
     .filter((page) => exam.juzNumbers.includes(page.juzNumber))
@@ -186,13 +198,28 @@ function divideScope(
    * throwing on a state that should be unreachable — and "no deadline"
    * genuinely does mean "nothing left to spread it over".
    */
+  // Reviews before today advance coverage. Keep today's portion stable while
+  // it is recorded; the engine excludes actual completed recalls for today.
+  const today = startOfLocalDay(referenceDate);
+  const scope = allInScope.filter(
+    (page) =>
+      !page.lastReviewedAt ||
+      page.lastReviewedAt <= exam.scheduledAt ||
+      page.lastReviewedAt >= today,
+  );
+
   const daysRemaining = exam.examDate
     ? Math.max(1, daysUntil(referenceDate, exam.examDate) + 1)
     : 1;
 
   // Ceiling, so the remainder lands on the final day rather than
   // falling off the end of the schedule and never being revised.
-  return { scope, daysRemaining, pagesPerDay: Math.ceil(scope.length / daysRemaining) };
+  return {
+    scope,
+    totalPagesInScope: allInScope.length,
+    daysRemaining,
+    pagesPerDay: Math.ceil(scope.length / daysRemaining),
+  };
 }
 
 /**
@@ -217,7 +244,7 @@ export function calculateExamCoverage(
     // Shown as empty rather than omitted: "nothing left to cover" is
     // useful information three days before an exam.
     days.push({
-      date: new Date(today.getTime() + day * MILLISECONDS_PER_DAY),
+      date: addLocalDays(today, day),
       pageNumbers: block.map((page) => page.pageNumber),
     });
   }

@@ -26,6 +26,10 @@ vi.mock("@/client/container", () => ({
   container: { settingsRepository, memoryEngine, adaptiveEngine },
 }));
 
+vi.mock("@/client/commit-setup", () => ({
+  seedBrowserPriorMemorization: (...args: unknown[]) => memoryEngine.seedPriorMemorization(...args),
+}));
+
 const { logMemorizedOutside } = await import("@/client/operations/pages");
 
 /**

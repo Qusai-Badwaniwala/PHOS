@@ -20,7 +20,7 @@ import {
   type StudyReceipt,
 } from "@/lib/api/activeSession";
 import { useSettings } from "@/providers/settings-provider";
-import { formatPageList } from "@/lib/format";
+import { formatPageList, formatDateTimePreferred } from "@/lib/format";
 import { SessionType } from "@/shared/types";
 import type { SessionDTO, RevisionDTO } from "@/types/dto";
 
@@ -48,25 +48,37 @@ export function StudyExperience({ revision = false }: { revision?: boolean }) {
   const [progress, setProgress] = React.useState<CompletionProgress | null>(null);
   const [confirm, setConfirm] = React.useState(false);
   const [now, setNow] = React.useState(() => Date.now());
+  const generation = React.useRef(0);
   const load = React.useCallback(async () => {
+    const token = ++generation.current;
     setLoading(true);
     setError(null);
+    setData(null);
+    setReceipt(null);
+    setWeak(new Set());
     try {
       if (receiptId) {
-        setReceipt(await getStudyReceipt(receiptId));
+        const result = await getStudyReceipt(receiptId);
+        if (token === generation.current) setReceipt(result);
         return;
       }
       const next = revision ? await getRevision(sessionType) : await getSession(extra);
-      setData(next);
-      setWeak(new Set(next?.weakPageIds ?? []));
+      if (token === generation.current) {
+        setData(next);
+        setWeak(new Set(next?.weakPageIds ?? []));
+      }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Your assignment could not open.");
+      if (token === generation.current)
+        setError(cause instanceof Error ? cause.message : "Your assignment could not open.");
     } finally {
-      setLoading(false);
+      if (token === generation.current) setLoading(false);
     }
   }, [receiptId, revision, sessionType, extra]);
   React.useEffect(() => {
     void load();
+    return () => {
+      generation.current += 1;
+    };
   }, [load]);
   React.useEffect(() => {
     if (loading) return;
@@ -203,7 +215,7 @@ export function StudyExperience({ revision = false }: { revision?: boolean }) {
           </div>
         </dl>
         <p className="text-muted-foreground text-sm">
-          {new Date(receipt.completedAt).toLocaleString()} ·{" "}
+          {formatDateTimePreferred(receipt.completedAt)} ·{" "}
           {receipt.sessionType === "Sabqi" ? "Sabaqi" : receipt.sessionType}
         </p>
         <Button asChild className="w-full">
@@ -223,11 +235,19 @@ export function StudyExperience({ revision = false }: { revision?: boolean }) {
     return (
       <div className="mx-auto max-w-lg space-y-6 py-8">
         <PageHeader
-          title={revision ? "Nothing needs revision today" : "No new page is recommended today"}
+          title={
+            error
+              ? "Your study could not open"
+              : revision
+                ? "Nothing needs revision today"
+                : "No new page is recommended today"
+          }
           description={
-            revision
-              ? "Your memorized pages are still being tracked. They will return according to your revision schedule."
-              : "A steady pace leaves room to retain what you have learned."
+            error
+              ? "Your record remains on this device. Try opening this study again."
+              : revision
+                ? "Your memorized pages are still being tracked. They will return according to your revision schedule."
+                : "A steady pace leaves room to retain what you have learned."
           }
         />
         {error && (

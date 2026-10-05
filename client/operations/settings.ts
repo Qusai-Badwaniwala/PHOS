@@ -7,19 +7,19 @@ import {
 } from "@/shared/types";
 import {
   EXAM_LADDER,
-  examStage,
   MAXIMUM_CYCLE_LENGTH_DAYS,
   MINIMUM_CYCLE_LENGTH_DAYS,
   primarySurahForPage,
   TOTAL_MUSHAF_PAGES,
 } from "@/shared/constants";
-import { generateCorrelationId } from "@/shared/utils";
+import { generateCorrelationId, parseCalendarDate } from "@/shared/utils";
 import { ValidationError, validateBoolean, validateEnum, validateNumericRange } from "@/validators";
 import { PRIOR_MEMORIZATION_DIFFICULTY } from "@/engines/memory";
 import type { PreferencesUpdate } from "@/repositories";
 import { toRoadmapDTO, toSettingsDTO } from "@/shared/mappers";
 import type { RoadmapDTO, SettingsDTO } from "@/shared/dto";
 import { container } from "../container";
+import { commitBrowserOnboarding, commitBrowserRoadmap } from "../commit-setup";
 
 /**
  * DELIBERATE, DOCUMENTED EXCEPTION, carried over unchanged from the
@@ -171,7 +171,7 @@ export async function updateGoal(goal: GoalInput | null): Promise<SettingsDTO> {
     correlationId,
   );
 
-  const targetDate = new Date(goal.targetDate);
+  const targetDate = parseCalendarDate(goal.targetDate);
   if (Number.isNaN(targetDate.getTime())) {
     throw new ValidationError('Field "targetDate" is not a valid date.', correlationId);
   }
@@ -342,54 +342,20 @@ export async function completeOnboarding(
    */
   const memorizationLevel = levelForJuz(juzAlreadyMemorized);
 
-  const updated = await container.settingsRepository.completeOnboarding({
-    memorizationLevel,
-    memorizationOrder,
-    pagesAlreadyMemorized,
-    dailyAvailableMinutes,
-    comfortableDailyPages,
-    followsExistingSchedule,
-    revisionStartsImmediately,
-  });
-
-  let seededPages = 0;
-  if (pagesAlreadyMemorized > 0) {
-    const alreadyMemorized = sequence.slice(0, pagesAlreadyMemorized);
-    seededPages = await container.memoryEngine.seedPriorMemorization(
-      alreadyMemorized.map((page) => page.id),
+  const { updated, seededPages } = await commitBrowserOnboarding(
+    {
+      memorizationLevel,
+      memorizationOrder,
+      pagesAlreadyMemorized,
+      dailyAvailableMinutes,
+      comfortableDailyPages,
+      followsExistingSchedule,
       revisionStartsImmediately,
-      // Derived from the user's own time budget rather than assumed, so
-      // the revision cycle they are seeded into is one they can
-      // actually keep up with.
-      estimateDailyRevisionCapacity(dailyAvailableMinutes),
-    );
-  }
-
-  /*
-   * Exams the user says they already passed, stored as plain history.
-   *
-   * Deliberately after seeding and deliberately non-fatal: a failure
-   * here must not lose the onboarding answers that were already
-   * written. Losing an exam record is a small annoyance the user can
-   * repair from the Exams screen; losing their whole setup is not.
-   */
-  for (const stage of passedExamStages) {
-    const definition = examStage(stage);
-    if (!definition) continue;
-    try {
-      await container.examRepository.recordPast({
-        stage: definition.stage,
-        juzNumbers: definition.juzNumbers,
-        // Onboarding does not ask when. Nobody remembers the day they
-        // sat Juz 30, and the Exams screen offers a date for anyone who
-        // does.
-        examDate: null,
-      });
-    } catch {
-      // Ignored for the reason above.
-    }
-  }
-
+    },
+    sequence.slice(0, pagesAlreadyMemorized).map((page) => page.id),
+    estimateDailyRevisionCapacity(dailyAvailableMinutes),
+    passedExamStages,
+  );
   return { ...toSettingsDTO(updated), seededPages };
 }
 
@@ -637,32 +603,13 @@ export async function updateRoadmap(update: RoadmapUpdate): Promise<RoadmapDTO> 
     validateBoolean(update.paused, "paused", correlationId);
   }
 
-  if (update.order !== undefined) {
-    const order = validateEnum(
-      update.order,
-      Object.values(MemorizationOrder),
-      "order",
-      correlationId,
-    );
-    await container.settingsRepository.updateMemorizationOrder(order);
-  }
-
-  if (update.juzSequence !== undefined) {
-    await container.roadmapRepository.replaceCustomOrder(
-      validateJuzSequence(update.juzSequence, correlationId),
-    );
-  }
-
-  if (update.juzNumber !== undefined) {
-    const juzNumber = validateNumericRange(
-      update.juzNumber,
-      "juzNumber",
-      { min: 1, max: TOTAL_JUZ, integer: true },
-      correlationId,
-    );
-    const paused = validateBoolean(update.paused, "paused", correlationId);
-    await container.roadmapRepository.updateEntry(juzNumber, { paused });
-  }
+  await commitBrowserRoadmap({
+    ...(update.order !== undefined ? { order: update.order as MemorizationOrder } : {}),
+    ...(update.juzSequence !== undefined ? { juzSequence: update.juzSequence } : {}),
+    ...(update.juzNumber !== undefined
+      ? { juzNumber: update.juzNumber, paused: update.paused }
+      : {}),
+  });
 
   return getRoadmap();
 }

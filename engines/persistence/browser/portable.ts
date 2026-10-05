@@ -1,5 +1,6 @@
 import {
   canReadFormat,
+  examStage,
   juzNumberForPage,
   MINIMUM_CYCLE_LENGTH_DAYS,
   MAXIMUM_CYCLE_LENGTH_DAYS,
@@ -86,6 +87,13 @@ export async function preparePortableRestore(contents: string): Promise<Portable
   const snapshot = raw as unknown as PhosSnapshot;
   // Domain and storage date fields have the same JSON representation. Full replacement
   // retains source ids, so item/event references cannot become foreign-device orphans.
+  if (data.snapshot) {
+    if (
+      typeof data.checksum !== "string" ||
+      (await computeChecksum(serializeSnapshot(snapshot))) !== data.checksum
+    )
+      errors.push("The file's integrity checksum does not match its contents.");
+  }
   snapshot.roadmapEntries ??= [];
   snapshot.exams ??= [];
   if (!data.snapshot) {
@@ -145,8 +153,10 @@ export async function preparePortableRestore(contents: string): Promise<Portable
         page.juzNumber !== juzNumberForPage(page.pageNumber) ||
         !member(page.memoryState, MemoryState) ||
         !number(page.memoryStrength) ||
+        page.memoryStrength > 1 ||
         !number(page.memoryStability) ||
         !number(page.difficulty) ||
+        page.difficulty > 1 ||
         !nullableDate(page.firstStudiedAt) ||
         !nullableDate(page.lastReviewedAt) ||
         !nullableDate(page.lastSuccessfulRecallAt) ||
@@ -277,6 +287,10 @@ export async function preparePortableRestore(contents: string): Promise<Portable
           !exam.juzNumbers.length ||
           exam.juzNumbers.some((juz) => !integer(juz, 1, 30)) ||
           new Set(exam.juzNumbers).size !== exam.juzNumbers.length ||
+          (exam.stage !== null &&
+            Array.isArray(exam.juzNumbers) &&
+            (examStage(exam.stage)?.juzNumbers.length !== exam.juzNumbers.length ||
+              examStage(exam.stage)?.juzNumbers.some((juz) => !exam.juzNumbers.includes(juz)))) ||
           !nullableDate(exam.examDate) ||
           (exam.status === "Scheduled" && exam.examDate === null) ||
           !date(exam.scheduledAt) ||
@@ -309,6 +323,8 @@ export async function preparePortableRestore(contents: string): Promise<Portable
             !item ||
             !pageIds.has(item.pageId) ||
             !integer(item.pageNumber, 1, 604) ||
+            !member(item.memoryState, MemoryState) ||
+            item.juzNumber !== juzNumberForPage(item.pageNumber) ||
             !member(item.workloadCategory, WorkloadCategory) ||
             !number(item.estimatedDurationSeconds) ||
             !session.studyDraft?.pageIds.includes(item.pageId),
@@ -330,13 +346,6 @@ export async function preparePortableRestore(contents: string): Promise<Portable
         ))
     )
       errors.push("The saved assignment does not match its Mushaf pages.");
-  }
-  if (data.snapshot) {
-    if (
-      typeof data.checksum !== "string" ||
-      (await computeChecksum(serializeSnapshot(snapshot))) !== data.checksum
-    )
-      errors.push("The file's integrity checksum does not match its contents.");
   }
   return {
     snapshot: errors.length ? null : snapshot,

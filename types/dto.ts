@@ -458,6 +458,7 @@ export interface ExamOverviewDTO {
   stages: readonly ExamStageCardDTO[];
   runUp: ExamRunUpDTO | null;
   past: readonly ExamCardDTO[];
+  awaitingResult?: readonly ExamCardDTO[];
   /** What fell behind during a recently passed exam, when there is anything to report. */
   aftermath: ExamAftermathCardDTO | null;
 }

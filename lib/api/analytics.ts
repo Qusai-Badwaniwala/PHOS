@@ -31,15 +31,16 @@ export async function getAnalytics(range: DateRange = "month"): Promise<Analytic
     analyticsOps.getTrendAnalysis(period),
   ]);
   const sessions = history.sessions;
-  const completed = sessions.filter((session) => session.completed);
+  const completed = sessions.filter(
+    (session) => session.completed && session.completedInPeriod !== false,
+  );
   const totalDuration = completed.reduce((sum, session) => sum + session.durationSeconds, 0);
   const averageSeconds = completed.length ? Math.round(totalDuration / completed.length) : 0;
   const daily = new Map<
     string,
     { newPages: number; revisions: number; sessions: number; recalls: number; successes: number }
   >();
-  for (const session of sessions) {
-    const key = localDay(session.startedAt);
+  const dayFor = (key: string) => {
     const day = daily.get(key) ?? {
       newPages: 0,
       revisions: 0,
@@ -47,12 +48,27 @@ export async function getAnalytics(range: DateRange = "month"): Promise<Analytic
       recalls: 0,
       successes: 0,
     };
-    if (session.sessionType === SessionType.Sabaq) day.newPages += session.pagesCompleted;
-    else day.revisions += session.pagesCompleted;
-    if (session.completed) day.sessions++;
-    day.recalls += session.recallCount;
-    day.successes += Math.round(session.successRatio * session.recallCount);
     daily.set(key, day);
+    return day;
+  };
+  for (const session of sessions) {
+    const activity = session.dailyActivity ?? [
+      {
+        date: localDay(session.startedAt),
+        pagesCompleted: session.pagesCompleted,
+        recallCount: session.recallCount,
+        successfulRecallCount: Math.round(session.successRatio * session.recallCount),
+      },
+    ];
+    for (const row of activity) {
+      const day = dayFor(row.date);
+      if (session.sessionType === SessionType.Sabaq) day.newPages += row.pagesCompleted;
+      else day.revisions += row.pagesCompleted;
+      day.recalls += row.recallCount;
+      day.successes += row.successfulRecallCount;
+    }
+    if (session.completed && session.completedInPeriod !== false)
+      dayFor(localDay(session.completedAt ?? session.startedAt)).sessions += 1;
   }
   const points = (
     get: (day: {

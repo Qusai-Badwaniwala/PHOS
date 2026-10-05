@@ -14,6 +14,7 @@ import {
 import { useSettings } from "@/providers/settings-provider";
 import { TOTAL_MUSHAF_PAGES } from "@/shared/constants";
 import { Target } from "lucide-react";
+import { localDateInput } from "@/shared/utils";
 
 interface GoalSettingsProps {
   className?: string;
@@ -74,7 +75,7 @@ export function GoalSettings({ className }: GoalSettingsProps) {
   const [position, setPosition] = React.useState<GoalPosition | null>(null);
   const [selected, setSelected] = React.useState("");
   const [targetDate, setTargetDate] = React.useState(
-    existing?.targetDate ? existing.targetDate.slice(0, 10) : "",
+    existing?.targetDate ? localDateInput(existing.targetDate) : "",
   );
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -237,7 +238,7 @@ export function GoalSettings({ className }: GoalSettingsProps) {
                 () =>
                   saveGoal({
                     targetPages: chosen!.cumulativePages,
-                    targetDate: new Date(targetDate).toISOString(),
+                    targetDate,
                   }),
                 "Goal saved.",
               )

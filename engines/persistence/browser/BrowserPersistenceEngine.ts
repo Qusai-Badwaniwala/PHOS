@@ -1,7 +1,7 @@
 import { generateCorrelationId } from "@/shared/utils";
 import { MemoryState } from "@/shared/types";
 import { getDatabase } from "@/repositories/browser";
-import { canReadFormat, EXPORT_FORMAT_VERSION, TOTAL_MUSHAF_PAGES } from "@/shared/constants";
+import { canReadFormat, EXPORT_FORMAT_VERSION } from "@/shared/constants";
 import type {
   BackupCreationResult,
   BackupMetadata,
@@ -27,6 +27,12 @@ import {
   serializeSnapshot,
   readSnapshot,
   writeSnapshot,
+  seedDefaults,
+  toDomainPage,
+  toDomainSession,
+  toDomainSessionItem,
+  toDomainRecallEvent,
+  toDomainSettings,
   type StoredBackup,
 } from "@/repositories/browser";
 import {
@@ -101,6 +107,36 @@ export interface BrowserPersistenceEngineDependencies {
  */
 export class BrowserPersistenceEngine implements IBrowserPersistenceEngine {
   constructor(private readonly deps: BrowserPersistenceEngineDependencies) {}
+
+  /** Owner-confirmed fresh start. Unlike progress reset, no local restore point survives. */
+  async resetApplication(): Promise<void> {
+    const db = await getDatabase();
+    const stores = [
+      "pages",
+      "sessions",
+      "sessionItems",
+      "recallEvents",
+      "settings",
+      "roadmapEntries",
+      "exams",
+      "backups",
+    ] as const;
+    const tx = db.transaction(stores, "readwrite");
+    void tx.done.catch(() => undefined);
+    try {
+      await Promise.all(stores.map((store) => tx.objectStore(store).clear()));
+      await seedDefaults(tx);
+      await tx.done;
+    } catch (error) {
+      try {
+        tx.abort();
+      } catch {
+        /* Already aborted. */
+      }
+      await tx.done.catch(() => undefined);
+      throw error;
+    }
+  }
 
   async createBackup(): Promise<BackupCreationResult> {
     const correlationId = generateCorrelationId();
@@ -206,7 +242,10 @@ export class BrowserPersistenceEngine implements IBrowserPersistenceEngine {
       // Step 4: Restore. `writeSnapshot` replaces every store except
       // `backups`, in one transaction, so a failure mid-way rolls the
       // whole thing back rather than leaving a half-restored database.
-      await writeSnapshot(record.snapshot);
+      const prepared = await prepareSnapshot(record.snapshot, record.applicationVersion);
+      if (!prepared.snapshot)
+        throw new RestoreFailedError("Backup contains invalid records.", correlationId);
+      await writeSnapshot(prepared.snapshot);
 
       // Step 5: Post-restore validation.
       const postRestoreCheck = await this.verifyDatabase();
@@ -254,30 +293,20 @@ export class BrowserPersistenceEngine implements IBrowserPersistenceEngine {
   async exportData(): Promise<BrowserExportResult> {
     const correlationId = generateCorrelationId();
     try {
-      const [pages, sessions, recallEvents, settings] = await Promise.all([
-        this.deps.pageRepository.findAll(),
-        this.deps.sessionRepository.findBetweenDates(EPOCH_START, FAR_FUTURE),
-        this.deps.recallEventRepository.findBetweenDates(EPOCH_START, FAR_FUTURE),
-        this.deps.settingsRepository.getSettings(),
-      ]);
-
-      const sessionItemLists = await Promise.all(
-        sessions.map((session) => this.deps.sessionRepository.findSessionItems(session.id)),
-      );
-
       const exportedAt = new Date();
       const snapshot = await readSnapshot();
+      if (!snapshot.settings) throw new Error("No settings row in this record.");
       const content: PhosExportData = {
         snapshot,
         checksum: await computeChecksum(serializeSnapshot(snapshot)),
         applicationVersion: this.deps.applicationVersion,
         formatVersion: EXPORT_FORMAT_VERSION,
         exportedAt: exportedAt.toISOString(),
-        pages,
-        sessions,
-        sessionItems: sessionItemLists.flat(),
-        recallEvents,
-        settings,
+        pages: snapshot.pages.map(toDomainPage),
+        sessions: snapshot.sessions.map(toDomainSession),
+        sessionItems: snapshot.sessionItems.map(toDomainSessionItem),
+        recallEvents: snapshot.recallEvents.map(toDomainRecallEvent),
+        settings: toDomainSettings(snapshot.settings),
       };
 
       const filename = `phos-export-${formatTimestampForFilename(exportedAt)}.json`;
@@ -340,20 +369,9 @@ export class BrowserPersistenceEngine implements IBrowserPersistenceEngine {
    */
   async verifyDatabase(): Promise<DatabaseVerificationResult> {
     const issues: string[] = [];
-
     try {
-      const pages = await this.deps.pageRepository.findAll();
-      if (pages.length !== TOTAL_MUSHAF_PAGES) {
-        issues.push(
-          `Expected ${TOTAL_MUSHAF_PAGES} pages but found ${pages.length}; the database is incompletely seeded.`,
-        );
-      }
-    } catch (error) {
-      issues.push(`Pages could not be read: ${describeError(error)}`);
-    }
-
-    try {
-      await this.deps.settingsRepository.getSettings();
+      const prepared = await prepareSnapshot(await readSnapshot(), this.deps.applicationVersion);
+      issues.push(...prepared.errors);
     } catch (error) {
       issues.push(`Database could not be queried: ${describeError(error)}`);
     }
@@ -498,12 +516,26 @@ async function verifyRecord(record: StoredBackup): Promise<BackupVerificationRes
     issues.push("Backup checksum does not match the recorded manifest checksum.");
   }
 
+  const prepared = await prepareSnapshot(record.snapshot, record.applicationVersion);
+  issues.push(...prepared.errors);
+
   return {
     backupId: record.id,
     verified: issues.length === 0,
     issues,
     checkedAt: new Date(),
   };
+}
+
+function prepareSnapshot(
+  snapshot: import("@/repositories/browser").PhosSnapshot,
+  applicationVersion: string,
+) {
+  // Local snapshots predate some additive settings. Normalize them like older files,
+  // after the original stored checksum has been checked without normalization.
+  return preparePortableRestore(
+    JSON.stringify({ ...snapshot, applicationVersion, formatVersion: EXPORT_FORMAT_VERSION }),
+  );
 }
 
 function formatTimestampForFilename(date: Date): string {

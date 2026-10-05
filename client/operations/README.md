@@ -5,8 +5,9 @@ The operations that used to be `app/api/v1/**/route.ts`.
 ## What these are
 
 Each function here is one former HTTP endpoint with the HTTP removed.
-The body is the same: validate the input, call the engines in the same
-order, map the result through the same mapper in `shared/mappers`. What
+The boundary is the same: validate the input, call the engines, and map
+the result through `shared/mappers`. Subsequent corrections are documented
+in `docs/LOGIC-AUDIT.md`. What
 is gone is the request parsing, the response envelope, and the status
 code — three things that only ever existed because the call crossed a
 network.
@@ -38,9 +39,22 @@ guaranteed:
 Validation was dropped only where the argument is a TypeScript enum or
 a typed DTO the compiler already enforces.
 
+## Transaction commands
+
+`client/commit-study.ts` composes existing Memory Engine study calculations with
+transaction-bound repositories. `client/commit-setup.ts` does the same for onboarding,
+outside work, roadmap commands and one-time repair markers. No engine formula moves
+into the presentation layer. A failed command retains the previous complete record.
+
+Record replacement validates first. Restore and progress reset verify a local safety
+copy; the separately confirmed full application reset intentionally clears restore
+points and returns to onboarding. Only PHOS stores and PHOS assignment/theme keys
+are cleared, never origin-wide storage. Other PHOS windows receive a best-effort
+record-replacement notification and reload their cached view.
+
 ## What was not ported
 
-Four endpoints existed but no PHOS screen ever called them:
+Five endpoints existed but no PHOS screen ever called them:
 `GET /pages`, `GET /pages/juz/{n}`, `GET /pages/{n}`,
 `GET /analytics/session/{id}`, and `GET /analytics/progress?type=progress`.
 They were part of a public API surface that no longer exists — there is

@@ -1,5 +1,5 @@
 import { examOps } from "@/client/operations";
-import { formatDatePreferred } from "@/lib/format";
+import { formatDatePreferred, formatPageList } from "@/lib/format";
 import { ExamStageState, ExamStatus } from "@/shared/types";
 import type { ExamOverviewDTO as EngineExamOverview } from "@/shared/dto";
 import type { ExamCardDTO, ExamOverviewDTO, ExamRunUpDTO, ExamStageCardDTO } from "@/types/dto";
@@ -74,12 +74,7 @@ function toRunUp(overview: EngineExamOverview): ExamRunUpDTO | null {
     pagesInScope: activePlan.pagesInScope,
     pagesPerDay: activePlan.pagesPerDay,
     todaysPages: pages,
-    todaysRange:
-      pages.length === 0
-        ? "Nothing left to cover"
-        : pages.length === 1
-          ? `Page ${pages[0]}`
-          : `Pages ${pages[0]}–${pages[pages.length - 1]}`,
+    todaysRange: pages.length === 0 ? "Nothing left to cover" : formatPageList(pages),
     summary:
       daysLeft <= 0
         ? `${active.scopeLabel} — today.`
@@ -113,6 +108,7 @@ export async function getExamOverview(): Promise<ExamOverviewDTO> {
     stages: overview.stages.map(toStageCard),
     runUp: toRunUp(overview),
     past: overview.past.map(toExamCard),
+    awaitingResult: (overview.awaitingResult ?? []).map(toExamCard),
     aftermath: overview.aftermath
       ? {
           pagesFallenBehind: overview.aftermath.pagesFallenBehind,

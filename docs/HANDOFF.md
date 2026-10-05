@@ -2,7 +2,8 @@
 
 Read this file before changing PHOS. For the approved experience and implementation
 boundaries, read [REIMAGINED.md](REIMAGINED.md). For observed checks and remaining
-release boundaries, read [VERIFICATION.md](VERIFICATION.md).
+release boundaries, read [VERIFICATION.md](VERIFICATION.md). For the authoritative
+logic/storage audit and before/after evidence, read [LOGIC-AUDIT.md](LOGIC-AUDIT.md).
 
 ## Official working app and recoverable baseline
 
@@ -12,6 +13,11 @@ the isolated `codex/phos-reimagined` worktree based on `d3fe97b`; the validated
 implementation is also adopted into the main project working tree. The previous
 implementation remains recoverable at `d3fe97b`. Release evidence is recorded in
 `VERIFICATION.md`; do not claim deployment until the workflow and live app agree.
+
+The current application version is **v0.4.1**, including the audit follow-up
+developed on `fix/phos-logic-audit` after publishing v0.4.0 first. It preserves the
+approved frontend and domain rules while correcting transaction, calendar, recall
+evidence, exam lifecycle, export/restore and stale study-state defects.
 
 On this machine:
 
@@ -65,16 +71,34 @@ app + components + providers
 - `client/commit-study.ts` composes Memory Engine with transaction-bound repositories:
   memory update, recall append, and session item commit together. It does not replace
   any Memory Engine algorithm.
+- `client/commit-setup.ts` applies the same composition rule to onboarding, outside
+  work, roadmap commands and repair markers. Do not split these commands into
+  independent writes or run Memory Engine arithmetic in a component.
 - One active session is enforced transactionally. Its saved assignment, weak flags,
   pause state, and recorded items survive reload. Completion is idempotent.
 - Persistence may replace the record only for an explicit restore or reset. Validate
   first, verify a safety copy, then use one replacement transaction. The `backups`
   store is outside that replacement and survives it.
+- **Full reset is the explicit exception to keeping restore points:** Settings →
+  Reset & recovery → Start PHOS fresh, exact `RESET PHOS` confirmation. It clears
+  all eight PHOS stores and reseeds defaults in one transaction, clears only PHOS
+  assignment/theme keys, refreshes other PHOS windows and returns to onboarding.
+  Export first; no local safety copy is retained. Reset progress remains separate
+  and keeps setup/settings/roadmap/backups with a verified safety copy.
 - File restore is a **full restore**, not a merge. Portable snapshots include pages,
   sessions, session items, recalls, settings, roadmap entries, and exams. Legacy
   files display warnings for information they never contained.
 - Local restore points cannot survive clearing site data. An exported file kept
   elsewhere can. Persistent storage is requested, not guaranteed by PHOS.
+- PHOS and Ex Libris share one GitHub Pages origin. Browser Clear site data can erase
+  both despite different databases/scopes. Never clear site storage to reset PHOS.
+  Moving to a distinct hostname requires an owner-selected address and explicit transfer.
+- Date-only inputs are local calendar dates. Planning deduplicates actual daily recall;
+  analytics places activity on the recall day and closed sessions on the completion day.
+  Fixed cycles advance by calendar schedule; elapsed cycles do not imply completed passes.
+- One upcoming exam is enforced transactionally. Past-date scheduled exams remain
+  actionable; cancellation stays visible. Exam coverage advances through remaining
+  scope while today's portion remains stable. Coverage precedence and fixed scopes remain.
 
 ## Frontend authority
 

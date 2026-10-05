@@ -125,6 +125,18 @@ export async function importData(fileContents: string): Promise<ImportOutcome> {
  * fails rather than erasing a user's Hifz.
  */
 export const DATA_RESET_CONFIRMATION = "DELETE";
+export const APPLICATION_RESET_CONFIRMATION = "RESET PHOS";
+
+export async function resetApplication(confirmation: string): Promise<void> {
+  validateEnum(
+    confirmation,
+    [APPLICATION_RESET_CONFIRMATION],
+    "confirmation",
+    generateCorrelationId(),
+  );
+  await container.persistenceEngine.resetApplication();
+  container.learningEngine.discardInMemoryState();
+}
 
 export interface DataResetSummary {
   readonly safetyBackupId: string;

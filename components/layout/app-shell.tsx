@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { fetchActiveSession, type ActiveSession } from "@/lib/api/activeSession";
 import { SessionType } from "@/shared/types";
 import { cn } from "@/lib/utils";
+import { watchRecordReplacement } from "@/lib/record-change";
 
 const destinations = [
   { href: "/dashboard", label: "Today", icon: CalendarDays },
@@ -39,6 +40,7 @@ export function AppShell({
   const [active, setActive] = React.useState<ActiveSession | null>(null);
   const main = React.useRef<HTMLElement>(null);
   const study = pathname.startsWith("/session") || pathname.startsWith("/revision");
+  React.useEffect(watchRecordReplacement, []);
   React.useEffect(() => {
     const refresh = () => {
       if (ready)

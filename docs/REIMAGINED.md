@@ -10,6 +10,13 @@ Read [HANDOFF.md](HANDOFF.md) for architecture and [VERIFICATION.md](VERIFICATIO
 for observed evidence and device boundaries. Historical visual rules do not override
 this approved experience.
 
+The current v0.4.1 implementation adds the approved post-release logic/storage
+corrections in [LOGIC-AUDIT.md](LOGIC-AUDIT.md). The welcome screen also opens the
+existing verified full file restore. Settings separates preferences reset, recoverable
+progress reset and a deliberately complete PHOS-only return to onboarding. Expired
+scheduled exams remain actionable, and cancelled exams remain in history. These
+corrections preserve this visual and product direction.
+
 ## Design thesis
 
 A quiet study folio: a considered place to return to the same pages over years.

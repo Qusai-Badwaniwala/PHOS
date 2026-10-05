@@ -7,7 +7,7 @@ import type {
   ISessionRepository,
   ISettingsRepository,
 } from "@/repositories";
-import { generateCorrelationId, startOfLocalDay } from "@/shared/utils";
+import { generateCorrelationId, startOfLocalDay, addLocalDays } from "@/shared/utils";
 import {
   MemoryState,
   resolveRoadmap,
@@ -366,7 +366,7 @@ export class AdaptiveEngine implements IAdaptiveEngine {
 
   async getExamPlan(exam: Exam, availableStudyMinutes: number): Promise<ExamPlan> {
     const pages = await this.deps.pageRepository.findAll();
-    return calculateExamPlan(exam, pages, availableStudyMinutes, new Date());
+    return calculateExamPlan(exam, pages, availableStudyMinutes, new Date(), this.config);
   }
 
   async getExamCoverage(exam: Exam): Promise<readonly ExamCoverageDay[]> {
@@ -416,7 +416,13 @@ export class AdaptiveEngine implements IAdaptiveEngine {
     referenceDate: Date,
     extraNewMemorization = false,
   ): Promise<DailyStudyPlan> {
-    const examPlan = calculateExamPlan(exam, allPages, availableStudyMinutes, referenceDate);
+    const examPlan = calculateExamPlan(
+      exam,
+      allPages,
+      availableStudyMinutes,
+      referenceDate,
+      this.config,
+    );
     const dueToday = new Set(examPlan.todaysPageNumbers);
 
     // Pages already studied today are absent from `eligiblePages`, so a
@@ -523,6 +529,7 @@ export class AdaptiveEngine implements IAdaptiveEngine {
         memorizationOrder: roadmap?.juzSequence ?? [],
       },
       new Date(),
+      this.config,
     );
   }
 
@@ -567,6 +574,7 @@ export class AdaptiveEngine implements IAdaptiveEngine {
         memorizationOrder: roadmap?.juzSequence ?? [],
       },
       referenceDate,
+      this.config,
     );
 
     const dueToday = new Set(cycle.todaysPageNumbers);
@@ -604,10 +612,17 @@ export class AdaptiveEngine implements IAdaptiveEngine {
       ),
       extraNewMemorization ? null : daysSinceLastNewPage(allPages, referenceDate),
     );
-    const newItems = toStudyItems(cappedNew).map((item, index) => ({
-      ...item,
-      recommendedOrder: revisionItems.length + index,
-    }));
+    const revisionSeconds = revisionItems.reduce(
+      (total, item) => total + item.estimatedDurationSeconds,
+      0,
+    );
+    const remainingMinutes = Math.max(0, availableStudyMinutes * 60 - revisionSeconds) / 60;
+    const newItems = toStudyItems(allocateStudyTimeCalculator(cappedNew, remainingMinutes)).map(
+      (item, index) => ({
+        ...item,
+        recommendedOrder: revisionItems.length + index,
+      }),
+    );
 
     const studyItems = [...revisionItems, ...newItems];
     const estimatedTotalDurationSeconds = studyItems.reduce(
@@ -688,32 +703,27 @@ export class AdaptiveEngine implements IAdaptiveEngine {
       );
     }
 
-    const windowStart = new Date(
-      referenceDate.getTime() - OBSERVATION_WINDOW_DAYS * MILLISECONDS_PER_DAY,
-    );
+    const windowStart = addLocalDays(referenceDate, -OBSERVATION_WINDOW_DAYS);
     const recallEvents = await this.deps.recallEventRepository.findBetweenDates(
       windowStart,
       referenceDate,
     );
 
-    const sessions = await this.deps.sessionRepository.findBetweenDates(windowStart, referenceDate);
-    const activeDays = countDistinctLocalDays(sessions.map((session) => session.startedAt));
-
-    // New memorization is counted as recall events on pages that were
-    // encountered for the first time in the window — the same evidence
-    // the plan itself is built from, rather than a separate tally that
-    // could disagree with it.
-    const firstEventPerPage = new Set<string>();
-    for (const event of recallEvents) {
-      firstEventPerPage.add(event.pageId);
-    }
+    const activeDays = countDistinctLocalDays(recallEvents.map((event) => event.timestamp));
+    const pages = await this.deps.pageRepository.findAll();
+    const newPagesStudied = pages.filter(
+      (page) =>
+        page.firstStudiedAt &&
+        page.firstStudiedAt >= windowStart &&
+        page.firstStudiedAt <= referenceDate,
+    ).length;
 
     return recommendWorkload(
       {
         recallEvents,
         activeDays,
         windowDays: OBSERVATION_WINDOW_DAYS,
-        newPagesStudied: firstEventPerPage.size,
+        newPagesStudied,
       },
       comfortableDailyPages,
     );
@@ -736,6 +746,13 @@ export class AdaptiveEngine implements IAdaptiveEngine {
     // midnight and UTC midnight was treated as belonging to the previous
     // day — pages studied that morning were immediately re-scheduled.
     const startOfToday = startOfLocalDay(referenceDate);
+    if (this.deps.recallEventRepository) {
+      const recalls = await this.deps.recallEventRepository.findBetweenDates(
+        startOfToday,
+        referenceDate,
+      );
+      return new Set(recalls.map((recall) => recall.pageId));
+    }
     const todaysSessions = await this.deps.sessionRepository.findBetweenDates(
       startOfToday,
       referenceDate,
@@ -997,7 +1014,7 @@ function explainExamDay(
         : `in ${daysLeft} days, on ${formatExamDate(exam.examDate)}`;
 
   const details = [
-    `${plan.pagesInScope} pages in scope, divided evenly across the ${plan.daysRemaining} ${plan.daysRemaining === 1 ? "day" : "days"} remaining — about ${plan.pagesPerDay} a day.`,
+    `${plan.pagesInScope} pages in scope. Remaining coverage is divided across the ${plan.daysRemaining} ${plan.daysRemaining === 1 ? "day" : "days"} remaining — about ${plan.pagesPerDay} a day.`,
     "Revision outside the exam scope is set aside until the exam is over. PHOS will tell you what fell behind once you mark it passed.",
   ];
 
@@ -1046,7 +1063,7 @@ function explainTraditionalDay(
 
   if (cycle.passesCompleted > 0) {
     details.push(
-      `You have completed ${cycle.passesCompleted} full ${cycle.passesCompleted === 1 ? "pass" : "passes"} since starting this cycle.`,
+      `${cycle.passesCompleted} scheduled ${cycle.passesCompleted === 1 ? "cycle has" : "cycles have"} elapsed since this rotation began. Recorded study remains in your history.`,
     );
   }
 

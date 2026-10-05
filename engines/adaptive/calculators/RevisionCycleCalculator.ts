@@ -1,17 +1,8 @@
 import { MemoryState, type Page, type RevisionCyclePlan } from "@/shared/types";
-import { MAXIMUM_CYCLE_LENGTH_DAYS } from "@/shared/constants";
-import { startOfLocalDay } from "@/shared/utils";
-
-const MILLISECONDS_PER_DAY = 86_400_000;
-
-/**
- * Seconds a page of cycle revision is assumed to take.
- *
- * The same figure the exam run-up uses, and for the same reason: this
- * is recitation of material already memorized, not careful study of a
- * page at any strength. Used only to decide whether to warn.
- */
-const CYCLE_REVISION_SECONDS_PER_PAGE = 45;
+import { MAXIMUM_CYCLE_LENGTH_DAYS, MINIMUM_CYCLE_LENGTH_DAYS } from "@/shared/constants";
+import { daysBetweenLocalDates } from "@/shared/utils";
+import { DEFAULT_ADAPTIVE_CONFIG, type AdaptiveEngineConfig } from "../constants";
+import { estimatePageDurationSeconds } from "./DurationCalculator";
 
 /**
  * The traditional revision cycle: everything memorized, in the user's
@@ -50,6 +41,7 @@ export function calculateRevisionCycle(
     memorizationOrder: readonly number[];
   },
   referenceDate: Date,
+  config: AdaptiveEngineConfig = DEFAULT_ADAPTIVE_CONFIG,
 ): RevisionCyclePlan {
   const cycleLengthDays = Math.max(1, Math.round(input.cycleLengthDays));
 
@@ -58,7 +50,7 @@ export function calculateRevisionCycle(
     input.memorizationOrder,
   );
 
-  const pagesPerDay = Math.max(1, Math.ceil(scope.length / cycleLengthDays));
+  const pagesPerDay = Math.ceil(scope.length / cycleLengthDays);
 
   /*
    * Day zero is the day the cycle began. A cycle with no stored start
@@ -68,14 +60,7 @@ export function calculateRevisionCycle(
    * before Phase 12.
    */
   const daysElapsed = input.cycleStartedAt
-    ? Math.max(
-        0,
-        Math.floor(
-          (startOfLocalDay(referenceDate).getTime() -
-            startOfLocalDay(input.cycleStartedAt).getTime()) /
-            MILLISECONDS_PER_DAY,
-        ),
-      )
+    ? Math.max(0, daysBetweenLocalDates(input.cycleStartedAt, referenceDate))
     : 0;
 
   const dayIndex = daysElapsed % cycleLengthDays;
@@ -85,9 +70,11 @@ export function calculateRevisionCycle(
     .slice(dayIndex * pagesPerDay, (dayIndex + 1) * pagesPerDay)
     .map((page) => page.pageNumber);
 
-  const estimatedMinutesPerDay = Math.round((pagesPerDay * CYCLE_REVISION_SECONDS_PER_PAGE) / 60);
-  const exceedsDailyBudget =
-    scope.length > 0 && estimatedMinutesPerDay > input.availableStudyMinutes;
+  const seconds = scope
+    .slice(dayIndex * pagesPerDay, (dayIndex + 1) * pagesPerDay)
+    .reduce((total, page) => total + estimatePageDurationSeconds(page, config), 0);
+  const estimatedMinutesPerDay = Math.ceil(seconds / 60);
+  const exceedsDailyBudget = seconds > input.availableStudyMinutes * 60;
 
   return {
     cycleLengthDays,
@@ -99,7 +86,7 @@ export function calculateRevisionCycle(
     exceedsDailyBudget,
     estimatedMinutesPerDay,
     suggestedCycleLengthDays: exceedsDailyBudget
-      ? suggestCycleLength(scope.length, input.availableStudyMinutes)
+      ? suggestCycleLength(scope, input.availableStudyMinutes, config)
       : null,
   };
 }
@@ -140,15 +127,25 @@ function orderPages(pages: readonly Page[], memorizationOrder: readonly number[]
  * a specific number they can accept or ignore, not a warning with
  * nothing behind it.
  */
-function suggestCycleLength(pagesInCycle: number, availableStudyMinutes: number): number | null {
-  const pagesPerDayThatFit = Math.floor(
-    (availableStudyMinutes * 60) / CYCLE_REVISION_SECONDS_PER_PAGE,
-  );
-  if (pagesPerDayThatFit <= 0) return null;
-
-  const needed = Math.ceil(pagesInCycle / pagesPerDayThatFit);
-  // Beyond the maximum there is nothing useful to suggest; the user's
-  // stated daily time is simply too small for their volume, and saying
-  // "try a 400-day cycle" would be worse than saying nothing.
-  return needed > MAXIMUM_CYCLE_LENGTH_DAYS ? null : needed;
+function suggestCycleLength(
+  pages: readonly Page[],
+  availableStudyMinutes: number,
+  config: AdaptiveEngineConfig,
+): number | null {
+  const budget = availableStudyMinutes * 60;
+  for (let length = MINIMUM_CYCLE_LENGTH_DAYS; length <= MAXIMUM_CYCLE_LENGTH_DAYS; length += 1) {
+    const portion = Math.ceil(pages.length / length);
+    let fits = true;
+    for (let start = 0; start < pages.length; start += portion) {
+      const seconds = pages
+        .slice(start, start + portion)
+        .reduce((total, page) => total + estimatePageDurationSeconds(page, config), 0);
+      if (seconds > budget) {
+        fits = false;
+        break;
+      }
+    }
+    if (fits) return length;
+  }
+  return null;
 }

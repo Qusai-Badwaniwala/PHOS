@@ -6,6 +6,8 @@ import type {
   SettingsDTO as EngineSettings,
 } from "@/shared/dto";
 import type { SettingsDTO, Theme } from "@/types/dto";
+import { clearAllAssignments } from "./activeSession";
+import { notifyRecordReplacement } from "@/lib/record-change";
 
 /**
  * The engine-side Settings shapes (`shared/dto/settings.dto.ts`).
@@ -270,5 +272,21 @@ export const DATA_RESET_CONFIRMATION = backupOps.DATA_RESET_CONFIRMATION;
  * it is presented as final.
  */
 export async function resetAllData(): Promise<backupOps.DataResetSummary> {
-  return backupOps.resetAllData(DATA_RESET_CONFIRMATION);
+  const result = await backupOps.resetAllData(DATA_RESET_CONFIRMATION);
+  clearAllAssignments();
+  notifyRecordReplacement();
+  return result;
+}
+export const APPLICATION_RESET_CONFIRMATION = backupOps.APPLICATION_RESET_CONFIRMATION;
+export async function resetApplication(confirmation: string): Promise<void> {
+  await backupOps.resetApplication(confirmation);
+  clearAllAssignments();
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.removeItem("phos-theme");
+    } catch {
+      /* Optional appearance cache. */
+    }
+  }
+  notifyRecordReplacement();
 }

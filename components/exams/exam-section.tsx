@@ -3,6 +3,8 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
+import { ExamStatus } from "@/shared/types";
 
 import { ExamLadder } from "./exam-ladder";
 import { ExamRunUpCard } from "./exam-run-up";
@@ -41,6 +43,9 @@ export function ExamSection({ className, onChanged }: ExamSectionProps) {
   const [pending, setPending] = React.useState(false);
   const [recordOpen, setRecordOpen] = React.useState(false);
   const [recordError, setRecordError] = React.useState<string | null>(null);
+  const [outcomeAction, setOutcomeAction] = React.useState<{ id: string; passed: boolean } | null>(
+    null,
+  );
 
   const load = React.useCallback(async () => {
     try {
@@ -119,6 +124,46 @@ export function ExamSection({ className, onChanged }: ExamSectionProps) {
 
   return (
     <div className={cn("space-y-8", className)}>
+      {(overview.awaitingResult?.length ?? 0) > 0 && (
+        <section className="folio-section">
+          <h2 className="font-serif text-2xl">Record your exam result</h2>
+          <p className="text-muted-foreground mt-2 text-sm">
+            These exam dates have passed. Ordinary revision has resumed; their outcomes are still
+            yours to record.
+          </p>
+          <ul className="mt-4 divide-y">
+            {overview.awaitingResult?.map((exam) => (
+              <li key={exam.id} className="py-4">
+                <p className="text-sm font-medium">
+                  {exam.scopeLabel} · {exam.examDate}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    disabled={pending}
+                    onClick={() => {
+                      setDialogError(null);
+                      setOutcomeAction({ id: exam.id, passed: true });
+                    }}
+                  >
+                    Record as passed
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    disabled={pending}
+                    onClick={() => {
+                      setDialogError(null);
+                      setOutcomeAction({ id: exam.id, passed: false });
+                    }}
+                  >
+                    Cancel this exam
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {overview.runUp && (
         <ExamRunUpCard
           runUp={overview.runUp}
@@ -178,7 +223,7 @@ export function ExamSection({ className, onChanged }: ExamSectionProps) {
           </div>
         </div>
 
-        {dialogError && !dialogOpen && (
+        {dialogError && !dialogOpen && !outcomeAction && (
           <p role="alert" className="text-destructive mb-4">
             {dialogError}
           </p>
@@ -212,7 +257,7 @@ export function ExamSection({ className, onChanged }: ExamSectionProps) {
       */}
       {overview.past.length > 0 && (
         <section className="folio-section">
-          <h2 className="mb-4 font-serif text-2xl">Exams you have passed</h2>
+          <h2 className="mb-4 font-serif text-2xl">Exam history</h2>
           <ul className="space-y-2">
             {overview.past.map((exam) => (
               <li
@@ -225,6 +270,7 @@ export function ExamSection({ className, onChanged }: ExamSectionProps) {
                     : `Stage ${exam.stage} · ${exam.scopeLabel}`}
                 </span>
                 <span className="text-muted-foreground text-xs">
+                  {exam.status === ExamStatus.Cancelled ? "Cancelled · " : "Passed · "}
                   {exam.stage === null && "Your own exam · "}
                   {/*
                     A recorded exam with no date says so rather than
@@ -244,6 +290,24 @@ export function ExamSection({ className, onChanged }: ExamSectionProps) {
         onOpenChange={setRecordOpen}
         onRecord={handleRecordPast}
         error={recordError}
+      />
+      <ConfirmationDialog
+        open={outcomeAction !== null}
+        onOpenChange={(open) => {
+          if (!open) setOutcomeAction(null);
+        }}
+        title={outcomeAction?.passed ? "Record this exam as passed?" : "Cancel this exam?"}
+        description="Your learned pages and study history stay. This records the outcome of the scheduled exam."
+        confirmLabel={outcomeAction?.passed ? "Record passed exam" : "Cancel exam"}
+        pending={pending}
+        errorMessage={dialogError}
+        onConfirm={() => {
+          if (!outcomeAction) return;
+          const { id, passed } = outcomeAction;
+          void run(() => (passed ? markExamPassed(id) : cancelExam(id))).then((ok) => {
+            if (ok) setOutcomeAction(null);
+          });
+        }}
       />
 
       <ScheduleExamDialog

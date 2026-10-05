@@ -50,8 +50,9 @@ export function StorageNotice() {
             <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
               Everything PHOS knows about your Hifz is stored in this browser, on this device. It is
               never sent anywhere, and no account exists that could reach it — which also means
-              clearing this browser&apos;s data for PHOS would erase it, and nobody could restore it
-              for you. An exported file is the one copy that survives that.
+              clearing this site&apos;s browser data would erase it and any other apps sharing the
+              same website address. Use Reset PHOS in Settings to start only PHOS fresh. An exported
+              file kept elsewhere is the copy that survives browser clearing.
             </p>
           </div>
 
@@ -64,11 +65,12 @@ export function StorageNotice() {
               )}
               <p className="text-muted-foreground">
                 {persistent
-                  ? "Your browser has agreed to keep this data and will not clear it on its own."
-                  : "Your browser has not promised to keep this data, and may clear it if it runs short of space. Installing PHOS as an app usually earns that promise — and an export is safe either way."}
+                  ? "Persistent storage is enabled for this site. This protects against automatic eviction, but not clearing site data yourself."
+                  : "Your browser may clear this site's data if it runs short of space. Installing PHOS may help it grant persistent storage. Keep an exported file either way."}
                 {report.usageBytes !== null && (
                   <span className="block">
-                    Currently using about {formatBytes(report.usageBytes)}.
+                    Shared site storage: about {formatBytes(report.usageBytes)}, including any other
+                    apps on this address.
                   </span>
                 )}
               </p>

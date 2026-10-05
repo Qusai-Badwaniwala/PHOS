@@ -20,6 +20,14 @@ vi.mock("@/client/container", () => ({
   container: { settingsRepository, memoryEngine, adaptiveEngine },
 }));
 
+vi.mock("@/client/commit-setup", () => ({
+  commitBrowserRepair: async (_kind: string, pages: string[]) => {
+    const pagesRepaired = await memoryEngine.reblockSeededRevision(pages);
+    await settingsRepository.markRevisionBlocksRepaired();
+    return { ran: true, pagesRepaired };
+  },
+}));
+
 const { repairSeededRevisionBlocks } = await import("@/client/operations/migrations");
 
 beforeEach(() => {

@@ -1,5 +1,5 @@
 import { MemoryState, type GoalProjection, type MemorizationGoal, type Page } from "@/shared/types";
-import { startOfLocalDay } from "@/shared/utils";
+import { startOfLocalDay, addLocalDays, daysBetweenLocalDates } from "@/shared/utils";
 
 /**
  * How far back the pace is measured.
@@ -21,8 +21,6 @@ export const PACE_WINDOW_DAYS = 30;
  * that keeps Memory Health blank until a real recall exists.
  */
 export const MINIMUM_ASSESSED_DAYS = 7;
-
-const MILLISECONDS_PER_DAY = 86_400_000;
 
 /**
  * Measures the user's own goal against what they have actually done.
@@ -108,14 +106,8 @@ export function calculateGoalProjection(
   }
 
   const daysNeeded = Math.ceil(pagesRemaining / pagesPerDay);
-  const projectedCompletionDate = new Date(
-    startOfLocalDay(now).getTime() + daysNeeded * MILLISECONDS_PER_DAY,
-  );
-
-  const daysFromGoal = Math.round(
-    (startOfLocalDay(projectedCompletionDate).getTime() - startOfLocalDay(targetDate).getTime()) /
-      MILLISECONDS_PER_DAY,
-  );
+  const projectedCompletionDate = addLocalDays(startOfLocalDay(now), daysNeeded);
+  const daysFromGoal = daysBetweenLocalDates(targetDate, projectedCompletionDate);
 
   return { ...base, observedPagesPerDay: pagesPerDay, projectedCompletionDate, daysFromGoal };
 }
@@ -139,15 +131,10 @@ function measurePace(
   if (firstStudiedDates.length === 0) return { pagesPerDay: null, assessedDays: 0 };
 
   const earliest = firstStudiedDates.reduce((a, b) => (a.getTime() <= b.getTime() ? a : b));
-  const daysSinceStart =
-    Math.floor(
-      (startOfLocalDay(now).getTime() - startOfLocalDay(earliest).getTime()) / MILLISECONDS_PER_DAY,
-    ) + 1;
+  const daysSinceStart = daysBetweenLocalDates(earliest, now) + 1;
 
   const assessedDays = Math.min(PACE_WINDOW_DAYS, Math.max(1, daysSinceStart));
-  const windowStart = startOfLocalDay(
-    new Date(startOfLocalDay(now).getTime() - (assessedDays - 1) * MILLISECONDS_PER_DAY),
-  );
+  const windowStart = addLocalDays(startOfLocalDay(now), -(assessedDays - 1));
 
   const pagesInWindow = firstStudiedDates.filter(
     (date) => date.getTime() >= windowStart.getTime(),

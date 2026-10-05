@@ -3,6 +3,7 @@ import { formatDateTimePreferred } from "@/lib/format";
 import type { BackupMetadataDTO } from "@/shared/dto";
 import type { BackupEntryDTO, BackupStatusDTO } from "@/types/dto";
 import { preparePortableRestore } from "@/engines/persistence/browser/portable";
+import { notifyRecordReplacement } from "@/lib/record-change";
 
 type BackendBackupMetadata = BackupMetadataDTO;
 
@@ -81,7 +82,9 @@ export type { RestoreOutcome, ExportOutcome, ImportOutcome } from "@/client/oper
  * returned, so restoring the wrong backup is itself reversible.
  */
 export async function restoreBackup(backupId: string): Promise<backupOps.RestoreOutcome> {
-  return backupOps.restoreBackup(backupId);
+  const result = await backupOps.restoreBackup(backupId);
+  notifyRecordReplacement();
+  return result;
 }
 
 /** Exports all data and returns the file's name and contents. */
@@ -97,7 +100,9 @@ export async function exportData(): Promise<backupOps.ExportOutcome> {
  * that is the point: the user's Hifz record never leaves their device.
  */
 export async function importData(file: File): Promise<backupOps.ImportOutcome> {
-  return backupOps.importData(await file.text());
+  const result = await backupOps.importData(await file.text());
+  if (result.success) notifyRecordReplacement();
+  return result;
 }
 
 /** Validate locally and expose a reviewable summary before full replacement. */

@@ -111,6 +111,24 @@ beforeEach(() => {
 });
 
 describe("the ladder", () => {
+  it("keeps an expired scheduled exam actionable and preserves it after a failed outcome write", async () => {
+    const user = userEvent.setup();
+    getExamOverview.mockResolvedValue(overview({ awaitingResult: [runUp().exam] }));
+    markExamPassed.mockRejectedValue(new Error("Could not save the exam result."));
+    render(<ExamSection />);
+    await user.click(await screen.findByRole("button", { name: "Record as passed" }));
+    await user.click(screen.getByRole("button", { name: "Record passed exam" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Could not save the exam result.");
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(markExamPassed).toHaveBeenCalledWith("exam-1");
+    markExamPassed.mockResolvedValue(
+      overview({ past: [{ ...runUp().exam, status: ExamStatus.Passed }] }),
+    );
+    await user.click(screen.getByRole("button", { name: "Record passed exam" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(screen.getByText("Exam history")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Record as passed" })).not.toBeInTheDocument();
+  });
   it("shows locked stages rather than hiding them", () => {
     // Hiding them would make the roadmap shorter as it went, which is
     // exactly backwards.
@@ -476,7 +494,7 @@ describe("adding a past exam", () => {
     render(<ExamSection />);
 
     expect(await screen.findByText("Stage 3 · Juz 26–30")).toBeInTheDocument();
-    expect(screen.getByText("Before you started PHOS")).toBeInTheDocument();
+    expect(screen.getByText(/Before you started PHOS/)).toBeInTheDocument();
   });
 
   it("surfaces a refusal rather than closing silently", async () => {

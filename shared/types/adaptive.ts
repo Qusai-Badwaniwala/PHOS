@@ -167,7 +167,7 @@ export interface RevisionCyclePlan {
   readonly cycleLengthDays: number;
   /** Which day of the current pass today is, 1-based. */
   readonly dayOfCycle: number;
-  /** How many passes have been completed since the cycle began. */
+  /** Scheduled cycles elapsed, not a count of completed study passes. */
   readonly passesCompleted: number;
   /** Everything memorized, which is what the cycle rotates through. */
   readonly pagesInCycle: number;

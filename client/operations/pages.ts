@@ -4,6 +4,7 @@ import { generateCorrelationId } from "@/shared/utils";
 import { ValidationError, validateBoolean, validateNumericRange } from "@/validators";
 import { container } from "../container";
 import { estimateDailyRevisionCapacity } from "./settings";
+import { seedBrowserPriorMemorization } from "../commit-setup";
 
 export interface LogMemorizedInput {
   readonly count?: number;
@@ -57,7 +58,7 @@ export async function logMemorizedOutside(input: LogMemorizedInput): Promise<Log
   // charge the engine's real per-page cost, this one would have been
   // left seeding cycles 75% too dense.
   const settings = await container.settingsRepository.getSettings();
-  const loggedPages = await container.memoryEngine.seedPriorMemorization(
+  const loggedPages = await seedBrowserPriorMemorization(
     pageIds,
     startRevisionNow,
     estimateDailyRevisionCapacity(settings.dailyAvailableMinutes),

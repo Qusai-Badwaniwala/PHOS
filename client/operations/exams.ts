@@ -5,7 +5,12 @@ import {
   MAXIMUM_EXAM_RUNUP_DAYS,
   MINIMUM_EXAM_RUNUP_DAYS,
 } from "@/shared/constants";
-import { generateCorrelationId, startOfLocalDay } from "@/shared/utils";
+import {
+  generateCorrelationId,
+  startOfLocalDay,
+  daysBetweenLocalDates,
+  parseCalendarDate,
+} from "@/shared/utils";
 import { ValidationError, validateBoolean, validateNumericRange } from "@/validators";
 import {
   toExamAftermathDTO,
@@ -46,7 +51,7 @@ export async function getExamOverview(): Promise<ExamOverviewDTO> {
     : [null, []];
 
   const past = allExams
-    .filter((exam) => exam.status === ExamStatus.Passed)
+    .filter((exam) => exam.status === ExamStatus.Passed || exam.status === ExamStatus.Cancelled)
     .sort((a, b) => (b.examDate?.getTime() ?? -Infinity) - (a.examDate?.getTime() ?? -Infinity));
 
   /*
@@ -77,6 +82,14 @@ export async function getExamOverview(): Promise<ExamOverviewDTO> {
     activePlan: plan ? toExamPlanDTO(plan) : null,
     activeCoverage: coverage.map(toExamCoverageDayDTO),
     past: past.map(toExamDTO),
+    awaitingResult: allExams
+      .filter(
+        (exam) =>
+          exam.status === ExamStatus.Scheduled &&
+          exam.examDate !== null &&
+          startOfLocalDay(exam.examDate) < startOfLocalDay(now),
+      )
+      .map(toExamDTO),
     aftermath: aftermath && aftermath.pagesFallenBehind > 0 ? toExamAftermathDTO(aftermath) : null,
   };
 }
@@ -120,14 +133,12 @@ export async function scheduleExam(input: ScheduleExamInput): Promise<ExamOvervi
     correlationId,
   );
 
-  const examDate = new Date(input.examDate);
+  const examDate = parseCalendarDate(input.examDate);
   if (Number.isNaN(examDate.getTime())) {
     throw new ValidationError('Field "examDate" is not a valid date.', correlationId);
   }
 
-  const daysAway = Math.round(
-    (startOfLocalDay(examDate).getTime() - startOfLocalDay(now).getTime()) / MILLISECONDS_PER_DAY,
-  );
+  const daysAway = daysBetweenLocalDates(now, examDate);
   if (daysAway < MINIMUM_EXAM_RUNUP_DAYS) {
     throw new ValidationError(
       "An exam needs at least a day to prepare for. Choose a date from tomorrow onward.",
@@ -291,7 +302,7 @@ export async function recordPastExam(input: PastExamInput): Promise<ExamOverview
 
   let examDate: Date | null = null;
   if (input.examDate) {
-    examDate = new Date(input.examDate);
+    examDate = parseCalendarDate(input.examDate);
     if (Number.isNaN(examDate.getTime())) {
       throw new ValidationError('Field "examDate" is not a valid date.', correlationId);
     }

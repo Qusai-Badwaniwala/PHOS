@@ -69,6 +69,9 @@ export interface SessionStatisticsDTO {
   /** Sabaq, Sabqi, Manzil or Recovery — what kind of work this was. */
   readonly sessionType: string;
   readonly startedAt: string;
+  readonly completedAt?: string | null;
+  readonly completedInPeriod?: boolean;
+  readonly dailyActivity?: readonly import("@/shared/types").SessionDayActivity[];
   readonly durationSeconds: number;
   readonly pagesCompleted: number;
   /** The pages themselves, ascending. */

@@ -1,28 +1,9 @@
+import "fake-indexeddb/auto";
+import { IDBFactory } from "fake-indexeddb";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EXAM_LADDER } from "@/shared/constants";
-
-/**
- * Exams the user ticks during onboarding.
- *
- * The path is easy to break silently: the answers are validated in one
- * place and written in another, and nothing else in the application
- * would notice if the write simply stopped happening. A user would
- * finish setup, see a roadmap with no history on it, and have no reason
- * to suspect PHOS had discarded what they said.
- */
-const settingsRepository = vi.hoisted(() => ({
-  getSettings: vi.fn(),
-  completeOnboarding: vi.fn(),
-}));
-const examRepository = vi.hoisted(() => ({ recordPast: vi.fn() }));
-const memoryEngine = vi.hoisted(() => ({ seedPriorMemorization: vi.fn() }));
-const adaptiveEngine = vi.hoisted(() => ({ getMemorizationSequence: vi.fn() }));
-
-vi.mock("@/client/container", () => ({
-  container: { settingsRepository, examRepository, memoryEngine, adaptiveEngine },
-}));
-
-const { completeOnboarding } = await import("@/client/operations/settings");
+import { resetDatabaseConnection, readSnapshot } from "@/repositories/browser";
+import { completeOnboarding } from "@/client/operations/settings";
 
 const ANSWERS = {
   memorizationOrder: "Standard",
@@ -33,99 +14,32 @@ const ANSWERS = {
   followsExistingSchedule: false,
   revisionStartsImmediately: true,
 };
-
 beforeEach(() => {
-  vi.clearAllMocks();
-  settingsRepository.completeOnboarding.mockResolvedValue({
-    id: "s1",
-    theme: "system",
-    ayahRotationFrequency: 1,
-    dateFormat: "mdy",
-    timeFormat: "12h",
-    reducedMotion: false,
-    compactMode: false,
-    sessionShowTimer: true,
-    sessionShowProgress: true,
-    sessionConfirmCompletion: false,
-    revisionShowProgress: true,
-    onboardingCompletedAt: new Date(),
-    memorizationLevel: "Intermediate",
-    pagesAlreadyMemorized: 0,
-    dailyAvailableMinutes: 30,
-    comfortableDailyPages: 1,
-    followsExistingSchedule: false,
-    revisionStartsImmediately: true,
-    memorizationOrder: "Standard",
-    goalTargetPages: null,
-    goalTargetDate: null,
-    revisionMode: "Adaptive",
-    cycleLengthDays: 7,
-    cycleStartedAt: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
-  examRepository.recordPast.mockResolvedValue({});
+  vi.restoreAllMocks();
+  globalThis.indexedDB = new IDBFactory();
+  resetDatabaseConnection();
 });
-
-describe("exams ticked during onboarding", () => {
-  it("records one per stage the user ticked", async () => {
+describe("exams selected during onboarding", () => {
+  it("records exactly the chosen stages", async () => {
     await completeOnboarding({ ...ANSWERS, passedExamStages: [1, 2, 3] });
-
-    expect(examRepository.recordPast).toHaveBeenCalledTimes(3);
+    expect((await readSnapshot()).exams?.map((exam) => exam.stage).sort()).toEqual([1, 2, 3]);
   });
-
-  it("takes each scope from the ladder, not from the number alone", async () => {
+  it("uses the ladder scope and an unknown historical date", async () => {
     await completeOnboarding({ ...ANSWERS, passedExamStages: [3] });
-
-    expect(examRepository.recordPast).toHaveBeenCalledWith(
-      expect.objectContaining({ stage: 3, juzNumbers: EXAM_LADDER[2]!.juzNumbers }),
-    );
-  });
-
-  it("records them undated, because onboarding does not ask when", async () => {
-    // Nobody remembers the day they sat Juz 30, and the Exams screen
-    // offers a date for anyone who does.
-    await completeOnboarding({ ...ANSWERS, passedExamStages: [1] });
-
-    expect(examRepository.recordPast).toHaveBeenCalledWith(
-      expect.objectContaining({ examDate: null }),
-    );
-  });
-
-  it("records nothing when the user ticked nothing", async () => {
-    await completeOnboarding({ ...ANSWERS, passedExamStages: [] });
-
-    expect(examRepository.recordPast).not.toHaveBeenCalled();
-  });
-
-  it("treats a missing answer as none, so an older client cannot break setup", async () => {
-    await completeOnboarding({ ...ANSWERS });
-
-    expect(examRepository.recordPast).not.toHaveBeenCalled();
-  });
-
-  it("drops a stage that does not exist rather than refusing the whole setup", async () => {
-    await completeOnboarding({ ...ANSWERS, passedExamStages: [1, 99] });
-
-    expect(examRepository.recordPast).toHaveBeenCalledTimes(1);
-  });
-
-  it("de-duplicates, so one stage never becomes two records", async () => {
-    await completeOnboarding({ ...ANSWERS, passedExamStages: [2, 2, 2] });
-
-    expect(examRepository.recordPast).toHaveBeenCalledTimes(1);
-  });
-
-  it("still finishes setup if recording an exam fails", async () => {
-    /*
-     * Onboarding answers are already written by this point. Losing an
-     * exam record is a small annoyance the user can repair from the
-     * Exams screen; losing their whole setup is not.
-     */
-    examRepository.recordPast.mockRejectedValue(new Error("storage full"));
-
-    await expect(completeOnboarding({ ...ANSWERS, passedExamStages: [1] })).resolves.toMatchObject({
-      seededPages: 0,
+    expect((await readSnapshot()).exams?.[0]).toMatchObject({
+      stage: 3,
+      juzNumbers: [...EXAM_LADDER[2]!.juzNumbers],
+      examDate: null,
+      recordedAsPast: true,
+      status: "Passed",
     });
+  });
+  it.each([undefined, []])("accepts no selected stages (%j)", async (passedExamStages) => {
+    await completeOnboarding({ ...ANSWERS, passedExamStages });
+    expect((await readSnapshot()).exams).toEqual([]);
+  });
+  it("ignores invalid or duplicate stages from an older client", async () => {
+    await completeOnboarding({ ...ANSWERS, passedExamStages: [1, 99, 2, 2, 0, "3"] });
+    expect((await readSnapshot()).exams?.map((exam) => exam.stage).sort()).toEqual([1, 2]);
   });
 });

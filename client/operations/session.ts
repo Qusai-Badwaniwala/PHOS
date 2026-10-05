@@ -1,6 +1,11 @@
 import type { ConfidenceLevel, SessionType } from "@/shared/types";
 import { generateCorrelationId } from "@/shared/utils";
-import { validateIdentifier, validateNumericRange } from "@/validators";
+import {
+  ValidationError,
+  validateIdentifier,
+  validateNumericRange,
+  validateBoolean,
+} from "@/validators";
 import {
   toActiveSessionDTO,
   toDailyStudyPlanDTO,
@@ -150,7 +155,12 @@ export async function submitRecall(
   );
 
   await container.learningEngine.ensureActiveSession(sessionId);
-  container.learningEngine.submitRecall(pageId, submission.successfulRecall, durationSeconds);
+  const successfulRecall = validateBoolean(
+    submission.successfulRecall,
+    "successfulRecall",
+    correlationId,
+  );
+  container.learningEngine.submitRecall(pageId, successfulRecall, durationSeconds);
 
   // The Memory Engine has not run yet — confidence is collected after
   // recall (SDS Part 12), and only `submitConfidence()` triggers the
@@ -182,6 +192,12 @@ export async function submitConfidence(
 
   // Combines with the pending recall staged by `submitRecall`, invokes
   // the Memory Engine, and persists the result.
+  const pageId = validateIdentifier(submission.pageId, "pageId", correlationId);
+  if (container.learningEngine.getNextStudyItem()?.pageId !== pageId)
+    throw new ValidationError(
+      "Confidence must belong to the page awaiting recall feedback.",
+      correlationId,
+    );
   await container.learningEngine.submitConfidence(submission.confidence);
 
   return { accepted: true };

@@ -3,7 +3,12 @@ import type {
   CreateRecallEventInput,
   IRecallEventRepository,
 } from "../interfaces/IRecallEventRepository";
-import { generateId, getDatabase, type StoredRecallEvent, type StudyTransaction } from "./database";
+import {
+  generateId,
+  getDatabase,
+  type StoredRecallEvent,
+  type BrowserWriteTransaction,
+} from "./database";
 
 /**
  * IndexedDB implementation of `IRecallEventRepository`.
@@ -15,9 +20,8 @@ import { generateId, getDatabase, type StoredRecallEvent, type StudyTransaction 
  * serve an explicit "delete everything" request, after a backup.
  */
 export class BrowserRecallEventRepository implements IRecallEventRepository {
-  constructor(private readonly transaction?: StudyTransaction) {}
+  constructor(private readonly transaction?: BrowserWriteTransaction) {}
   async create(event: CreateRecallEventInput): Promise<RecallEvent> {
-    const db = await getDatabase();
     const record: StoredRecallEvent = {
       id: generateId(),
       pageId: event.pageId,
@@ -28,39 +32,40 @@ export class BrowserRecallEventRepository implements IRecallEventRepository {
       durationSeconds: event.durationSeconds,
     };
     if (this.transaction) await this.transaction.objectStore("recallEvents").add(record);
-    else await db.add("recallEvents", record);
+    else await (await getDatabase()).add("recallEvents", record);
     return toDomainRecallEvent(record);
   }
 
   async findById(id: string): Promise<RecallEvent | null> {
-    const db = await getDatabase();
-    const record = await db.get("recallEvents", id);
+    const record = this.transaction
+      ? await this.transaction.objectStore("recallEvents").get(id)
+      : await (await getDatabase()).get("recallEvents", id);
     return record ? toDomainRecallEvent(record) : null;
   }
 
   async findByPage(pageId: string): Promise<readonly RecallEvent[]> {
-    const db = await getDatabase();
-    const records = await db.getAllFromIndex("recallEvents", "pageId", pageId);
+    const records = this.transaction
+      ? await this.transaction.objectStore("recallEvents").index("pageId").getAll(pageId)
+      : await (await getDatabase()).getAllFromIndex("recallEvents", "pageId", pageId);
     return sortByTimestamp(records).map(toDomainRecallEvent);
   }
 
   async findBySession(sessionId: string): Promise<readonly RecallEvent[]> {
-    const db = await getDatabase();
-    const records = await db.getAllFromIndex("recallEvents", "sessionId", sessionId);
+    const records = this.transaction
+      ? await this.transaction.objectStore("recallEvents").index("sessionId").getAll(sessionId)
+      : await (await getDatabase()).getAllFromIndex("recallEvents", "sessionId", sessionId);
     return sortByTimestamp(records).map(toDomainRecallEvent);
   }
 
   async findLatestForPage(pageId: string): Promise<RecallEvent | null> {
-    const db = await getDatabase();
-    const records = await db.getAllFromIndex("recallEvents", "pageId", pageId);
-    const sorted = sortByTimestamp(records);
-    const latest = sorted[sorted.length - 1];
-    return latest ? toDomainRecallEvent(latest) : null;
+    const events = await this.findByPage(pageId);
+    return events[events.length - 1] ?? null;
   }
 
   async findBetweenDates(startDate: Date, endDate: Date): Promise<readonly RecallEvent[]> {
-    const db = await getDatabase();
-    const records = await db.getAll("recallEvents");
+    const records = this.transaction
+      ? await this.transaction.objectStore("recallEvents").getAll()
+      : await (await getDatabase()).getAll("recallEvents");
     const from = startDate.getTime();
     const to = endDate.getTime();
 
@@ -86,7 +91,7 @@ function sortByTimestamp(records: StoredRecallEvent[]): StoredRecallEvent[] {
   return [...records].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 }
 
-function toDomainRecallEvent(record: StoredRecallEvent): RecallEvent {
+export function toDomainRecallEvent(record: StoredRecallEvent): RecallEvent {
   return {
     id: record.id,
     pageId: record.pageId,

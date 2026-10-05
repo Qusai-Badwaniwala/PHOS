@@ -20,6 +20,11 @@ jest.mock("@/lib/api/settings", () => ({
 jest.mock("@/components/shared/install-guide", () => ({
   InstallGuide: () => null,
 }));
+jest.mock("@/components/backup/import-wizard", () => ({
+  ImportWizard: ({ onImported }: { onImported: () => void }) => (
+    <button onClick={onImported}>Restore verified record</button>
+  ),
+}));
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { OnboardingWizard } = require("@/components/onboarding/onboarding-wizard") as {
@@ -62,6 +67,20 @@ const PACE_STEP = 3;
 const READY_STEP = 4;
 
 describe("moving through the steps", () => {
+  it("allows restoring a record before collecting or saving new setup answers", async () => {
+    const user = userEvent.setup();
+    render(<OnboardingWizard onComplete={onComplete} />);
+    await user.click(screen.getByRole("button", { name: "Restore an existing PHOS record" }));
+    expect(
+      screen.getByRole("heading", { name: "Bring your record with you." }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Back to setup" }));
+    expect(screen.getByRole("heading", { name: "Keep what you know." })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Restore an existing PHOS record" }));
+    await user.click(screen.getByRole("button", { name: "Restore verified record" }));
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(completeOnboarding).not.toHaveBeenCalled();
+  });
   it("opens on the expectations screen with nowhere to go back to", () => {
     render(<OnboardingWizard onComplete={onComplete} />);
 

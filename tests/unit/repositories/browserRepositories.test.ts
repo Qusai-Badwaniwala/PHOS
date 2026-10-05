@@ -496,11 +496,10 @@ describe("exams", () => {
 
   it("finds the soonest scheduled exam as the active one", async () => {
     const repository = new BrowserExamRepository();
-    await repository.create({
+    const legacy = await repository.recordPast({
       stage: 3,
       juzNumbers: [26],
       examDate: inDays(40),
-      includeNewMemorization: false,
     });
     const soonest = await repository.create({
       stage: 1,
@@ -509,6 +508,13 @@ describe("exams", () => {
       includeNewMemorization: false,
     });
 
+    // Compatible legacy snapshots may contain competing schedules; reads still handle them.
+    const db = await getDatabase();
+    await db.put("exams", {
+      ...(await db.get("exams", legacy.id))!,
+      status: ExamStatus.Scheduled,
+      passedAt: null,
+    });
     expect((await repository.findActive(new Date()))?.id).toBe(soonest.id);
   });
 

@@ -1,4 +1,5 @@
 import { container } from "../container";
+import { commitBrowserRepair } from "../commit-setup";
 
 /**
  * One-time repairs to data already written to a user's device.
@@ -52,19 +53,10 @@ export async function repairSeededRevisionBlocks(): Promise<RepairResult> {
      * number would build runs across material they have not memorized.
      */
     const sequence = await container.adaptiveEngine.getMemorizationSequence();
-    const pagesRepaired = await container.memoryEngine.reblockSeededRevision(
+    return await commitBrowserRepair(
+      "revisionBlocks",
       sequence.map((page) => page.id),
     );
-
-    /*
-     * Marked even when nothing changed. A user who onboarded after the
-     * fix has correctly blocked dates already, and re-walking all 604
-     * pages on every launch to rediscover that would be a permanent
-     * cost for a one-time problem.
-     */
-    await container.settingsRepository.markRevisionBlocksRepaired();
-
-    return { ran: true, pagesRepaired };
   } catch {
     /*
      * Deliberately silent, and deliberately *not* marked as done. A
@@ -90,10 +82,9 @@ export async function repairSeededRevisionBlocks(): Promise<RepairResult> {
  * NOTE ON RULE 2 ABOVE. This repair is the deliberate exception: it
  * *does* change what the user sees. Their projection stops naming a
  * pace and says it needs real sessions first. That rule exists so a
- * repair cannot quietly move somebody's workload, and this moves no
- * workload at all — the field steers nothing that picks pages. What it
- * removes is a wrong number, and preserving a flattering wrong number
- * to keep the screen stable would invert the point of repairing it.
+ * repair cannot quietly move somebody's workload. Removing fabricated
+ * evidence also removes the false recent-start signal used by pacing.
+ * Actual recall history and the seeded revision distribution remain intact.
  */
 export async function repairEstimatedFirstStudiedDates(): Promise<RepairResult> {
   try {
@@ -102,13 +93,9 @@ export async function repairEstimatedFirstStudiedDates(): Promise<RepairResult> 
       return { ran: false, pagesRepaired: 0 };
     }
 
-    const pagesRepaired = await container.memoryEngine.clearEstimatedFirstStudied();
-    await container.settingsRepository.markEstimatedDatesRepaired();
-
-    return { ran: true, pagesRepaired };
+    return await commitBrowserRepair("estimatedDates");
   } catch {
-    // Silent and unmarked, so a half-finished repair retries next
-    // launch rather than being skipped forever. See above.
+    // The failed transaction leaves pages and marker unchanged; retry next launch.
     return { ran: false, pagesRepaired: 0 };
   }
 }

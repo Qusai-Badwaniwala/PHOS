@@ -96,7 +96,7 @@ export function ScheduleExamDialog({
       await onSchedule({
         stage: stage?.stage ?? null,
         juzNumbers: isSelfExam ? selectedJuz : [],
-        examDate: new Date(examDate).toISOString(),
+        examDate,
         includeNewMemorization: includeNew,
       });
     } finally {

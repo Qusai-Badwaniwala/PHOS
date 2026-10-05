@@ -1,7 +1,7 @@
 import { ExamStatus, type Exam } from "@/shared/types";
 import { startOfLocalDay } from "@/shared/utils";
 import type { ExamCreate, IExamRepository, PastExamRecord } from "../interfaces/IExamRepository";
-import { generateId, getDatabase, type StoredExam } from "./database";
+import { generateId, getDatabase, type StoredExam, type SetupTransaction } from "./database";
 
 /**
  * IndexedDB implementation of `IExamRepository`.
@@ -11,6 +11,7 @@ import { generateId, getDatabase, type StoredExam } from "./database";
  * string where it expects a `Date`.
  */
 export class BrowserExamRepository implements IExamRepository {
+  constructor(private readonly transaction?: SetupTransaction) {}
   async findAll(): Promise<readonly Exam[]> {
     const db = await getDatabase();
     const records = await db.getAll("exams");
@@ -53,6 +54,21 @@ export class BrowserExamRepository implements IExamRepository {
   async create(exam: ExamCreate): Promise<Exam> {
     const db = await getDatabase();
     const now = new Date();
+    const tx = db.transaction("exams", "readwrite");
+    void tx.done.catch(() => undefined);
+    const today = startOfLocalDay(now);
+    const existing = (await tx.store.getAll()).find(
+      (row) =>
+        row.status === ExamStatus.Scheduled &&
+        row.examDate &&
+        startOfLocalDay(new Date(row.examDate)) >= today,
+    );
+    if (existing) {
+      await tx.done;
+      throw new Error(
+        "You already have an exam scheduled. Mark it passed or cancel it before booking another.",
+      );
+    }
     const record: StoredExam = {
       id: generateId(),
       stage: exam.stage,
@@ -66,12 +82,22 @@ export class BrowserExamRepository implements IExamRepository {
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
     };
-    await db.add("exams", record);
-    return toDomainExam(record);
+    try {
+      await tx.store.add(record);
+      await tx.done;
+      return toDomainExam(record);
+    } catch (error) {
+      try {
+        tx.abort();
+      } catch {
+        /* Already aborted. */
+      }
+      await tx.done.catch(() => undefined);
+      throw error;
+    }
   }
 
   async recordPast(record: PastExamRecord): Promise<Exam> {
-    const db = await getDatabase();
     const now = new Date();
     const stored: StoredExam = {
       id: generateId(),
@@ -96,7 +122,8 @@ export class BrowserExamRepository implements IExamRepository {
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
     };
-    await db.add("exams", stored);
+    if (this.transaction) await this.transaction.objectStore("exams").add(stored);
+    else await (await getDatabase()).add("exams", stored);
     return toDomainExam(stored);
   }
 
@@ -110,7 +137,16 @@ export class BrowserExamRepository implements IExamRepository {
       throw new Error(`No exam found with id "${id}".`);
     }
 
+    if (record.status === status) {
+      await tx.done;
+      return toDomainExam(record);
+    }
+    if (record.status !== ExamStatus.Scheduled || status === ExamStatus.Scheduled) {
+      await tx.done;
+      throw new Error("This exam already has a recorded outcome.");
+    }
     const updated: StoredExam = {
+      // Outcome writes are idempotent and cannot undo a recorded result.
       ...record,
       status,
       passedAt: passedAt ? passedAt.toISOString() : null,

@@ -1,3 +1,4 @@
+import { addLocalDays } from "@/shared/utils";
 import { analyticsOps, sessionOps } from "@/client/operations";
 import { getDailyStudyMinutes } from "./settings";
 import { primarySurahForPage, surahLabelForRange } from "@/shared/constants";
@@ -118,7 +119,6 @@ function toSessionType(workloadCategory: string): SessionType {
 }
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MILLISECONDS_PER_DAY = 86_400_000;
 
 /** True if two dates fall on the same calendar day, in local time. */
 function isSameLocalDay(a: Date, b: Date): boolean {
@@ -268,9 +268,12 @@ export async function getDashboardData(): Promise<DashboardDTO> {
 
   const today = new Date();
   const weeklyProgress: DayProgressDTO[] = Array.from({ length: 7 }, (_, i) => {
-    const dayDate = new Date(today.getTime() - (6 - i) * MILLISECONDS_PER_DAY);
+    const dayDate = addLocalDays(today, -(6 - i));
     const completedOnThisDay = weekHistory.sessions.some(
-      (s) => s.completed && isSameLocalDay(new Date(s.startedAt), dayDate),
+      (s) =>
+        s.completed &&
+        s.completedInPeriod !== false &&
+        isSameLocalDay(new Date(s.completedAt ?? s.startedAt), dayDate),
     );
     // getDay() is always 0-6 and DAY_LABELS has exactly 7 entries, so
     // the fallback is unreachable; it exists to satisfy
@@ -370,7 +373,13 @@ export async function getDashboardData(): Promise<DashboardDTO> {
     weeklyReview: {
       pagesCompleted: weekHistory.sessions
         .filter((session) => session.sessionType === SessionType.Sabaq)
-        .reduce((sum, session) => sum + session.pagesCompleted, 0),
+        .reduce(
+          (sum, session) =>
+            sum +
+            (session.dailyActivity?.reduce((total, day) => total + day.pagesCompleted, 0) ??
+              session.pagesCompleted),
+          0,
+        ),
       sessionsCompleted: dashboard.weeklyProgress.completedSessions,
       recallsRecorded: dashboard.weeklyProgress.recallEvents,
       recallTrend: weekTrend.trendDirection,

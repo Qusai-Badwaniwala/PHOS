@@ -89,6 +89,13 @@ export interface RetentionQuality {
  * Computed statistics for one completed session
  * (SDS Part 14 "SESSION ANALYTICS").
  */
+export interface SessionDayActivity {
+  readonly date: string;
+  readonly pagesCompleted: number;
+  readonly recallCount: number;
+  readonly successfulRecallCount: number;
+}
+
 export interface SessionStatistics {
   readonly sessionId: string;
   /**
@@ -100,6 +107,9 @@ export interface SessionStatistics {
    */
   readonly sessionType: SessionType;
   readonly startedAt: Date;
+  readonly completedAt?: Date | null;
+  readonly completedInPeriod?: boolean;
+  readonly dailyActivity?: readonly SessionDayActivity[];
   readonly durationSeconds: number;
   readonly pagesCompleted: number;
   /**

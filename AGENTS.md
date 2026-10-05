@@ -1,11 +1,16 @@
 # PHOS working authority
 
-Read `docs/HANDOFF.md`, `docs/REIMAGINED.md` and `docs/VERIFICATION.md` before work.
+Read `docs/HANDOFF.md`, `docs/REIMAGINED.md`, `docs/LOGIC-AUDIT.md` and
+`docs/VERIFICATION.md` before work.
 The owner adopted the new frontend as the official app and authorized its commit,
 push and GitHub Pages release on 2026-10-05. Publish the validated redesign before
 the requested storage/reset and complete logic audit. Preserve the recoverable
 `d3fe97b` baseline, local records, verified domain logic and five engine boundaries.
-Current durable docs take precedence over historical phase instructions.
+The v0.4.1 follow-up includes atomic setup/repair commands, corrected calendar and
+recall evidence, explicit expired exam outcomes, validated restore, and PHOS-only
+full reset. The shared GitHub Pages origin remains a browser-clearing boundary;
+never clear origin-wide storage to reset PHOS. Current durable docs take precedence
+over historical phase instructions. Publication is authorized for this work.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

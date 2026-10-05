@@ -7,14 +7,22 @@ import { Button } from "@/components/ui/button";
 import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
 import { useSettings } from "@/providers/settings-provider";
 import { clearAllAssignments } from "@/lib/api/activeSession";
-import { DATA_RESET_CONFIRMATION, resetAllData, resetSettings } from "@/lib/api/settings";
+import {
+  DATA_RESET_CONFIRMATION,
+  APPLICATION_RESET_CONFIRMATION,
+  resetAllData,
+  resetApplication,
+  resetSettings,
+} from "@/lib/api/settings";
+import Link from "next/link";
+import { returnToOnboarding } from "@/lib/record-change";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 
 interface DangerZoneProps {
   className?: string;
 }
 
-type DialogKind = "reset" | "delete" | null;
+type DialogKind = "reset" | "delete" | "fresh" | null;
 
 export function DangerZone({ className }: DangerZoneProps) {
   const { reload } = useSettings();
@@ -34,7 +42,7 @@ export function DangerZone({ className }: DangerZoneProps) {
     try {
       await resetSettings();
       await reload();
-      setOutcome("All settings have been restored to their defaults.");
+      setOutcome("Appearance, format and study preferences have been restored to their defaults.");
       setOpenDialog(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to reset settings.");
@@ -64,6 +72,17 @@ export function DangerZone({ className }: DangerZoneProps) {
       setPending(false);
     }
   };
+  const handleFreshStart = async () => {
+    setPending(true);
+    setError(null);
+    try {
+      await resetApplication(APPLICATION_RESET_CONFIRMATION);
+      returnToOnboarding();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "PHOS could not reset. Your record was kept.");
+      setPending(false);
+    }
+  };
 
   return (
     <div className={cn(className)}>
@@ -80,9 +99,9 @@ export function DangerZone({ className }: DangerZoneProps) {
         <div className="space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm font-medium">Reset All Settings</p>
+              <p className="text-sm font-medium">Reset preferences</p>
               <p className="text-muted-foreground text-xs">
-                Restore default configuration. Your memorization data is not affected.
+                Restore appearance, formats and study controls. Your Hifz, roadmap and goals stay.
               </p>
             </div>
             <Button variant="outline" size="sm" onClick={() => setOpenDialog("reset")}>
@@ -92,13 +111,32 @@ export function DangerZone({ className }: DangerZoneProps) {
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm font-medium">Delete Local Data</p>
+              <p className="text-sm font-medium">Reset progress</p>
               <p className="text-muted-foreground text-xs">
-                Erase every session, recall record and page of progress from this device.
+                Clear progress, study history and exams. Keep setup, roadmap, settings and restore
+                points.
               </p>
             </div>
             <Button variant="destructive" size="sm" onClick={() => setOpenDialog("delete")}>
-              Delete
+              Reset progress
+            </Button>
+          </div>
+          <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium">Start PHOS fresh</p>
+              <p className="text-muted-foreground text-xs">
+                Remove all PHOS data, including settings and local restore points, and return to
+                onboarding. Other apps on this site are left alone.
+              </p>
+              <Link
+                href="/backup"
+                className="text-primary inline-flex min-h-11 items-center text-sm underline underline-offset-4"
+              >
+                Export your record first
+              </Link>
+            </div>
+            <Button variant="destructive" size="sm" onClick={() => setOpenDialog("fresh")}>
+              Reset PHOS
             </Button>
           </div>
         </div>
@@ -117,9 +155,9 @@ export function DangerZone({ className }: DangerZoneProps) {
       <ConfirmationDialog
         open={openDialog === "reset"}
         onOpenChange={(next) => (next ? setOpenDialog("reset") : closeDialog())}
-        title="Reset Settings"
-        description="This restores every setting to its default value. Your memorization data, sessions and progress are not affected."
-        confirmLabel="Reset Settings"
+        title="Reset preferences"
+        description="Restore appearance, date and time formats, and study controls. Your Hifz, setup, roadmap, goal and revision schedule stay."
+        confirmLabel="Reset preferences"
         onConfirm={handleResetSettings}
         pending={pending}
         pendingLabel="Resetting…"
@@ -129,14 +167,27 @@ export function DangerZone({ className }: DangerZoneProps) {
       <ConfirmationDialog
         open={openDialog === "delete"}
         onOpenChange={(next) => (next ? setOpenDialog("delete") : closeDialog())}
-        title="Delete Local Data"
-        description="This permanently deletes every session, recall record and page of progress. A verified backup is created first and will appear on the Backup page, so this can be undone from there — but nothing else will bring it back."
-        confirmLabel="Delete Everything"
+        title="Reset progress"
+        description="Clear every session, recall, exam and page of progress. Setup, roadmap and settings stay. PHOS first creates a verified local restore point on Protect your record, so you can undo this reset there."
+        confirmLabel="Clear progress"
         destructive
         requireTypedConfirmation={DATA_RESET_CONFIRMATION}
         onConfirm={handleDeleteData}
         pending={pending}
         pendingLabel="Backing up, then deleting…"
+        errorMessage={error}
+      />
+      <ConfirmationDialog
+        open={openDialog === "fresh"}
+        onOpenChange={(next) => (next ? setOpenDialog("fresh") : closeDialog())}
+        title="Start PHOS fresh"
+        description="This erases all PHOS progress, sessions, exams, roadmap, settings and local restore points on this device. PHOS will reopen at onboarding. Other apps are untouched. Export a file first if you may want this record back; no local safety copy is kept."
+        confirmLabel="Erase PHOS and start fresh"
+        destructive
+        requireTypedConfirmation={APPLICATION_RESET_CONFIRMATION}
+        onConfirm={handleFreshStart}
+        pending={pending}
+        pendingLabel="Resetting PHOS…"
         errorMessage={error}
       />
     </div>

@@ -4,7 +4,7 @@ import type {
   MemoryVariableUpdate,
   ReviewTimestampUpdate,
 } from "../interfaces/IPageRepository";
-import { getDatabase, type StoredPage, type StudyTransaction } from "./database";
+import { getDatabase, type StoredPage, type BrowserWriteTransaction } from "./database";
 
 /**
  * IndexedDB implementation of `IPageRepository`.
@@ -19,7 +19,7 @@ import { getDatabase, type StoredPage, type StudyTransaction } from "./database"
  * where the other produces Dates.
  */
 export class BrowserPageRepository implements IPageRepository {
-  constructor(private readonly transaction?: StudyTransaction) {}
+  constructor(private readonly transaction?: BrowserWriteTransaction) {}
   async findById(id: string): Promise<Page | null> {
     const record = this.transaction
       ? await this.transaction.objectStore("pages").get(id)
@@ -28,26 +28,30 @@ export class BrowserPageRepository implements IPageRepository {
   }
 
   async findByPageNumber(pageNumber: number): Promise<Page | null> {
-    const db = await getDatabase();
-    const record = await db.getFromIndex("pages", "pageNumber", pageNumber);
+    const record = this.transaction
+      ? await this.transaction.objectStore("pages").index("pageNumber").get(pageNumber)
+      : await (await getDatabase()).getFromIndex("pages", "pageNumber", pageNumber);
     return record ? toDomainPage(record) : null;
   }
 
   async findAll(): Promise<readonly Page[]> {
-    const db = await getDatabase();
-    const records = await db.getAll("pages");
+    const records = this.transaction
+      ? await this.transaction.objectStore("pages").getAll()
+      : await (await getDatabase()).getAll("pages");
     return records.map(toDomainPage).sort((a, b) => a.pageNumber - b.pageNumber);
   }
 
   async findByJuz(juzNumber: number): Promise<readonly Page[]> {
-    const db = await getDatabase();
-    const records = await db.getAllFromIndex("pages", "juzNumber", juzNumber);
+    const records = this.transaction
+      ? await this.transaction.objectStore("pages").index("juzNumber").getAll(juzNumber)
+      : await (await getDatabase()).getAllFromIndex("pages", "juzNumber", juzNumber);
     return records.map(toDomainPage).sort((a, b) => a.pageNumber - b.pageNumber);
   }
 
   async findByMemoryState(memoryState: MemoryState): Promise<readonly Page[]> {
-    const db = await getDatabase();
-    const records = await db.getAllFromIndex("pages", "memoryState", memoryState);
+    const records = this.transaction
+      ? await this.transaction.objectStore("pages").index("memoryState").getAll(memoryState)
+      : await (await getDatabase()).getAllFromIndex("pages", "memoryState", memoryState);
     return records.map(toDomainPage).sort((a, b) => a.pageNumber - b.pageNumber);
   }
 
@@ -95,9 +99,7 @@ export class BrowserPageRepository implements IPageRepository {
   }
 
   async exists(pageNumber: number): Promise<boolean> {
-    const db = await getDatabase();
-    const record = await db.getFromIndex("pages", "pageNumber", pageNumber);
-    return record !== undefined;
+    return (await this.findByPageNumber(pageNumber)) !== null;
   }
 
   async resetAllProgress(): Promise<number> {
@@ -148,7 +150,7 @@ function toDate(value: string | null): Date | null {
   return value ? new Date(value) : null;
 }
 
-function toDomainPage(record: StoredPage): Page {
+export function toDomainPage(record: StoredPage): Page {
   return {
     id: record.id,
     pageNumber: record.pageNumber,

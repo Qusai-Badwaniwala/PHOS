@@ -1,11 +1,66 @@
 # PHOS verification record — 2026-10-05
 
-This records evidence for the official v0.4.0 working frontend, developed on
-`codex/phos-reimagined` from `d3fe97b`. The owner authorized publication on
-2026-10-05 after local adoption. Local checks do not establish physical-phone
-acceptance; release evidence is added only after observing the actual deployment.
+This records the observed v0.4.0 redesign release and the v0.4.1 audit follow-up.
+The redesign was developed on `codex/phos-reimagined` from `d3fe97b`; the follow-up
+uses `fix/phos-logic-audit` from the published `da5f22d`. The owner authorized
+publication on 2026-10-05. Local checks do not establish physical-phone acceptance.
 
-## Automated checks
+## v0.4.1 automated checks
+
+`npm run gate` passed in the main project with the corrected source: formatting,
+ESLint, TypeScript, Vitest, Jest, static export and complete precache verification.
+There were no lint/type errors. **640 tests in 62 Vitest files and 202 tests in
+20 Jest suites passed: 842 tests total.** The root build identifier was
+`ee87a3c90a97a5b97396`, with 121 resources and about 3.79 MiB. The harmless build-time
+Tailwind module-metadata warning remains. The compatible data versions remain 2/1.
+
+The follow-up uses the existing `main` deployment workflow, which independently
+reruns the gates and verifies `/PHOS` URLs before publishing. Inspect
+[Deploy PHOS](https://github.com/Qusai-Badwaniwala/PHOS/actions/workflows/deploy.yml)
+and [CI](https://github.com/Qusai-Badwaniwala/PHOS/actions/workflows/ci.yml) for their
+immutable head commit and deployment record. The preceding release is recorded below.
+
+## v0.4.1 follow-up browser checks
+
+The corrected `/PHOS` production build passed the deployment-path verifier's
+15-page check and contained 121 offline resources, about 3.79 MiB; its local build
+identifier was `b7bcb725287d020b2e6f`. Version 0.4.1 was observed in the rendered guide.
+
+The 390 × 844 record started with 23 Juz-30-first pages. Sabaq shaky flag and pause
+survived reload; completion and eight-page Sabaqi correctly produced receipts,
+history and analytics (24 held / one new / eight revised / two sessions). Light and
+dark themes, custom roadmap with Juz 2 moved first, paused Juz 30, fixed revision,
+a 41-page December goal, scheduled stage-1 exam and cancellation were exercised.
+The goal retained the 24 held pages even with their Juz paused.
+
+A real exported file contained two sessions, nine recalls and one cancelled exam.
+After creating a local restore point, exact `RESET PHOS` returned both open PHOS
+windows to onboarding. Wrong `DELETE` confirmation remained disabled. On the same
+scratch origin, Ex Libris's **Isolation audit — keep this book** remained after reload.
+Onboarding restored that exported file directly; both PHOS windows showed the restored
+24 held pages, goal and history. Data was created through the actual UI, with no
+runtime IndexedDB injection and no owner-record clearing.
+
+With the scratch server stopped, history cold-reloaded with both studies, and the
+previously unvisited guide route cold-loaded with its prefixed logo and v0.4.1 text.
+An outside-study page recorded offline survived reload, increasing held pages to 25
+without inventing a session or new-study recall. The console had no warnings/errors
+in these scoped checks. Full reset/transaction failures, concurrency, malformed
+restore, overnight and DST cases also have dedicated repository/engine/frontend
+regressions; see [LOGIC-AUDIT.md](LOGIC-AUDIT.md) for before/after evidence.
+
+## v0.4.0 public release
+
+The owner directly confirmed publication. Commit `da5f22d52df71b1ed4aec78c5bb4cf108fa37fe2`
+was pushed to `main`; the preserved old implementation was also pushed as
+`preservation/phos-v0.3.0`. [Pages run 37284247161](https://github.com/Qusai-Badwaniwala/PHOS/actions/runs/37284247161)
+and [CI run 37284247197](https://github.com/Qusai-Badwaniwala/PHOS/actions/runs/37284247197)
+completed successfully. The public app showed the redesigned onboarding at 390 ×
+844; Apply update activated the waiting release and the console had no warnings or
+errors. This browser had no existing Hifz record; no phone-data migration is claimed.
+The subsequent audit is recorded in [LOGIC-AUDIT.md](LOGIC-AUDIT.md).
+
+## v0.4.0 automated checks
 
 `npm run gate` completed successfully in the adopted main project with the final
 source. It includes format, ESLint, TypeScript, unit/repository tests, frontend tests,

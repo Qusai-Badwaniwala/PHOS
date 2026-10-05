@@ -1,4 +1,10 @@
-import { openDB, type DBSchema, type IDBPDatabase, type IDBPTransaction } from "idb";
+import {
+  openDB,
+  type DBSchema,
+  type IDBPDatabase,
+  type IDBPTransaction,
+  type StoreNames,
+} from "idb";
 import { juzNumberForPage, TOTAL_MUSHAF_PAGES } from "@/shared/constants";
 
 /**
@@ -298,6 +304,8 @@ export type StudyTransaction = IDBPTransaction<
   ["pages", "sessions", "recallEvents", "sessionItems"],
   "readwrite"
 >;
+export type SetupTransaction = IDBPTransaction<PhosDB, ["pages", "settings", "exams"], "readwrite">;
+export type BrowserWriteTransaction = IDBPTransaction<PhosDB, StoreNames<PhosDB>[], "readwrite">;
 let databasePromise: Promise<IDBPDatabase<PhosDB>> | null = null;
 
 /**
@@ -418,36 +426,49 @@ export async function seedIfEmpty(): Promise<void> {
 }
 
 async function seed(db: IDBPDatabase<PhosDB>): Promise<void> {
-  const pageCount = await db.count("pages");
-  if (pageCount < TOTAL_MUSHAF_PAGES) {
-    const existing = new Set((await db.getAll("pages")).map((page: StoredPage) => page.pageNumber));
-
-    const tx = db.transaction("pages", "readwrite");
-    for (let pageNumber = 1; pageNumber <= TOTAL_MUSHAF_PAGES; pageNumber += 1) {
-      if (existing.has(pageNumber)) continue;
-      const now = new Date().toISOString();
-      await tx.store.add({
-        id: generateId(),
-        pageNumber,
-        juzNumber: juzNumberForPage(pageNumber),
-        memoryState: "Unseen",
-        memoryStrength: 0,
-        memoryStability: 0,
-        difficulty: 0,
-        firstStudiedAt: null,
-        lastReviewedAt: null,
-        lastSuccessfulRecallAt: null,
-        createdAt: now,
-        updatedAt: now,
-      });
-    }
+  const tx = db.transaction(["pages", "settings"], "readwrite");
+  void tx.done.catch(() => undefined);
+  try {
+    await seedDefaults(tx);
     await tx.done;
+  } catch (error) {
+    try {
+      tx.abort();
+    } catch {
+      /* Already aborted. */
+    }
+    await tx.done.catch(() => undefined);
+    throw error;
   }
+}
 
-  const settingsCount = await db.count("settings");
-  if (settingsCount === 0) {
+// Startup and an explicitly confirmed full reset share the same defaults.
+// Checks and writes stay in one transaction so other connections must wait.
+export async function seedDefaults(tx: BrowserWriteTransaction): Promise<void> {
+  const pages = tx.objectStore("pages");
+  const existing = new Set((await pages.getAll()).map((page) => page.pageNumber));
+  const now = new Date().toISOString();
+  for (let pageNumber = 1; pageNumber <= TOTAL_MUSHAF_PAGES; pageNumber += 1) {
+    if (existing.has(pageNumber)) continue;
+    await pages.add({
+      id: generateId(),
+      pageNumber,
+      juzNumber: juzNumberForPage(pageNumber),
+      memoryState: "Unseen",
+      memoryStrength: 0,
+      memoryStability: 0,
+      difficulty: 0,
+      firstStudiedAt: null,
+      lastReviewedAt: null,
+      lastSuccessfulRecallAt: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+  const settings = tx.objectStore("settings");
+  if ((await settings.count()) === 0) {
     const now = new Date().toISOString();
-    await db.add("settings", {
+    await settings.add({
       id: generateId(),
       theme: "system",
       ayahRotationFrequency: 1,
@@ -485,6 +506,7 @@ async function seed(db: IDBPDatabase<PhosDB>): Promise<void> {
  * when nothing meaningful did would report corruption where there is
  * none.
  */
+
 export function serializeSnapshot(snapshot: PhosSnapshot): string {
   return JSON.stringify(snapshot, (_key, value: unknown) => {
     if (value === null || typeof value !== "object" || Array.isArray(value)) return value;

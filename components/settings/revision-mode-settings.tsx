@@ -187,7 +187,7 @@ export function RevisionModeSettings({ className }: RevisionModeSettingsProps) {
                 <p className="text-muted-foreground text-xs">
                   {cycle.pagesInCycle} pages memorized, about {cycle.pagesPerDay} a day.
                   {cycle.passesCompleted > 0 &&
-                    ` ${cycle.passesCompleted} full ${cycle.passesCompleted === 1 ? "pass" : "passes"} so far.`}
+                    ` ${cycle.passesCompleted} scheduled ${cycle.passesCompleted === 1 ? "cycle" : "cycles"} elapsed.`}
                 </p>
 
                 {/*

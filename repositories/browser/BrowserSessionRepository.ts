@@ -203,7 +203,7 @@ export class BrowserSessionRepository implements ISessionRepository {
   }
 }
 
-function toDomainSession(record: StoredSession): Session {
+export function toDomainSession(record: StoredSession): Session {
   return {
     id: record.id,
     sessionType: record.sessionType as SessionType,
@@ -215,7 +215,7 @@ function toDomainSession(record: StoredSession): Session {
   };
 }
 
-function toDomainSessionItem(record: StoredSessionItem): SessionItem {
+export function toDomainSessionItem(record: StoredSessionItem): SessionItem {
   return {
     id: record.id,
     sessionId: record.sessionId,

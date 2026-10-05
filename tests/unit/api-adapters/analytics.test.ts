@@ -108,6 +108,25 @@ describe("the summary figures", () => {
 });
 
 describe("the charts", () => {
+  it("plots actual study days rather than moving later work to the session's start date", async () => {
+    ops.getHistoricalReport.mockResolvedValue(
+      historicalReport([
+        sessionStatistics({
+          startedAt: new Date(2026, 9, 3).toISOString(),
+          completedAt: new Date(2026, 9, 5).toISOString(),
+          completedInPeriod: true,
+          dailyActivity: [
+            { date: "2026-10-05", pagesCompleted: 1, recallCount: 1, successfulRecallCount: 1 },
+          ],
+        }),
+      ]),
+    );
+    const data = await getAnalytics("today");
+    expect(
+      data.progressOverTime.map((point) => ({ date: point.date, value: point.value })),
+    ).toEqual([{ date: "2026-10-05", value: 1 }]);
+    expect(data.sessionFrequency.map((point) => point.date)).toEqual(["2026-10-05"]);
+  });
   it("maps the memory-state distribution one-for-one", async () => {
     ops.getDashboard.mockResolvedValue(
       dashboardMetrics({

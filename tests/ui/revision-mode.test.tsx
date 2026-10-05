@@ -134,7 +134,7 @@ describe("a running cycle", () => {
 
     expect(await screen.findByText("Day 3 of 7")).toBeInTheDocument();
     expect(screen.getByText(/41 pages memorized, about 6 a day/)).toBeInTheDocument();
-    expect(screen.getByText(/1 full pass so far/)).toBeInTheDocument();
+    expect(screen.getByText(/1 scheduled cycle elapsed/)).toBeInTheDocument();
   });
 
   it("names a cycle length that would fit when the current one does not", async () => {

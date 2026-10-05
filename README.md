@@ -4,13 +4,14 @@ A local-first phone PWA for Quran memorization and retention with a physical
 604-page Madinah / Misri Mushaf. PHOS plans Sabaq, Sabaqi, Manzil, recovery, and exam
 preparation, and keeps progress entirely in the browser.
 
-**The owner adopted the v0.4.0 redesign as the official frontend and authorized its
-GitHub Pages release on 2026-10-05.** The v0.3.0 implementation
+**PHOS v0.4.1 includes the adopted redesign and the complete logic/storage audit
+follow-up. The owner authorized its GitHub Pages release on 2026-10-05.** The v0.3.0 implementation
 remains recoverable at `d3fe97b`. Development was isolated on `codex/phos-reimagined`.
 
 Start with [docs/HANDOFF.md](docs/HANDOFF.md), then
 [docs/REIMAGINED.md](docs/REIMAGINED.md) and
-[docs/VERIFICATION.md](docs/VERIFICATION.md).
+[docs/VERIFICATION.md](docs/VERIFICATION.md). The confirmed issues, corrections and
+before/after examples are in [docs/LOGIC-AUDIT.md](docs/LOGIC-AUDIT.md).
 
 ## The experience
 
@@ -35,6 +36,15 @@ if you want a copy that outlives the browser or moves to another device.
 Export contains all seven record stores. File import previews a **full restore**,
 verifies a safety copy, and replaces the record atomically. Repeated restores do not
 merge or duplicate history. Database version 2 and export format 1 remain compatible.
+The welcome screen can restore a file before onboarding.
+
+To start completely fresh, use **Settings → Reset & recovery → Start PHOS fresh**
+and type `RESET PHOS`. This removes PHOS's settings and restore points as well as
+progress, then returns to onboarding. Export first if you want that record back.
+**Reset progress** remains a separate operation with a verified local safety copy.
+The PHOS controls leave other applications alone. Browser **Clear site data** still
+affects both PHOS and Ex Libris while they share `qusai-badwaniwala.github.io`;
+separate hostnames would be needed for browser-level isolation.
 
 ## Run it
 

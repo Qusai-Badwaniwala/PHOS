@@ -155,7 +155,16 @@ export class AnalyticsEngine implements IAnalyticsEngine {
     try {
       const now = new Date();
       const { start, end } = resolveDateRange(period, now);
-      const sessions = await this.deps.sessionRepository.findBetweenDates(start, end);
+      const [allSessions, periodEvents] = await Promise.all([
+        this.deps.sessionRepository.findBetweenDates(new Date(0), end),
+        this.deps.recallEventRepository.findBetweenDates(start, end),
+      ]);
+      const studiedIds = new Set(periodEvents.map((event) => event.sessionId));
+      const inRange = (date: Date | null) => date !== null && date >= start && date <= end;
+      const sessions = allSessions.filter(
+        (session) =>
+          inRange(session.startedAt) || inRange(session.completedAt) || studiedIds.has(session.id),
+      );
 
       // Built once for the whole report rather than per session: a
       // weekly report covers many sessions and each would otherwise
@@ -168,7 +177,16 @@ export class AnalyticsEngine implements IAnalyticsEngine {
             this.deps.sessionRepository.findSessionItems(session.id),
             this.deps.recallEventRepository.findBySession(session.id),
           ]);
-          return buildSessionStatistics(session, sessionItems, recallEvents, pageNumbers);
+          return {
+            ...buildSessionStatistics(
+              session,
+              sessionItems,
+              recallEvents,
+              pageNumbers,
+              periodEvents.filter((event) => event.sessionId === session.id),
+            ),
+            completedInPeriod: inRange(session.completedAt),
+          };
         }),
       );
 
@@ -261,14 +279,24 @@ export class AnalyticsEngine implements IAnalyticsEngine {
   }
 
   private async loadRange(start: Date, end: Date) {
-    const [sessions, recallEvents] = await Promise.all([
-      this.deps.sessionRepository.findBetweenDates(start, end),
+    const [allSessions, recallEvents] = await Promise.all([
+      this.deps.sessionRepository.findBetweenDates(new Date(0), end),
       this.deps.recallEventRepository.findBetweenDates(start, end),
     ]);
-    const sessionItemLists = await Promise.all(
-      sessions.map((session) => this.deps.sessionRepository.findSessionItems(session.id)),
+    const sessions = allSessions.filter(
+      (session) =>
+        session.completedAt && session.completedAt >= start && session.completedAt <= end,
     );
-    return { sessions, sessionItems: sessionItemLists.flat(), recallEvents };
+    const studiedPairs = new Set(recallEvents.map((event) => `${event.sessionId}:${event.pageId}`));
+    const itemLists = await Promise.all(
+      [...new Set(recallEvents.map((event) => event.sessionId))].map((sessionId) =>
+        this.deps.sessionRepository.findSessionItems(sessionId),
+      ),
+    );
+    const sessionItems = itemLists
+      .flat()
+      .filter((item) => studiedPairs.has(`${item.sessionId}:${item.pageId}`));
+    return { sessions, sessionItems, recallEvents };
   }
 }
 

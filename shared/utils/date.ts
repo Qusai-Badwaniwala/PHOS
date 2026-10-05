@@ -33,3 +33,40 @@ export function isSameLocalDay(a: Date, b: Date): boolean {
     a.getDate() === b.getDate()
   );
 }
+
+/** Calendar boundaries, unaffected by 23- or 25-hour local days. */
+export function daysBetweenLocalDates(from: Date, to: Date): number {
+  const ordinal = (date: Date) => Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+  return Math.round((ordinal(to) - ordinal(from)) / 86_400_000);
+}
+
+export function addLocalDays(date: Date, count: number): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() + count);
+  return result;
+}
+
+/** Date inputs name local calendar dates; timestamp DTOs keep their timestamp meaning. */
+export function parseCalendarDate(value: string): Date {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return new Date(value);
+  const year = Number(match[1]),
+    month = Number(match[2]),
+    day = Number(match[3]);
+  const date = new Date(year, month - 1, day);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
+    ? date
+    : new Date(NaN);
+}
+
+export function localDateInput(value: string | Date): string {
+  const date = typeof value === "string" ? new Date(value) : value;
+  if (Number.isNaN(date.getTime())) return "";
+  return (
+    date.getFullYear() +
+    "-" +
+    String(date.getMonth() + 1).padStart(2, "0") +
+    "-" +
+    String(date.getDate()).padStart(2, "0")
+  );
+}

@@ -39,4 +39,5 @@ export interface IBrowserPersistenceEngine extends Omit<
 > {
   exportData(): Promise<BrowserExportResult>;
   importData(fileContents: string): Promise<ImportResult>;
+  resetApplication(): Promise<void>;
 }

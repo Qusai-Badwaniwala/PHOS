@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { NumberStepper } from "@/components/ui/number-stepper";
 import { Switch } from "@/components/ui/switch";
 import { ExpectationsPanel } from "./expectations-panel";
+import { ImportWizard } from "@/components/backup/import-wizard";
 import {
   completeOnboarding,
   previewOnboarding,
@@ -32,6 +33,7 @@ const PACES = [
 const STEPS = ["Welcome", "Your order", "Your Hifz", "Your pace", "Ready"];
 export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   const [step, setStep] = React.useState(0);
+  const [restoring, setRestoring] = React.useState(false);
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [preview, setPreview] = React.useState<OnboardingPreview | null>(null);
@@ -51,7 +53,7 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
   React.useEffect(() => {
     window.scrollTo(0, 0);
     heading.current?.focus({ preventScroll: true });
-  }, [step]);
+  }, [step, restoring]);
   React.useEffect(() => {
     let current = true;
     void previewOnboarding(
@@ -87,6 +89,19 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
     "Make room for your Hifz.",
     "Your starting point is ready.",
   ][step];
+  if (restoring)
+    return (
+      <div className="mx-auto max-w-2xl px-5 py-8 sm:px-10 sm:py-14">
+        <Button variant="ghost" className="mb-8" onClick={() => setRestoring(false)}>
+          <ArrowLeft size={16} className="mr-2" />
+          Back to setup
+        </Button>
+        <h1 ref={heading} tabIndex={-1} className="folio-title text-3xl outline-none">
+          Bring your record with you.
+        </h1>
+        <ImportWizard className="mt-8" onImported={onComplete} />
+      </div>
+    );
   return (
     <div className="mx-auto max-w-4xl px-5 pt-8 pb-36 sm:px-10 sm:pt-14">
       <header className="mb-8 flex items-center justify-between">
@@ -140,6 +155,9 @@ export function OnboardingWizard({ onComplete }: { onComplete: () => void }) {
               Use a 604-page Madinah / Misri Mushaf. Your record stays on this device. No account or
               connection is needed after installation.
             </p>
+            <Button variant="outline" onClick={() => setRestoring(true)}>
+              Restore an existing PHOS record
+            </Button>
             <details>
               <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">
                 What PHOS can help with

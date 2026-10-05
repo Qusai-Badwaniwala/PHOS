@@ -90,7 +90,7 @@ export function RecordPastExamDialog({
         juzNumbers: mode === "custom" ? selectedJuz : [],
         // Empty means "before PHOS, date unknown", which is stored as
         // `null` rather than as today.
-        examDate: examDate === "" ? null : new Date(examDate).toISOString(),
+        examDate: examDate === "" ? null : examDate,
       });
     } finally {
       setPending(false);

@@ -8,7 +8,12 @@ import type {
   PreferencesUpdate,
 } from "../interfaces/ISettingsRepository";
 import { DEFAULT_CYCLE_LENGTH_DAYS } from "@/shared/constants";
-import { generateId, getDatabase, type StoredSettings } from "./database";
+import {
+  generateId,
+  getDatabase,
+  type StoredSettings,
+  type BrowserWriteTransaction,
+} from "./database";
 
 /**
  * First-run defaults, matching `seedIfEmpty()` in `database.ts` and the
@@ -36,7 +41,13 @@ const DEFAULTS = {
  * whether seeding has run.
  */
 export class BrowserSettingsRepository implements ISettingsRepository {
+  constructor(private readonly transaction?: BrowserWriteTransaction) {}
   async getSettings(): Promise<Settings> {
+    if (this.transaction) {
+      const existing = await this.transaction.objectStore("settings").getAll();
+      if (!existing[0]) throw new Error("No settings row in this record.");
+      return toDomainSettings(existing[0]);
+    }
     const db = await getDatabase();
     const existing = await db.getAll("settings");
     if (existing[0]) return toDomainSettings(existing[0]);
@@ -209,12 +220,14 @@ export class BrowserSettingsRepository implements ISettingsRepository {
     // Guarantees the singleton exists before writing to it.
     const current = await this.getSettings();
 
-    const db = await getDatabase();
-    const tx = db.transaction("settings", "readwrite");
-    const record = await tx.store.get(current.id);
+    const owned = this.transaction
+      ? null
+      : (await getDatabase()).transaction("settings", "readwrite");
+    const store = this.transaction ? this.transaction.objectStore("settings") : owned!.store;
+    const record = await store.get(current.id);
 
     if (!record) {
-      await tx.done;
+      if (owned) await owned.done;
       throw new Error("Settings row disappeared while updating it.");
     }
 
@@ -223,14 +236,14 @@ export class BrowserSettingsRepository implements ISettingsRepository {
       ...patch,
       updatedAt: new Date().toISOString(),
     };
-    await tx.store.put(updated);
-    await tx.done;
+    await store.put(updated);
+    if (owned) await owned.done;
 
     return toDomainSettings(updated);
   }
 }
 
-function toDomainSettings(record: StoredSettings): Settings {
+export function toDomainSettings(record: StoredSettings): Settings {
   return {
     id: record.id,
     theme: record.theme,

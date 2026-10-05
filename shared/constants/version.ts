@@ -12,7 +12,7 @@
  * bump in one place without the other fails the build rather than
  * silently making yesterday's backups unrestorable.
  */
-export const APPLICATION_VERSION = "0.4.0";
+export const APPLICATION_VERSION = "0.4.1";
 
 /**
  * The version of the *data format* an export or backup is written in —

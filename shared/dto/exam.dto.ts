@@ -61,6 +61,7 @@ export interface ExamOverviewDTO {
   readonly activeCoverage: readonly ExamCoverageDayDTO[];
   /** Exams already sat, most recent first. */
   readonly past: readonly ExamDTO[];
+  readonly awaitingResult?: readonly ExamDTO[];
   /**
    * What fell behind during the most recently passed exam, when there
    * is anything to report.

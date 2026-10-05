@@ -395,8 +395,9 @@ export class MemoryEngine implements IMemoryEngine {
    * `reblockSeededRevision()` this repair is *not* invisible, and that
    * is deliberate: the number it removes was wrong, and leaving a
    * flattering wrong number in place to avoid a visible change would be
-   * the opposite of what a repair is for. No scheduling changes — the
-   * field is read by nothing that picks pages.
+   * the opposite of what a repair is for. Pacing no longer mistakes
+   * seeded dates for recent new study; actual recall history and the
+   * seeded revision distribution remain intact.
    */
   async clearEstimatedFirstStudied(): Promise<number> {
     const pages = await this.deps.pageRepository.findAll();

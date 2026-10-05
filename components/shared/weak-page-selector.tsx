@@ -40,10 +40,10 @@ export function WeakPageSelector({
   return (
     <ContentCard className={cn(className)}>
       <div className="mb-1 flex items-center gap-2">
-        <AlertTriangle className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+        <AlertTriangle className="text-muted-foreground h-4 w-4" aria-hidden="true" />
         <h3 className="font-semibold">Anything feel shaky?</h3>
       </div>
-      <p className="mb-4 text-sm text-muted-foreground">
+      <p className="text-muted-foreground mb-4 text-sm">
         Tap any page that did not come easily. PHOS will bring those back sooner. Leave them all
         untouched if the session went well.
       </p>
@@ -98,7 +98,7 @@ export function WeakPageSelector({
       </div>
 
       {selected.size > 0 && (
-        <p aria-live="polite" className="mt-3 text-xs text-muted-foreground">
+        <p aria-live="polite" className="text-muted-foreground mt-3 text-xs">
           {selected.size} page{selected.size === 1 ? "" : "s"} marked.{" "}
           {selected.size === 1 ? "It" : "They"} will be scheduled again sooner, and the rest
           recorded as recalled well.

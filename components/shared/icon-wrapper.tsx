@@ -21,7 +21,7 @@ export function IconWrapper({
         size === "sm" && "h-6 w-6",
         size === "md" && "h-8 w-8",
         size === "lg" && "h-12 w-12",
-        variant === "default" && "border bg-background",
+        variant === "default" && "bg-background border",
         variant === "muted" && "bg-muted",
         variant === "primary" && "bg-primary/10 text-primary",
         variant === "success" && "bg-success-muted text-success",

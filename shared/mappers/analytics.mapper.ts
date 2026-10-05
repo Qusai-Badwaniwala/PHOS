@@ -27,6 +27,7 @@ export function toProgressReportDTO(report: ProgressReport): ProgressReportDTO {
 
 export function toTrendAnalysisDTO(trend: TrendAnalysis): TrendAnalysisDTO {
   return {
+    canCompare: trend.canCompare,
     period: trend.period,
     trendDirection: trend.trendDirection,
     trendStrength: trend.trendStrength,

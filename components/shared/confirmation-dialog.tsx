@@ -77,8 +77,8 @@ export function ConfirmationDialog({
 
         {requireTypedConfirmation !== undefined && (
           <div className="space-y-2">
-            <label htmlFor="confirmation-phrase" className="text-sm text-muted-foreground">
-              Type <span className="font-semibold text-foreground">{requireTypedConfirmation}</span>{" "}
+            <label htmlFor="confirmation-phrase" className="text-muted-foreground text-sm">
+              Type <span className="text-foreground font-semibold">{requireTypedConfirmation}</span>{" "}
               to confirm.
             </label>
             <Input
@@ -93,13 +93,13 @@ export function ConfirmationDialog({
         )}
 
         {errorMessage && (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-destructive text-sm">
             {errorMessage}
           </p>
         )}
 
         {pending && pendingLabel && (
-          <p aria-live="polite" className="text-sm text-muted-foreground">
+          <p aria-live="polite" className="text-muted-foreground text-sm">
             {pendingLabel}
           </p>
         )}

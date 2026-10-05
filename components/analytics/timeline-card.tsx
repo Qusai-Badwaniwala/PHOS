@@ -43,20 +43,20 @@ export function TimelineCard({ entries, className }: TimelineCardProps) {
     <div className={cn(className)}>
       <h3 className="mb-4 text-lg font-semibold">Historical Activity</h3>
       <div className="relative space-y-0">
-        <div className="absolute bottom-2 left-4 top-2 w-px bg-border" aria-hidden="true" />
+        <div className="bg-border absolute top-2 bottom-2 left-4 w-px" aria-hidden="true" />
         <div className="space-y-4">
           {entries.map((entry) => (
             <div key={entry.id} className="relative flex gap-4 pl-2">
-              <div className="relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border bg-background">
+              <div className="bg-background relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border">
                 <TimelineIcon type={entry.type} />
               </div>
               <div className="flex-1 pb-4">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium">{entry.title}</p>
-                  <span className="text-xs tabular-nums text-muted-foreground">{entry.date}</span>
+                  <span className="text-muted-foreground text-xs tabular-nums">{entry.date}</span>
                 </div>
                 {entry.description && (
-                  <p className="mt-0.5 text-xs text-muted-foreground">{entry.description}</p>
+                  <p className="text-muted-foreground mt-0.5 text-xs">{entry.description}</p>
                 )}
                 {entry.status && (
                   <div className="mt-1">

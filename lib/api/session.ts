@@ -1,12 +1,14 @@
 import { sessionOps } from "@/client/operations";
-import { surahsOnPage } from "@/shared/constants";
+import { surahsOnPage, juzNumberForPage } from "@/shared/constants";
 import { getDailyStudyMinutes } from "./settings";
 import type { BackendStudyItem } from "./wire";
 import {
   clearAssignment,
   fetchActiveSession,
   finishActiveSession,
-  readAssignment,
+  committedAssignment,
+  getStudyReceipt,
+  type StudyReceipt,
   submitRemainingPages,
   writeAssignment,
   SESSION_ASSIGNMENT_KEY,
@@ -47,8 +49,8 @@ function formatEstimatedTime(seconds: number): string {
   return `${minutes} min`;
 }
 
-async function fetchTodayNewMemorizationItems(): Promise<readonly BackendStudyItem[]> {
-  const plan = await sessionOps.getTodayPlan(await getDailyStudyMinutes());
+async function fetchTodayNewMemorizationItems(extra = false): Promise<readonly BackendStudyItem[]> {
+  const plan = await sessionOps.getTodayPlan(await getDailyStudyMinutes(), extra);
   // Compared against the shared `WorkloadCategory` enum rather than a
   // bare string literal, so a rename in the engine becomes a compile
   // error here instead of a silently empty filter.
@@ -76,11 +78,11 @@ async function fetchTodayNewMemorizationItems(): Promise<readonly BackendStudyIt
  * error and not a completed session. Matches `SessionPage`'s existing
  * `if (!data) return <SessionEmpty />` path.
  */
-export async function getSession(): Promise<SessionDTO | null> {
+export async function getSession(extra = false): Promise<SessionDTO | null> {
   const active = await fetchActiveSession();
 
   if (active && active.sessionType === SessionType.Sabaq) {
-    const cached = readAssignment(ASSIGNMENT_KEY);
+    const cached = committedAssignment(active, ASSIGNMENT_KEY);
     const studyPages =
       cached?.sessionId === active.sessionId
         ? cached.pageIds.map((pageId, index) => {
@@ -88,6 +90,7 @@ export async function getSession(): Promise<SessionDTO | null> {
             return {
               pageId,
               pageNumber,
+              juzNumber: juzNumberForPage(pageNumber),
               surahs: surahsOnPage(pageNumber).map((surah) => ({
                 name: surah.name,
                 arabicName: surah.arabicName,
@@ -108,7 +111,10 @@ export async function getSession(): Promise<SessionDTO | null> {
 
     return {
       id: active.sessionId,
-      status: "in_progress",
+      status: active.studyDraft?.paused ? "paused" : "in_progress",
+      weakPageIds: active.studyDraft?.weakPageIds ?? [],
+      completedPageIds: active.completedPageIds,
+      startedAt: active.startedAt,
       title: "Memorization Session",
       assignment: {
         startPage: first,
@@ -130,7 +136,7 @@ export async function getSession(): Promise<SessionDTO | null> {
 
   // A session of another type being open is surfaced by startSession()
   // rather than here, so the user still sees today's assignment.
-  const items = await fetchTodayNewMemorizationItems();
+  const items = await fetchTodayNewMemorizationItems(extra);
   const first = items[0];
   const last = items[items.length - 1];
   if (!first || !last) {
@@ -158,13 +164,17 @@ export async function getSession(): Promise<SessionDTO | null> {
  * Starts a session for today's new-memorization assignment and caches
  * the page list so it can be labelled after a reload.
  */
-export async function startSession(): Promise<void> {
-  const items = await fetchTodayNewMemorizationItems();
+export async function startSession(extra = false): Promise<void> {
+  const items = await fetchTodayNewMemorizationItems(extra);
   if (items.length === 0) {
     throw new Error("No memorization assignment is scheduled today.");
   }
 
-  const result = await sessionOps.startSession(SessionType.Sabaq, await getDailyStudyMinutes());
+  const result = await sessionOps.startSession(
+    SessionType.Sabaq,
+    await getDailyStudyMinutes(),
+    extra,
+  );
 
   writeAssignment(ASSIGNMENT_KEY, {
     sessionId: result.sessionId,
@@ -188,14 +198,14 @@ export async function startSession(): Promise<void> {
 export async function completeSession(
   onProgress?: (progress: CompletionProgress) => void,
   weakPageIds: WeakPageIds = new Set(),
-): Promise<void> {
+): Promise<StudyReceipt> {
   const active = await fetchActiveSession();
   if (!active || active.sessionType !== SessionType.Sabaq) {
     clearAssignment(ASSIGNMENT_KEY);
     throw new Error("No memorization session is currently in progress.");
   }
 
-  const cached = readAssignment(ASSIGNMENT_KEY);
+  const cached = committedAssignment(active, ASSIGNMENT_KEY);
   const pageIds =
     cached?.sessionId === active.sessionId
       ? cached.pageIds
@@ -210,6 +220,7 @@ export async function completeSession(
   );
   await finishActiveSession(active.sessionId);
   clearAssignment(ASSIGNMENT_KEY);
+  return getStudyReceipt(active.sessionId);
 }
 
 /**

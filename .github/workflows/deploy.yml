@@ -55,9 +55,11 @@ jobs:
       # The same gates that must pass locally. A deploy is not a reason
       # to skip them — it is the moment they matter most, because what
       # lands here is what other people install.
+      - run: npm run format:check
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run test
+      - run: npm run test:ui
 
       - uses: actions/configure-pages@v5
         id: pages
@@ -70,6 +72,8 @@ jobs:
           # correctly without anyone remembering to edit this file.
           PHOS_BASE_PATH: ${{ steps.pages.outputs.base_path }}
         run: npm run build
+
+      - run: node scripts/verify-precache.mjs
 
       # Every URL Next does not rewrite itself — the manifest link, the
       # favicons, hand-written image sources — must carry the base path

@@ -26,12 +26,12 @@ export function WeeklyProgress({ days = defaultDays, className }: WeeklyProgress
   return (
     <ContentCard className={cn(className)}>
       <div className="mb-4 flex items-center gap-2">
-        <Calendar className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+        <Calendar className="text-muted-foreground h-5 w-5" aria-hidden="true" />
         <h3 className="font-semibold">Weekly Progress</h3>
       </div>
 
       <div className="mb-4 flex items-center justify-between">
-        <span className="text-sm text-muted-foreground">
+        <span className="text-muted-foreground text-sm">
           {completedCount} of {totalCount} days
         </span>
         <span className="text-sm font-medium">
@@ -53,7 +53,7 @@ export function WeeklyProgress({ days = defaultDays, className }: WeeklyProgress
             >
               {day.day.charAt(0)}
             </div>
-            <span className="text-[10px] text-muted-foreground">{day.day}</span>
+            <span className="text-muted-foreground text-[10px]">{day.day}</span>
           </div>
         ))}
       </div>

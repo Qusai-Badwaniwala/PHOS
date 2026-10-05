@@ -1,20 +1,25 @@
-# Project Maintenance
+# Maintenance and recovery
 
-This document outlines standard maintenance procedures for PHOS.
+Your record lives in this browser's IndexedDB. Local restore points are verified
+snapshots kept in the same storage; an exported file held elsewhere is the only
+copy that survives clearing that browser's data.
 
-## Backups
+Use More → Protect your record to export, preview a file restore, create a local
+restore point, or restore one. File restore is full replacement, with a verified
+safety copy and atomic write. It never merges history. The safety copy remains
+available below the file-restore section. Compatible legacy files are accepted and
+show warnings for information absent from their older format.
 
-_(Automated backup scripts will be delivered in Sprint 1)._
-All local backups of the SQLite database will reside in the `/backups` directory.
+Reset progress is guarded by typed confirmation. It creates a verified safety copy,
+then clears study/exams and resets all pages in one transaction. Settings, roadmap,
+and local backups remain recoverable. Reset settings is a separate action; export
+first if you want to preserve a copy of current preferences too.
 
-## Restoration
+New releases are checked on launch, foreground return, restored connection and at
+ten-minute intervals while visible. Updates wait until Apply update is chosen. An active study blocks activation and
+can be resumed. Keep a connection until the offline shell is saved. Offline setup
+failure offers Retry; there is no need to clear site data or delete personal history.
 
-_(Automated restoration scripts will be delivered in Sprint 1)._
-
-## Diagnostics
-
-If the environment fails:
-
-1. Verify Node.js version.
-2. Check that `.env` files are correct.
-3. Validate Prisma schema using `npx prisma validate`.
+For an engineering issue, inspect the browser/preview logs and run `npm run gate`.
+Read [VERIFICATION.md](VERIFICATION.md) for known toolchain and device boundaries.
+Do not recommend Prisma commands or `.env` changes: they belong to historical builds.

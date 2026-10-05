@@ -25,12 +25,12 @@ export function MemoryHealth({ score, className }: MemoryHealthProps) {
   return (
     <ContentCard className={cn("h-full", className)} as="section">
       <div className="mb-5 flex items-center gap-2.5">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10">
-          <Brain className="h-4.5 w-4.5 text-primary" aria-hidden="true" />
+        <div className="bg-primary/10 flex h-8 w-8 shrink-0 items-center justify-center rounded-md">
+          <Brain className="text-primary h-4.5 w-4.5" aria-hidden="true" />
         </div>
         <div>
-          <h3 className="text-sm font-semibold text-foreground">Memory Health</h3>
-          <p className="text-[11px] text-muted-foreground">Based on recall accuracy</p>
+          <h3 className="text-foreground text-sm font-semibold">Memory Health</h3>
+          <p className="text-muted-foreground text-[11px]">Based on recall accuracy</p>
         </div>
       </div>
 
@@ -38,8 +38,8 @@ export function MemoryHealth({ score, className }: MemoryHealthProps) {
         {hasData ? (
           <>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-foreground">{score}%</span>
-              <span className="text-sm text-muted-foreground">{label}</span>
+              <span className="text-foreground text-3xl font-bold">{score}%</span>
+              <span className="text-muted-foreground text-sm">{label}</span>
             </div>
             <ProgressBar
               value={score}
@@ -48,13 +48,13 @@ export function MemoryHealth({ score, className }: MemoryHealthProps) {
               showPercentage={false}
               size="sm"
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               Based on recall accuracy and review frequency across all memorized pages.
             </p>
           </>
         ) : (
           <>
-            <p className="text-sm text-muted-foreground">Not enough data yet.</p>
+            <p className="text-muted-foreground text-sm">Not enough data yet.</p>
             <ProgressBar
               value={0}
               max={100}
@@ -62,7 +62,7 @@ export function MemoryHealth({ score, className }: MemoryHealthProps) {
               showPercentage={false}
               size="sm"
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               Complete sessions to build your memory profile.
             </p>
           </>

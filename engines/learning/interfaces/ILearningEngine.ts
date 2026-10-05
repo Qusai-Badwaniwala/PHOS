@@ -15,7 +15,10 @@ import type {
  */
 export interface ILearningEngine {
   startSession(sessionType: SessionType): Promise<Session>;
-  loadDailyPlan(availableStudyMinutes: number): Promise<DailyStudyPlan>;
+  loadDailyPlan(
+    availableStudyMinutes: number,
+    options?: { extraNewMemorization?: boolean },
+  ): Promise<DailyStudyPlan>;
   getNextStudyItem(): StudyItem | null;
   /** Records the objective recall outcome. Confidence has not been supplied yet, so nothing is persisted or sent to the Memory Engine until `submitConfidence()` (SDS Part 12: "Confidence is collected after recall"). */
   submitRecall(pageId: string, successfulRecall: boolean, durationSeconds: number): void;

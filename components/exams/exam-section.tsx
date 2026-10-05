@@ -3,7 +3,7 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { ContentCard } from "@/components/shared/content-card";
+
 import { ExamLadder } from "./exam-ladder";
 import { ExamRunUpCard } from "./exam-run-up";
 import { ScheduleExamDialog, type ScheduleExamRequest } from "./schedule-exam-dialog";
@@ -57,6 +57,7 @@ export function ExamSection({ className, onChanged }: ExamSectionProps) {
 
   const run = async (action: () => Promise<ExamOverviewDTO>) => {
     setPending(true);
+    setDialogError(null);
     try {
       setOverview(await action());
       onChanged?.();
@@ -99,20 +100,25 @@ export function ExamSection({ className, onChanged }: ExamSectionProps) {
 
   if (loadError) {
     return (
-      <ContentCard className={cn(className)}>
-        <p role="alert" className="text-sm text-muted-foreground">
+      <section className={cn(className)}>
+        <p role="alert" className="text-muted-foreground text-sm">
           {loadError}
         </p>
-      </ContentCard>
+      </section>
     );
   }
 
-  if (!overview) return null;
+  if (!overview)
+    return (
+      <p role="status" className="text-muted-foreground py-10">
+        Opening your exam record…
+      </p>
+    );
 
   const hasActiveExam = overview.runUp !== null;
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("space-y-8", className)}>
       {overview.runUp && (
         <ExamRunUpCard
           runUp={overview.runUp}
@@ -128,21 +134,21 @@ export function ExamSection({ className, onChanged }: ExamSectionProps) {
         telling them would divide their attention at the worst moment.
       */}
       {overview.aftermath && (
-        <ContentCard>
+        <section className="folio-section">
           <p className="text-sm">{overview.aftermath.summary}</p>
           {overview.aftermath.weakestPageNumbers.length > 0 && (
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="text-muted-foreground mt-1 text-xs">
               Starting with {overview.aftermath.weakestPageNumbers.join(", ")}.
             </p>
           )}
-        </ContentCard>
+        </section>
       )}
 
-      <ContentCard>
-        <div className="mb-4 flex items-center justify-between gap-3">
+      <section className="folio-section">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <GraduationCap className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
-            <h3 className="font-semibold">Exam roadmap</h3>
+            <GraduationCap className="text-muted-foreground h-5 w-5" aria-hidden="true" />
+            <h2 className="font-serif text-2xl">The exam ladder</h2>
           </div>
           <div className="flex gap-2">
             <Button
@@ -172,6 +178,15 @@ export function ExamSection({ className, onChanged }: ExamSectionProps) {
           </div>
         </div>
 
+        {dialogError && !dialogOpen && (
+          <p role="alert" className="text-destructive mb-4">
+            {dialogError}
+          </p>
+        )}
+        <p className="text-muted-foreground mb-6 text-sm">
+          Each stage carries earlier material forward. Eligibility comes from your memorized pages;
+          passing earlier stages is recorded separately.
+        </p>
         <ExamLadder
           stages={overview.stages}
           // One exam at a time: two coverage schedules would compete for
@@ -180,11 +195,11 @@ export function ExamSection({ className, onChanged }: ExamSectionProps) {
         />
 
         {hasActiveExam && (
-          <p className="mt-4 text-xs text-muted-foreground">
+          <p className="text-muted-foreground mt-4 text-xs">
             Mark your current exam passed or cancel it before scheduling another.
           </p>
         )}
-      </ContentCard>
+      </section>
 
       {/*
         Every exam the user has passed.
@@ -196,20 +211,20 @@ export function ExamSection({ className, onChanged }: ExamSectionProps) {
         kind that has no other home.
       */}
       {overview.past.length > 0 && (
-        <ContentCard>
-          <h3 className="mb-3 font-semibold">Exams you have passed</h3>
+        <section className="folio-section">
+          <h2 className="mb-4 font-serif text-2xl">Exams you have passed</h2>
           <ul className="space-y-2">
             {overview.past.map((exam) => (
               <li
                 key={exam.id}
-                className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 border-b border-border/50 pb-2 text-sm last:border-0 last:pb-0"
+                className="border-border/50 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 border-b pb-2 text-sm last:border-0 last:pb-0"
               >
                 <span className="font-medium">
                   {exam.stage === null
                     ? exam.scopeLabel
                     : `Stage ${exam.stage} · ${exam.scopeLabel}`}
                 </span>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-muted-foreground text-xs">
                   {exam.stage === null && "Your own exam · "}
                   {/*
                     A recorded exam with no date says so rather than
@@ -221,7 +236,7 @@ export function ExamSection({ className, onChanged }: ExamSectionProps) {
               </li>
             ))}
           </ul>
-        </ContentCard>
+        </section>
       )}
 
       <RecordPastExamDialog

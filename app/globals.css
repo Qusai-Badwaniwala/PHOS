@@ -1,367 +1,259 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss" source(none);
+@source "../app";
+@source "../components";
+@source "../providers";
+@config "../tailwind.config.ts";
 
-/**
- * PHOS Design System — Color Palette
- * Primary palette: #322D29 / #72383D / #AC9C8D / #D1C7BD / #D9D9D9 / #EFE9E1
- *
- * Converted to HSL for use with Tailwind/shadcn HSL variable system:
- * #322D29 → hsl(24, 9%, 18%)     — darkest, sidebar bg / headings
- * #72383D → hsl(356, 32%, 33%)   — accent / primary action
- * #AC9C8D → hsl(28, 16%, 62%)    — muted text / subtle borders
- * #D1C7BD → hsl(31, 17%, 80%)    — secondary/disabled states
- * #D9D9D9 → hsl(0, 0%, 85%)      — dividers / input borders
- * #EFE9E1 → hsl(36, 27%, 92%)    — light background / card surface
- */
-
-@layer base {
-  :root {
-    /* Surfaces */
-    --background: 36 27% 96%;
-    --card: 0 0% 100%;
-    --popover: 0 0% 100%;
-
-    /* Text */
-    --foreground: 24 15% 16%;
-    --card-foreground: 24 15% 16%;
-    --popover-foreground: 24 15% 16%;
-
-    /*
-     * Muted text & surfaces
-     *
-     * `--muted-foreground` was `28 12% 50%`, which measured 3.59:1 on
-     * `--background`, 3.90:1 on `--card` and 3.37:1 on `--muted` —
-     * failing WCAG AA's 4.5:1 for normal text against all three, in the
-     * theme that fails. Dark mode's equivalent already passed at 5.27:1.
-     *
-     * This token carries every field description in Settings, every card
-     * subtitle, every empty state, and the whole of About: roughly half
-     * the text in the application. Hifz is often read at Fajr and
-     * Maghrib on a phone, which is exactly the condition the ratio
-     * exists for.
-     *
-     * 41% is the *lightest* value that clears 4.5:1 on all three
-     * surfaces (4.99 / 5.41 / 4.67), chosen so the palette stays as
-     * close to its authored warmth as compliance allows rather than
-     * lurching toward black.
-     */
-    --muted: 36 20% 93%;
-    --muted-foreground: 28 12% 41%;
-
-    /* Primary action — PHOS dark rose */
-    --primary: 356 32% 33%;
-    --primary-foreground: 36 27% 96%;
-
-    /* Secondary — warm sand */
-    --secondary: 36 20% 88%;
-    --secondary-foreground: 24 15% 22%;
-
-    /* Accent — slightly deeper sand for hovers */
-    --accent: 31 17% 85%;
-    --accent-foreground: 24 15% 20%;
-
-    /* Destructive — 50% is the lightest that holds 4.5:1 as *text* on
-       both background and card (4.51 / 4.89). It is used as a label
-       colour, not only as a button fill. */
-    --destructive: 0 72% 50%;
-    --destructive-foreground: 0 0% 98%;
-
-    /*
-     * Borders and inputs, deliberately no longer the same value.
-     *
-     * Both were `31 14% 82%`, which is 1.39:1 on the background and
-     * 1.51:1 on a card — nowhere near WCAG 1.4.11's 3:1 for non-text
-     * contrast.
-     *
-     * They are split because the rule does not apply to them equally.
-     * `--input` outlines form controls, and 1.4.11 is explicit that the
-     * boundary needed to *identify* a control must reach 3:1; 54% is the
-     * lightest value that does (3.07 / 3.33). `--border` mostly performs
-     * decorative separation between cards and sections, which the rule
-     * does not govern — so it is lifted to a genuinely visible 70%
-     * (1.90 / 2.06) rather than dragged to 3:1, which would draw every
-     * card edge in hard lines and wreck the calm the product is for.
-     */
-    --border: 31 14% 70%;
-    --input: 31 14% 54%;
-    --ring: 356 32% 33%;
-
-    /*
-     * Gold — authorship and quiet honours only.
-     *
-     * Sits at hue 39, deliberately between the warm sand surfaces
-     * (hue 24-36) and the maroon primary (356), and next to the
-     * bronze/tan already in the PHOS logo. It reads as a member of the
-     * existing palette rather than a decoration dropped on top.
-     *
-     * Reserved for attribution. Using it for status or emphasis would
-     * cost it the only thing it is for.
-     */
-    /* 37%, not 46%: at 46% it measured 3.21:1 on the background — below
-       AA for the attribution text it exists to set. 37% is the lightest
-       value that clears 4.5:1 (4.68 / 5.07) and keeps the hue. */
-    --gold: 39 42% 37%;
-    --gold-foreground: 36 27% 96%;
-
-    /*
-     * Status — success, warning, info.
-     *
-     * These exist because they were already in the product, just not in
-     * the palette. Twenty component files reached straight for stock
-     * Tailwind (`emerald`, `amber`, `rose`, `sky`), which is a different
-     * colour system: cool, saturated, and belonging to no part of the
-     * warm sand-and-maroon world the rest of PHOS is built from. The
-     * effect was a green tick from another application sitting on the
-     * onboarding screen.
-     *
-     * Named for meaning rather than for hue, so the next screen that
-     * needs "this went well" cannot invent its own green. Each is
-     * desaturated toward the warm ground and lightness-tuned to clear
-     * 4.5:1 as text on both `--background` and `--card` — the stock
-     * Tailwind 500-weights did not.
-     */
-    --success: 152 38% 30%;
-    --success-foreground: 36 27% 96%;
-    --success-muted: 152 32% 92%;
-
-    --warning: 32 62% 32%;
-    --warning-foreground: 36 27% 96%;
-    --warning-muted: 38 60% 91%;
-
-    --info: 210 34% 36%;
-    --info-foreground: 36 27% 96%;
-    --info-muted: 210 40% 93%;
-
-    /* Border radius */
-    --radius: 0.5rem;
-
-    /*
-     * Motion — two curves and two durations, and nothing else.
-     *
-     * `--ease-spring` is a critically damped spring written as a native
-     * `linear()` easing: it reaches the target quickly and settles
-     * without overshoot. Critically damped is the default because
-     * overshoot on something that merely appeared reads as decoration;
-     * bounce is earned by momentum, and nothing in PHOS is thrown or
-     * flicked.
-     *
-     * `--ease-out-soft` is for opacity and colour, where a spring has
-     * nothing to settle into.
-     *
-     * No animation library. `linear()` is native, runs on the
-     * compositor with transform/opacity, and costs nothing to ship —
-     * which matters for an offline-first app whose whole promise is
-     * that it opens instantly.
-     */
-    --ease-spring: linear(
-      0,
-      0.006,
-      0.025 2.8%,
-      0.101 6.1%,
-      0.539 18.9%,
-      0.721 25.3%,
-      0.849 31.5%,
-      0.937 38.1%,
-      0.968 41.8%,
-      0.991 45.7%,
-      1.006 50.1%,
-      1.015 55%,
-      1.017 63.9%,
-      1.001
-    );
-    --ease-out-soft: cubic-bezier(0.32, 0.72, 0, 1);
-
-    /** Press feedback. Short enough to feel like contact, not animation. */
-    --duration-press: 100ms;
-    /** State change: a card settling, a panel arriving. */
-    --duration-settle: 400ms;
-  }
-
-  .dark {
-    /* Surfaces — deep warm dark */
-    --background: 24 12% 10%;
-    --card: 24 10% 14%;
-    --popover: 24 10% 14%;
-
-    /* Text */
-    --foreground: 36 20% 90%;
-    --card-foreground: 36 20% 90%;
-    --popover-foreground: 36 20% 90%;
-
-    /* Muted. 58%, not 55%: 55% cleared AA on background and card but
-       measured 4.11:1 on `--muted` itself, which is the ground for
-       badges and inset panels. 58% clears all three (5.84 / 5.20 / 4.54). */
-    --muted: 24 10% 18%;
-    --muted-foreground: 28 10% 58%;
-
-    /* Primary — lighter rose for dark mode.
-       60%, not 55%: primary doubles as a link/label colour, and at 55%
-       it measured 4.21:1 on the background, under AA for text. 60% is
-       the lowest that clears it (5.06 / 4.51). */
-    --primary: 356 32% 60%;
-    --primary-foreground: 24 12% 10%;
-
-    /* Secondary */
-    --secondary: 24 10% 20%;
-    --secondary-foreground: 36 20% 85%;
-
-    /* Accent */
-    --accent: 24 10% 22%;
-    --accent-foreground: 36 20% 88%;
-
-    /*
-     * Destructive — 63%, up from 50%, so it holds 4.5:1 as text on the
-     * deep warm ground (5.09 / 4.53) and not only as a button fill.
-     *
-     * The foreground had to move with it, and this is the pairing that
-     * caught the mistake. Raising the fill for legibility as *text* made
-     * near-white sit on a lighter red: 3.29:1, so the delete button's own
-     * label failed the moment its label colour elsewhere passed. Dark
-     * ink is what every other dark-theme fill already uses — see
-     * `--primary-foreground` directly above.
-     */
-    --destructive: 0 62% 63%;
-    --destructive-foreground: 24 12% 10%;
-
-    /* Borders and inputs, split for the same reason as the light theme:
-       `--input` must reach 3:1 to identify a control (3.42 / 3.05),
-       `--border` performs decorative separation and is merely made
-       visible (2.14 / 1.91) rather than hardened. Both were 22%, which
-       measured 1.49:1 and 1.33:1 — effectively invisible. */
-    --border: 24 10% 31%;
-    --input: 24 10% 43%;
-    --ring: 356 32% 60%;
-
-    /* Lifted and slightly desaturated so it stays legible on the deep
-       warm dark ground without turning brassy. */
-    --gold: 39 46% 62%;
-    --gold-foreground: 24 12% 10%;
-
-    /* Status, lifted for the deep warm ground and desaturated so they
-       do not glow against it. Same 4.5:1-as-text rule as the light
-       theme. */
-    --success: 152 42% 62%;
-    --success-foreground: 24 12% 10%;
-    --success-muted: 152 24% 18%;
-
-    --warning: 38 62% 62%;
-    --warning-foreground: 24 12% 10%;
-    --warning-muted: 36 26% 18%;
-
-    --info: 210 46% 66%;
-    --info-foreground: 24 12% 10%;
-    --info-muted: 210 24% 19%;
-  }
+@font-face {
+  font-family: "Source Sans 3 Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 900;
+  src: url("../node_modules/@fontsource-variable/source-sans-3/files/source-sans-3-latin-wght-normal.woff2")
+    format("woff2");
+}
+@font-face {
+  font-family: "Source Serif 4 Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 900;
+  src: url("../node_modules/@fontsource-variable/source-serif-4/files/source-serif-4-latin-standard-normal.woff2")
+    format("woff2");
+}
+@font-face {
+  font-family: "Noto Naskh Arabic";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("../node_modules/@fontsource/noto-naskh-arabic/files/noto-naskh-arabic-arabic-400-normal.woff2")
+    format("woff2");
 }
 
+/* PHOS study folio. Both themes are authored surfaces, not inversions. */
 @layer base {
+  :root {
+    --background: 40 29% 94%;
+    --card: 40 60% 98%;
+    --popover: 40 60% 98%;
+    --foreground: 310 8% 15%;
+    --card-foreground: 310 8% 15%;
+    --popover-foreground: 310 8% 15%;
+    --muted: 35 15% 90%;
+    --muted-foreground: 307 4% 39%;
+    --primary: 344 31% 35%;
+    --primary-foreground: 40 60% 98%;
+    --secondary: 34 17% 87%;
+    --secondary-foreground: 310 8% 20%;
+    --accent: 340 14% 89%;
+    --accent-foreground: 310 8% 15%;
+    --border: 325 6% 74%;
+    --input: 315 5% 53%;
+    --ring: 344 31% 35%;
+    --destructive: 0 65% 43%;
+    --destructive-foreground: 40 60% 98%;
+    --gold: 39 42% 33%;
+    --gold-foreground: 40 60% 98%;
+    --success: 152 32% 28%;
+    --success-foreground: 40 60% 98%;
+    --success-muted: 152 20% 91%;
+    --warning: 32 55% 30%;
+    --warning-foreground: 40 60% 98%;
+    --warning-muted: 38 44% 91%;
+    --info: 210 32% 33%;
+    --info-foreground: 40 60% 98%;
+    --info-muted: 210 30% 92%;
+    --radius: 0.5rem;
+    --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+    --duration-press: 100ms;
+    --duration-settle: 220ms;
+  }
+  .dark {
+    --background: 270 9% 9%;
+    --card: 280 9% 13%;
+    --popover: 280 9% 15%;
+    --foreground: 30 20% 90%;
+    --card-foreground: 30 20% 90%;
+    --popover-foreground: 30 20% 90%;
+    --muted: 280 8% 18%;
+    --muted-foreground: 306 7% 68%;
+    --primary: 343 35% 74%;
+    --primary-foreground: 270 9% 9%;
+    --secondary: 280 8% 21%;
+    --secondary-foreground: 30 20% 90%;
+    --accent: 320 10% 23%;
+    --accent-foreground: 30 20% 90%;
+    --border: 300 7% 30%;
+    --input: 300 6% 46%;
+    --ring: 343 35% 74%;
+    --destructive: 0 62% 68%;
+    --destructive-foreground: 270 9% 9%;
+    --gold: 39 40% 67%;
+    --gold-foreground: 270 9% 9%;
+    --success: 152 35% 67%;
+    --success-foreground: 270 9% 9%;
+    --success-muted: 152 20% 18%;
+    --warning: 38 55% 69%;
+    --warning-foreground: 270 9% 9%;
+    --warning-muted: 36 24% 18%;
+    --info: 210 40% 72%;
+    --info-foreground: 270 9% 9%;
+    --info-muted: 210 20% 19%;
+  }
   * {
     @apply border-border;
   }
-
   html {
-    @apply scroll-smooth;
-    font-feature-settings:
-      "rlig" 1,
-      "calt" 1,
-      "ss01" 1;
     -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "calt" 1;
+    scroll-padding-top: 88px;
   }
-
   body {
     @apply bg-background text-foreground;
-    font-family:
-      var(--font-inter),
-      system-ui,
-      -apple-system,
-      BlinkMacSystemFont,
-      "Segoe UI",
-      sans-serif;
+    font-family: "Source Sans 3 Variable", system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
   }
-
-  /* Arabic text — rendered with Noto Naskh */
+  h1,
+  h2 {
+    text-wrap: balance;
+  }
+  h1,
+  .folio-title {
+    font-family: "Source Serif 4 Variable", Georgia, serif;
+    font-weight: 500;
+    letter-spacing: -0.035em;
+  }
   [lang="ar"] {
     font-family: "Noto Naskh Arabic", "Traditional Arabic", serif;
     line-height: 2;
     letter-spacing: 0;
   }
-
-  /* Focus ring — visible keyboard navigation */
   :focus-visible {
-    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 3px;
   }
-
-  /*
-   * Heading rhythm.
-   *
-   * `tracking-tight` used to be applied to every heading level, which
-   * is one letter-spacing value across sizes from 3xl down to base —
-   * too tight on the small ones and not tight enough on the large. The
-   * type scale in `tailwind.config.ts` now pairs tracking with size, so
-   * the blanket rule is gone and only the font feature remains.
-   */
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    font-feature-settings: "salt" 1;
-    text-wrap: balance;
-  }
-
-  /*
-   * Feedback on press, not on release.
-   *
-   * The moment a control acknowledges the finger is the difference
-   * between an interface that feels direct and one that feels remote,
-   * and PHOS acknowledged nothing until navigation completed. The scale
-   * is small on purpose: this should register as contact, not as an
-   * animation someone chose.
-   *
-   * Scoped to real controls rather than every element, and paired with
-   * `touch-action: manipulation` to drop the legacy 300ms tap delay —
-   * a latency on the input path that no amount of easing can hide.
-   */
-  button:not(:disabled),
-  a[href],
-  [role="button"]:not([aria-disabled="true"]) {
+  button,
+  a,
+  input,
+  select {
+    -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
   }
-
-  button:not(:disabled):active,
-  [role="button"]:not([aria-disabled="true"]):active {
-    transform: scale(0.975);
-    transition: transform var(--duration-press) var(--ease-out-soft);
+  button:not(:disabled) {
+    transition:
+      background-color 160ms,
+      color 160ms,
+      border-color 160ms,
+      transform 100ms;
+  }
+  button:not(:disabled):active {
+    transform: scale(0.98);
+  }
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+  input[type="date"],
+  input[type="time"] {
+    min-width: 0;
+    color-scheme: light;
+  }
+  .dark input[type="date"],
+  .dark input[type="time"] {
+    color-scheme: dark;
+  }
+  summary {
+    cursor: pointer;
+    min-height: 44px;
+    padding-block: 10px;
   }
 }
-
+@layer components {
+  .page-content {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    padding-bottom: 24px;
+  }
+  .content-card {
+    border-radius: 12px;
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    padding: 24px;
+    box-shadow: none;
+  }
+  .folio-section {
+    border-top: 1px solid hsl(var(--border));
+    padding-top: 24px;
+  }
+  .eyebrow {
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: hsl(var(--muted-foreground));
+  }
+  .folio-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-block: 20px;
+    border-bottom: 1px solid hsl(var(--border));
+  }
+  .app-main {
+    width: 100%;
+    max-width: 1160px;
+    margin-inline: auto;
+    padding: 28px 20px calc(100px + env(safe-area-inset-bottom));
+  }
+  .chrome {
+    background: hsl(var(--background));
+    border-color: hsl(var(--border));
+  }
+  .study-actions {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 30;
+    padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
+    background: hsl(var(--card));
+    border-top: 1px solid hsl(var(--border));
+  }
+  .study-actions-inner {
+    max-width: 760px;
+    margin-inline: auto;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .study-actions-inner > button:last-child {
+    flex: 1;
+  }
+  .ayah-stack {
+    display: grid;
+    min-height: 242px;
+    align-items: center;
+  }
+  .ayah-stack > div {
+    grid-area: 1 / 1;
+  }
+  .history-detail {
+    width: 100%;
+    max-width: 560px;
+  }
+}
 @layer utilities {
-  /* Scrollbar styling — minimal, on-brand */
-  .scrollbar-thin {
-    scrollbar-width: thin;
-    scrollbar-color: hsl(var(--border)) transparent;
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
-  .scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  .scrollbar-thin::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: hsl(var(--border));
-    border-radius: 3px;
-  }
-
-  /* Animation utilities */
   .animate-fade-in {
-    animation: fade-in var(--duration-settle) var(--ease-spring);
+    animation: folio-enter 220ms var(--ease-out-soft);
   }
-
-  @keyframes fade-in {
+  @keyframes folio-enter {
     from {
       opacity: 0;
       transform: translateY(6px);
@@ -371,113 +263,39 @@
       transform: translateY(0);
     }
   }
-
-  /*
-   * Scroll edge effects.
-   *
-   * A floating bar separated from content by a 1px rule draws that rule
-   * even when nothing is behind it. These fade the material into the
-   * page instead, so the separation appears exactly where content
-   * passes underneath and nowhere else — the chrome reads as floating
-   * above the page rather than as a strip cut out of it.
-   *
-   * The bright inner edge is the same idea as light catching the top of
-   * a real pane of glass; it is what stops a translucent surface
-   * looking like flat tinted plastic.
-   */
-  .scroll-edge {
-    box-shadow:
-      inset 0 1px 0 0 hsl(0 0% 100% / 0.06),
-      0 1px 0 0 hsl(var(--border) / 0.5),
-      0 8px 16px -12px hsl(24 9% 18% / 0.28);
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
   }
-
-  .scroll-edge-top {
-    box-shadow:
-      inset 0 1px 0 0 hsl(0 0% 100% / 0.08),
-      0 -1px 0 0 hsl(var(--border) / 0.5),
-      0 -10px 22px -14px hsl(24 9% 18% / 0.3);
-  }
-
-  /*
-   * A card that responds to being pointed at.
-   *
-   * Only for cards that are themselves a control — a card that merely
-   * displays a number should not imply it can be pressed. The lift is
-   * small and the settle is a critically damped spring, so it reads as
-   * the surface rising to meet the cursor rather than as an effect.
-   */
   .surface-interactive {
     transition:
-      box-shadow var(--duration-settle) var(--ease-spring),
-      transform var(--duration-settle) var(--ease-spring);
+      background-color 180ms,
+      border-color 180ms;
   }
-
-  @media (hover: hover) {
-    .surface-interactive:hover {
-      box-shadow: theme("boxShadow.card-hover");
-      transform: translateY(-2px);
-    }
+  .surface-interactive:hover {
+    border-color: hsl(var(--input));
   }
-
-  .surface-interactive:active {
-    transform: translateY(0) scale(0.995);
-    transition-duration: var(--duration-press);
+  .phos-shimmer {
+    color: hsl(var(--muted-foreground));
   }
-
-  /*
-   * Reduced Motion — set from Settings by `SettingsProvider`, which
-   * toggles `.reduce-motion` on the root element.
-   *
-   * Durations are collapsed to ~0 rather than set to `none`, because
-   * `animation: none` cancels an animation mid-flight and can leave an
-   * element stuck at its start keyframe (an entrance animation would
-   * never reach `opacity: 1`). Running instantly ends at the final
-   * frame, so content is always in its settled state.
-   *
-   * The `@media (prefers-reduced-motion)` rule below applies the same
-   * treatment for users who asked the operating system for it, so the
-   * app respects that preference without them finding this setting.
-   */
-  /*
-   * Reduced motion means *gentler* motion, not the absence of feedback.
-   *
-   * This used to collapse every duration to 0.01ms, which killed the
-   * useful along with the decorative: a button no longer acknowledged a
-   * press, a progress bar jumped, and state changes happened with no
-   * indication that anything had changed. Someone who asks for reduced
-   * motion is asking not to be made dizzy — they are not asking for an
-   * interface that stops responding to them.
-   *
-   * So: anything that *travels* is stilled, because vestibular
-   * discomfort comes from movement across the screen. Opacity and
-   * colour keep a short cross-fade, because that is how the interface
-   * answers you. This is the WCAG 2.3.3 reading and Apple's.
-   *
-   * Stilling is done by removing `transform` from the transition
-   * property list, and NOT by setting `transform: none`. Transform is
-   * also a *layout* tool: the dialog is centred with
-   * `translate(-50%, -50%)`, so a blanket `transform: none` would throw
-   * every modal in the app into the bottom-right quadrant — for exactly
-   * the users least able to cope with it. The press feedback is
-   * disabled separately below, where it can be named.
-   */
+  :root.compact .page-content {
+    gap: 24px;
+  }
+  :root.compact .content-card {
+    padding: 16px;
+  }
   .reduce-motion *,
   .reduce-motion *::before,
-  .reduce-motion *::after,
-  .reduce-motion-media *,
-  .reduce-motion-media *::before,
-  .reduce-motion-media *::after {
+  .reduce-motion *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
-    /* Nothing moves… */
-    transition-property:
-      opacity, background-color, border-color, color, fill, stroke, box-shadow !important;
-    /* …but the interface still replies. */
-    transition-duration: 150ms !important;
+    transition-property: opacity, background-color, border-color, color, fill, stroke !important;
+    transition-duration: 100ms !important;
   }
-
+  .reduce-motion button:active {
+    transform: none;
+  }
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -485,149 +303,117 @@
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
       scroll-behavior: auto !important;
-      transition-property:
-        opacity, background-color, border-color, color, fill, stroke, box-shadow !important;
-      transition-duration: 150ms !important;
+      transition-property: opacity, background-color, border-color, color, fill, stroke !important;
+      transition-duration: 100ms !important;
     }
-  }
-
-  /*
-   * The press scale, specifically. Named rather than swept up by a
-   * blanket rule, so it is obvious what is being turned off and why:
-   * the button still answers a press through its background colour,
-   * which the cross-fade above preserves.
-   */
-  .reduce-motion button:active,
-  .reduce-motion [role="button"]:active {
-    transform: none;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    button:active,
-    [role="button"]:active {
+    button:active {
       transform: none;
     }
   }
-
-  /*
-   * Translucency is a preference too, and PHOS never honoured it.
-   *
-   * `backdrop-filter` behind the navigation is a material; for someone
-   * who has asked their system to reduce transparency it is a
-   * legibility problem. The surface becomes solid rather than merely
-   * less blurred — a half-frosted panel is the worst of both.
-   */
-  @media (prefers-reduced-transparency: reduce) {
-    .material-chrome {
-      backdrop-filter: none !important;
-      background-color: hsl(var(--card)) !important;
-    }
-  }
-
-  /*
-   * And contrast. At `more`, the decorative/control split in `--border`
-   * and `--input` stops being a useful distinction: every edge should
-   * be a defined one.
-   */
   @media (prefers-contrast: more) {
     :root,
     .dark {
       --border: var(--input);
     }
   }
-
-  /*
-   * Compact Mode — reduces the vertical rhythm between stacked blocks
-   * and tightens card padding. Scoped to PHOS's own layout primitives
-   * (`.page-content`, `.content-card`) rather than to every utility
-   * class, so it changes page density without disturbing spacing inside
-   * individual components.
-   *
-   * The selector is written to out-specify Tailwind's `space-y-*`, which
-   * compiles to `.space-y-5 > :not([hidden]) ~ :not([hidden])` — three
-   * class-level components. Matching that shape and anchoring it at
-   * `:root` gives four, so this reliably wins instead of depending on
-   * declaration order.
-   */
-  :root.compact .page-content > :not([hidden]) ~ :not([hidden]) {
-    margin-top: 1rem;
+}
+@media (min-width: 1024px) {
+  .app-main {
+    padding: 44px 40px 48px;
   }
-  :root.compact .content-card {
-    padding: 1rem;
+  .study-actions {
+    left: 208px;
   }
-
-  /*
-   * Keeps the bottom navigation clear of a phone's home indicator.
-   *
-   * `components/layout/mobile-nav.tsx` has applied this class since the
-   * layout was first written, but it was never defined — not here, not
-   * in `tailwind.config.ts`. It was silently doing nothing.
-   *
-   * Stated precisely, because the fix is partial: this is inert today.
-   * `env(safe-area-inset-*)` only becomes non-zero under
-   * `viewport-fit=cover`, which PHOS does not set, so the browser
-   * already insets the whole viewport and the navigation clears the
-   * gesture bar on its own. Nothing is broken now.
-   *
-   * It is defined anyway so the class means what it says, and so that
-   * adding `viewportFit: "cover"` later — which an installed PWA wants,
-   * to fill the screen rather than sit in letterbox bars — does not
-   * immediately push the navigation under the home indicator. That
-   * change also needs a matching top inset for the sticky `TopNav`, and
-   * a real device to verify on, so it is deliberately not made here.
-   */
-  .safe-area-bottom {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (max-width: 359px) {
+  .app-main {
+    padding-inline: 16px;
   }
-
-  /*
-   * Attribution sheen — used only by the "By Qusai" credit.
-   *
-   * A slow highlight sweeping across gold text, rather than a glow or a
-   * pulse: it reads as light catching an engraved surface, which suits
-   * a colophon. The gradient is painted into the text itself
-   * (`background-clip: text`), so there is no box, border or badge
-   * around it competing with the navigation below.
-   *
-   * `.reduce-motion` and the `prefers-reduced-motion` media query above
-   * both collapse the animation duration, at which point this settles
-   * as static gold text — still legible, still correct, just still.
-   */
-  .phos-shimmer {
-    color: hsl(var(--gold));
-    background-image: linear-gradient(
-      100deg,
-      hsl(var(--gold)) 0%,
-      hsl(var(--gold)) 40%,
-      hsl(var(--gold) / 0.55) 50%,
-      hsl(var(--gold)) 60%,
-      hsl(var(--gold)) 100%
-    );
-    background-size: 300% 100%;
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    animation: phos-sheen 6s ease-in-out infinite;
+  .content-card {
+    padding: 18px;
   }
-
-  @keyframes phos-sheen {
-    0%,
-    100% {
-      background-position: 150% 0;
-    }
-    50% {
-      background-position: -50% 0;
-    }
+}
+/* Quiet, causal entrances. Transforms never replace native scrolling. */
+@keyframes settle-in {
+  from {
+    opacity: 0;
+    translate: 0 7px;
   }
-
-  /* Step counter (preserved from original) */
-  .step {
-    counter-increment: step;
+  to {
+    opacity: 1;
+    translate: 0 0;
   }
-  .step:before {
-    @apply absolute flex h-8 w-8 items-center justify-center rounded-full border-4 border-background bg-muted -indent-px text-xs font-medium text-muted-foreground;
-    content: counter(step);
-    left: -2.25rem;
-    top: -0.15rem;
+}
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    scale: 0.98;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+@keyframes panel-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    scale: 0.99;
+  }
+}
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes scrim-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.tab-panel,
+.onboarding-step {
+  animation: settle-in 220ms var(--ease) both;
+}
+.dialog-panel[data-state="open"] {
+  animation: panel-in 240ms var(--ease) both;
+}
+.dialog-panel[data-state="closed"] {
+  animation: panel-out 140ms ease-out both;
+}
+.dialog-scrim[data-state="open"] {
+  animation: scrim-in 180ms ease-out both;
+}
+.dialog-scrim[data-state="closed"] {
+  animation: scrim-out 140ms ease-out both;
+}
+.select-panel[data-state="open"] {
+  animation: panel-in 160ms var(--ease) both;
+}
+.select-panel[data-state="closed"] {
+  animation: panel-out 100ms ease-out both;
+}
+.reduce-motion .tab-panel,
+.reduce-motion .onboarding-step,
+.reduce-motion .dialog-panel,
+.reduce-motion .dialog-scrim,
+.reduce-motion .select-panel {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tab-panel,
+  .onboarding-step,
+  .dialog-panel,
+  .dialog-scrim,
+  .select-panel {
+    animation: none;
   }
 }

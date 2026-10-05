@@ -47,7 +47,7 @@ function describeJuzCovered(milestones: readonly GoalMilestone[]): string {
 
 function milestoneLabel(milestone: GoalMilestone): string {
   const whole = milestone.cumulativePages === TOTAL_MUSHAF_PAGES ? ", the whole Mushaf" : "";
-  const done = milestone.reached ? " · already memorized" : "";
+  const done = milestone.reached ? " · page target met" : "";
   return `Juz ${milestone.juzNumber} — ${milestone.cumulativePages} pages${whole}${done}`;
 }
 
@@ -144,9 +144,9 @@ export function GoalSettings({ className }: GoalSettingsProps) {
     >
       <div className="space-y-5">
         {position && (
-          <p className="rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+          <p className="bg-muted/50 text-muted-foreground rounded-md px-3 py-2 text-sm">
             {position.currentJuz === null
-              ? `You have memorized all ${TOTAL_MUSHAF_PAGES} pages.`
+              ? `${position.pagesMemorized} of ${TOTAL_MUSHAF_PAGES} pages memorized · no new pages in your active roadmap.`
               : `You're on Juz ${position.currentJuz} · ${position.pagesMemorized} of ${TOTAL_MUSHAF_PAGES} pages memorized.`}
           </p>
         )}
@@ -179,7 +179,7 @@ export function GoalSettings({ className }: GoalSettingsProps) {
               list at its own width, so nothing becomes unreadable at
               the moment of choosing.
             */
-            className="flex h-10 w-full min-w-0 items-center justify-between truncate rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            className="border-input bg-background ring-offset-background focus:ring-ring flex h-12 w-full min-w-0 items-center justify-between truncate rounded-md border px-3 py-2 text-sm focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
           >
             <option value="">{position === null ? "Loading your order…" : "Choose a Juz"}</option>
             {milestones.map((milestone) => (
@@ -195,13 +195,18 @@ export function GoalSettings({ className }: GoalSettingsProps) {
             goal will actually store.
           */}
           {chosen && (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               {describeJuzCovered(covered)} — {chosen.cumulativePages} pages
             </p>
           )}
 
+          <p className="text-muted-foreground text-xs">
+            This milestone sets a total page target. Changing your order does not change the pages
+            you have already learned.
+          </p>
+
           {unmatchedGoal !== null && (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               Your current goal is {unmatchedGoal} pages, which is not a whole Juz. Choosing a Juz
               above will replace it.
             </p>
@@ -265,18 +270,18 @@ export function GoalSettings({ className }: GoalSettingsProps) {
           said plainly, so an empty field does not read as something the
           user has failed to finish.
         */}
-        <p className="text-xs leading-relaxed text-muted-foreground">
+        <p className="text-muted-foreground text-xs leading-relaxed">
           PHOS schedules the same way with or without a goal. It only changes what the Dashboard
           tells you about your pace, and you can remove it at any time.
         </p>
 
         {outcome && (
-          <p role="status" className="text-sm text-muted-foreground">
+          <p role="status" className="text-muted-foreground text-sm">
             {outcome}
           </p>
         )}
         {error && (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-destructive text-sm">
             {error}
           </p>
         )}

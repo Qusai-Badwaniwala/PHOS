@@ -129,13 +129,13 @@ describe("the ladder", () => {
   it("offers Schedule only on a stage that is actually ready", () => {
     render(<ExamLadder stages={overview().stages} onSchedule={jest.fn()} />);
 
-    expect(screen.getAllByRole("button", { name: "Schedule" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "Schedule Juz 30" })).toHaveLength(1);
   });
 
   it("offers nothing to schedule while an exam is already booked", () => {
     render(<ExamLadder stages={overview().stages} onSchedule={null} />);
 
-    expect(screen.queryByRole("button", { name: "Schedule" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Schedule Juz 30" })).not.toBeInTheDocument();
   });
 });
 
@@ -188,6 +188,7 @@ describe("the run-up card", () => {
     render(<ExamRunUpCard runUp={runUp()} onMarkPassed={onMarkPassed} onCancel={jest.fn()} />);
 
     await user.click(screen.getByRole("button", { name: /I passed this exam/ }));
+    await user.click(screen.getByRole("button", { name: "Record passed exam" }));
 
     expect(onMarkPassed).toHaveBeenCalled();
   });
@@ -283,7 +284,7 @@ describe("the exam section", () => {
     // An empty "Exams you have passed" heading on day one would read as
     // a scoreboard with nothing on it.
     render(<ExamSection />);
-    await screen.findByText("Exam roadmap");
+    await screen.findByRole("list", { name: "Exam roadmap" });
 
     expect(screen.queryByText(/Exams you have passed/)).not.toBeInTheDocument();
   });
@@ -307,7 +308,7 @@ describe("the exam section", () => {
     );
 
     render(<ExamSection />);
-    await user.click(await screen.findByRole("button", { name: "Schedule" }));
+    await user.click(await screen.findByRole("button", { name: "Schedule Juz 30" }));
     await user.type(screen.getByLabelText("Exam date"), "2026-12-01");
     await user.click(screen.getByRole("button", { name: "Schedule exam" }));
 
@@ -320,7 +321,7 @@ describe("booking an exam", () => {
     const user = userEvent.setup();
     render(<ExamSection />);
 
-    await user.click(await screen.findByRole("button", { name: "Schedule" }));
+    await user.click(await screen.findByRole("button", { name: "Schedule Juz 30" }));
 
     expect(screen.getByText(/pauses revision outside its scope/)).toBeInTheDocument();
   });
@@ -331,7 +332,7 @@ describe("booking an exam", () => {
     const user = userEvent.setup();
     render(<ExamSection />);
 
-    await user.click(await screen.findByRole("button", { name: "Schedule" }));
+    await user.click(await screen.findByRole("button", { name: "Schedule Juz 30" }));
 
     expect(screen.getByText("Keep memorizing new pages")).toBeInTheDocument();
     expect(screen.getByText("Revision only")).toBeInTheDocument();
@@ -341,7 +342,7 @@ describe("booking an exam", () => {
     const user = userEvent.setup();
     render(<ExamSection />);
 
-    await user.click(await screen.findByRole("button", { name: "Schedule" }));
+    await user.click(await screen.findByRole("button", { name: "Schedule Juz 30" }));
 
     expect(screen.getByRole("button", { name: "Schedule exam" })).toBeDisabled();
   });
@@ -351,7 +352,7 @@ describe("booking an exam", () => {
     scheduleExam.mockResolvedValue(overview());
 
     render(<ExamSection />);
-    await user.click(await screen.findByRole("button", { name: "Schedule" }));
+    await user.click(await screen.findByRole("button", { name: "Schedule Juz 30" }));
     await user.type(screen.getByLabelText("Exam date"), "2026-12-01");
     await user.click(screen.getByRole("button", { name: "Schedule exam" }));
 

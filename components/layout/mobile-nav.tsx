@@ -42,7 +42,7 @@ export function MobileNav() {
         lifting it off the page, and a bright top edge where the light
         catches the material. See `top-nav.tsx` for why the border went.
       */
-      className="material-chrome scroll-edge-top fixed bottom-0 left-0 right-0 z-40 bg-background/70 shadow-raised backdrop-blur-xl backdrop-saturate-150 lg:hidden"
+      className="material-chrome scroll-edge-top bg-background/70 shadow-raised fixed right-0 bottom-0 left-0 z-40 backdrop-blur-xl backdrop-saturate-150 lg:hidden"
       aria-label="Mobile navigation"
       role="navigation"
     >

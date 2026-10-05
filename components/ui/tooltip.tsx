@@ -50,7 +50,7 @@ const TooltipContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTM
       <div
         ref={ref}
         className={cn(
-          "z-50 overflow-hidden rounded-md border bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95",
+          "bg-popover text-popover-foreground animate-in fade-in-0 zoom-in-95 z-50 overflow-hidden rounded-md border px-3 py-1.5 text-sm shadow-md",
           className,
         )}
         {...props}

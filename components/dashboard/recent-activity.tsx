@@ -47,16 +47,16 @@ export function RecentActivity({ activities, className }: RecentActivityProps) {
         {activities.map((activity) => (
           <div
             key={activity.id}
-            className="flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-accent/50"
+            className="hover:bg-accent/50 flex items-center justify-between rounded-lg border p-4 transition-colors"
           >
             <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+              <div className="bg-muted flex h-8 w-8 items-center justify-center rounded-full">
                 <ActivityIcon type={activity.type} />
               </div>
               <div>
                 <p className="text-sm font-medium">{activity.title}</p>
-                {activity.detail && <p className="text-xs text-foreground/80">{activity.detail}</p>}
-                <p className="text-xs text-muted-foreground">{activity.date}</p>
+                {activity.detail && <p className="text-foreground/80 text-xs">{activity.detail}</p>}
+                <p className="text-muted-foreground text-xs">{activity.date}</p>
               </div>
             </div>
             <StatusBadge

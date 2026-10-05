@@ -1,4 +1,27 @@
-# PHOS v1.0 — Phase Progress
+# PHOS — retained build history
+
+> **Current authority, 2026-10-05:** the owner adopted the complete v0.4.0
+> redesigned frontend as the official working app. It was developed in an isolated
+> Git worktree and adopted into the main project. The owner subsequently authorized
+> commit, push and deployment, followed by a storage/reset and full logic audit.
+> Read [HANDOFF.md](HANDOFF.md), [REIMAGINED.md](REIMAGINED.md) and
+> [VERIFICATION.md](VERIFICATION.md) first. The old implementation is recoverable
+> at `d3fe97b`. The old "not a git repository", framework versions, historical gates
+> and phase-resumption instructions below describe earlier work, not present status.
+
+## 2026-10-05 — complete frontend adoption
+
+The official experience is a phone-first study folio with four primary destinations,
+authored light/dark themes, complete focused study, history, analytics, exams,
+settings, guide and recovery. Verified domain algorithms and all capabilities are
+preserved. Five reminders use automatic sequential fades without navigation.
+Full file restore creates a verified safety copy and replaces the record atomically.
+Study writes, session ownership, initialization and asynchronous state were hardened;
+analytics and ordinary daily allowance were corrected. Complete offline builds and
+explicit in-app updates protect an open study. Details and actual verification
+belong to the current authority files linked above.
+
+## Historical PHOS v1.0 phase record
 
 Living status document for the 9-phase delivery of PHOS v1.0. **Read this
 first when resuming work in a new session** — it records what is done, what

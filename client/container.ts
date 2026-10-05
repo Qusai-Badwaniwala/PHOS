@@ -13,6 +13,7 @@ import {
   BrowserSettingsRepository,
 } from "@/repositories/browser";
 import { APPLICATION_VERSION } from "@/shared/constants";
+import { commitBrowserStudy } from "./commit-study";
 
 /**
  * The application container, wired for the browser.
@@ -103,6 +104,7 @@ const learningEngine = new LearningEngine({
   sessionRepository: repositories.sessionRepository,
   recallEventRepository: repositories.recallEventRepository,
   pageRepository: repositories.pageRepository,
+  commitRecall: commitBrowserStudy,
 });
 
 export const container = {

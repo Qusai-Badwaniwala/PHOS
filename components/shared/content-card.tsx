@@ -17,8 +17,8 @@ export function ContentCard({ children, className, as: Tag = "div", id }: Conten
       className={cn(
         // `content-card` carries no styles of its own — it is the hook
         // Compact Mode targets in `globals.css`.
-        "content-card rounded-lg border bg-card text-card-foreground",
-        "p-5 shadow-card md:p-6",
+        "content-card bg-card text-card-foreground rounded-lg border",
+        "p-5 md:p-6",
         className,
       )}
     >

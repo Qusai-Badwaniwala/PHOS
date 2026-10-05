@@ -14,7 +14,7 @@ export function ChartContainer({ title, description, children, className }: Char
     <ContentCard className={cn("flex flex-col", className)}>
       <div className="mb-4">
         <h3 className="font-semibold">{title}</h3>
-        {description && <p className="mt-1 text-xs text-muted-foreground">{description}</p>}
+        {description && <p className="text-muted-foreground mt-1 text-xs">{description}</p>}
       </div>
       <div className="flex min-h-[250px] flex-1 items-center justify-center">{children}</div>
     </ContentCard>

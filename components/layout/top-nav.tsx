@@ -54,7 +54,7 @@ export function TopNav({ onMenuToggle }: TopNavProps) {
       <Button
         variant="ghost"
         size="icon"
-        className="shrink-0 text-muted-foreground hover:text-foreground lg:hidden"
+        className="text-muted-foreground hover:text-foreground shrink-0 lg:hidden"
         onClick={onMenuToggle}
         aria-label="Toggle navigation menu"
         aria-expanded={false}
@@ -64,11 +64,11 @@ export function TopNav({ onMenuToggle }: TopNavProps) {
 
       {/* Page title + subtitle */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <h1 className="truncate text-base font-semibold leading-tight text-foreground">
+        <h1 className="text-foreground truncate text-base leading-tight font-semibold">
           {page.title}
         </h1>
         {page.subtitle && (
-          <p className="hidden truncate text-[11px] leading-tight text-muted-foreground sm:block">
+          <p className="text-muted-foreground hidden truncate text-[11px] leading-tight sm:block">
             {page.subtitle}
           </p>
         )}

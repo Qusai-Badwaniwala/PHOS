@@ -113,7 +113,10 @@ export class AdaptiveEngine implements IAdaptiveEngine {
     this.config = deps.config ?? DEFAULT_ADAPTIVE_CONFIG;
   }
 
-  async generateDailyPlan(availableStudyMinutes: number): Promise<DailyStudyPlan> {
+  async generateDailyPlan(
+    availableStudyMinutes: number,
+    options: { extraNewMemorization?: boolean } = {},
+  ): Promise<DailyStudyPlan> {
     const correlationId = generateCorrelationId();
     validateStudyDuration(availableStudyMinutes, correlationId);
 
@@ -138,6 +141,7 @@ export class AdaptiveEngine implements IAdaptiveEngine {
           eligiblePages,
           availableStudyMinutes,
           referenceDate,
+          options.extraNewMemorization,
         );
       }
 
@@ -162,6 +166,7 @@ export class AdaptiveEngine implements IAdaptiveEngine {
           roadmap,
           availableStudyMinutes,
           referenceDate,
+          options.extraNewMemorization,
         );
       }
 
@@ -191,7 +196,16 @@ export class AdaptiveEngine implements IAdaptiveEngine {
       // break allowed.
       const workload = await this.recommendWorkloadFromHistory(referenceDate);
       const sinceLastNewPage = daysSinceLastNewPage(allPages, referenceDate);
-      const pool = capNewMemorization(afterReturn, workload.recommendedNewPages, sinceLastNewPage);
+      const pool = capNewMemorization(
+        afterReturn,
+        remainingNewAllowance(
+          workload.recommendedNewPages,
+          allPages,
+          referenceDate,
+          options.extraNewMemorization,
+        ),
+        options.extraNewMemorization ? null : sinceLastNewPage,
+      );
 
       // Re-allocated from the reduced pool, so the time freed by holding
       // back new memorization is spent on revision rather than lost.
@@ -400,6 +414,7 @@ export class AdaptiveEngine implements IAdaptiveEngine {
     eligiblePages: readonly Page[],
     availableStudyMinutes: number,
     referenceDate: Date,
+    extraNewMemorization = false,
   ): Promise<DailyStudyPlan> {
     const examPlan = calculateExamPlan(exam, allPages, availableStudyMinutes, referenceDate);
     const dueToday = new Set(examPlan.todaysPageNumbers);
@@ -441,9 +456,18 @@ export class AdaptiveEngine implements IAdaptiveEngine {
         this.config,
         roadmap,
       );
-      newItems = toStudyItems(ranked.slice(0, Math.max(0, workload.recommendedNewPages))).map(
-        (item, index) => ({ ...item, recommendedOrder: examItems.length + index }),
-      );
+      newItems = toStudyItems(
+        capNewMemorization(
+          ranked,
+          remainingNewAllowance(
+            workload.recommendedNewPages,
+            allPages,
+            referenceDate,
+            extraNewMemorization,
+          ),
+          extraNewMemorization ? null : daysSinceLastNewPage(allPages, referenceDate),
+        ),
+      ).map((item, index) => ({ ...item, recommendedOrder: examItems.length + index }));
     }
 
     const studyItems = [...examItems, ...newItems];
@@ -532,6 +556,7 @@ export class AdaptiveEngine implements IAdaptiveEngine {
     roadmap: MemorizationRoadmap | undefined,
     availableStudyMinutes: number,
     referenceDate: Date,
+    extraNewMemorization = false,
   ): Promise<DailyStudyPlan> {
     const cycle = calculateRevisionCycle(
       allPages,
@@ -571,8 +596,13 @@ export class AdaptiveEngine implements IAdaptiveEngine {
     );
     const cappedNew = capNewMemorization(
       newRanked,
-      workload.recommendedNewPages,
-      daysSinceLastNewPage(allPages, referenceDate),
+      remainingNewAllowance(
+        workload.recommendedNewPages,
+        allPages,
+        referenceDate,
+        extraNewMemorization,
+      ),
+      extraNewMemorization ? null : daysSinceLastNewPage(allPages, referenceDate),
     );
     const newItems = toStudyItems(cappedNew).map((item, index) => ({
       ...item,
@@ -1030,4 +1060,23 @@ function explainTraditionalDay(
     headline: `Day ${cycle.dayOfCycle} of your ${cycle.cycleLengthDays}-day revision cycle.`,
     details,
   };
+}
+
+/** The daily allowance is shared by adaptive, cycle and exam scheduling. */
+function remainingNewAllowance(
+  recommended: number,
+  pages: readonly Page[],
+  reference: Date,
+  extra = false,
+): number {
+  if (extra) return Math.max(1, recommended);
+  const start = startOfLocalDay(reference).getTime();
+  const learnedToday = pages.filter(
+    (page) =>
+      page.firstStudiedAt !== null &&
+      page.firstStudiedAt.getTime() >= start &&
+      page.firstStudiedAt.getTime() <= reference.getTime(),
+  ).length;
+  if (recommended < 1) return learnedToday ? 0 : recommended;
+  return Math.max(0, Math.ceil(recommended) - learnedToday);
 }

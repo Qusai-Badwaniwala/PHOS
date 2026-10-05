@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ReportingPeriod } from "@/shared/types";
+import { ReportingPeriod, SessionType } from "@/shared/types";
 import {
   dashboardMetrics,
   historicalReport,
@@ -43,9 +43,7 @@ describe("the date range the user picked", () => {
     ["week", ReportingPeriod.Weekly],
     ["month", ReportingPeriod.Monthly],
     ["all", ReportingPeriod.Overall],
-    // "year" has no engine equivalent; Overall (all-time) is the
-    // closest honest fit and is documented as such.
-    ["year", ReportingPeriod.Overall],
+    ["year", ReportingPeriod.Yearly],
   ] as const)("maps %s onto %s", async (range, expected) => {
     await getAnalytics(range);
 
@@ -58,7 +56,7 @@ describe("the summary figures", () => {
   it("rates completion against every session, finished or not", async () => {
     ops.getHistoricalReport.mockResolvedValue(
       historicalReport([
-        sessionStatistics({ sessionId: "a", completed: true }),
+        sessionStatistics({ sessionId: "a", completed: true, sessionType: SessionType.Sabqi }),
         sessionStatistics({ sessionId: "b", completed: true }),
         sessionStatistics({ sessionId: "c", completed: false }),
         sessionStatistics({ sessionId: "d", completed: false }),
@@ -68,7 +66,7 @@ describe("the summary figures", () => {
     const data = await getAnalytics("month");
 
     expect(data.summary.completionRate).toBe(50);
-    expect(data.summary.revisionCompleted).toBe(2);
+    expect(data.summary.revisionCompleted).toBe(1);
   });
 
   it("averages duration over completed sessions only", async () => {
@@ -85,16 +83,16 @@ describe("the summary figures", () => {
 
     const data = await getAnalytics("month");
 
-    expect(data.summary.averageSessionTime).toBe("10 min");
+    expect(data.summary.averageSessionTime).toBe("10m 0s");
   });
 
   it("survives an empty history without dividing by zero", async () => {
     const data = await getAnalytics("month");
 
-    expect(data.summary.completionRate).toBe(0);
+    expect(data.summary.completionRate).toBeUndefined();
     expect(data.summary.revisionCompleted).toBe(0);
-    // Never "0 min" from a NaN: the floor is one minute.
-    expect(data.summary.averageSessionTime).toBe("1 min");
+    // Unknown is different from a measured zero or an invented minute.
+    expect(data.summary.averageSessionTime).toBeUndefined();
     expect(data.timeline).toEqual([]);
   });
 
@@ -130,7 +128,7 @@ describe("the charts", () => {
 
   it("plots retention as a whole-number percentage of successful recalls", async () => {
     ops.getHistoricalReport.mockResolvedValue(
-      historicalReport([sessionStatistics({ successRatio: 0.666 })]),
+      historicalReport([sessionStatistics({ successRatio: 2 / 3, recallCount: 3 })]),
     );
 
     expect((await getAnalytics("month")).retentionDecay[0]?.value).toBe(67);
@@ -155,7 +153,13 @@ describe("the timeline", () => {
   it("distinguishes a finished session from one still open", async () => {
     ops.getHistoricalReport.mockResolvedValue(
       historicalReport([
-        sessionStatistics({ sessionId: "a", completed: true, pagesCompleted: 3, recallCount: 3 }),
+        sessionStatistics({
+          sessionId: "a",
+          completed: true,
+          pagesCompleted: 3,
+          pageNumbers: [12, 13, 14],
+          recallCount: 3,
+        }),
         sessionStatistics({
           sessionId: "b",
           completed: false,
@@ -167,12 +171,12 @@ describe("the timeline", () => {
     const data = await getAnalytics("month");
 
     expect(data.timeline[0]).toMatchObject({
-      title: "Completed session",
+      title: "Memorization recorded",
       status: "completed",
-      description: "3 page(s), 3 recall(s)",
+      description: "Pages 12–14 · 3 recalls",
     });
     expect(data.timeline[1]).toMatchObject({
-      title: "Session in progress",
+      title: "Memorization in progress",
       status: "pending",
     });
   });

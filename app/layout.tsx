@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { SettingsProvider } from "@/providers/settings-provider";
 import { AppShell } from "@/components/layout/app-shell";
@@ -7,13 +6,6 @@ import { ServiceWorkerRegistration } from "@/components/layout/service-worker-re
 import { StorageBootstrap } from "@/components/layout/storage-bootstrap";
 import { withBasePath } from "@/shared/constants";
 import "./globals.css";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-  preload: true,
-});
 
 export const metadata: Metadata = {
   title: {
@@ -57,16 +49,24 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#EFE9E1" },
-    { media: "(prefers-color-scheme: dark)", color: "#1a1614" },
+    { media: "(prefers-color-scheme: light)", color: "#F4F1EB" },
+    { media: "(prefers-color-scheme: dark)", color: "#161418" },
   ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning className={inter.variable}>
-      <body className="min-h-screen bg-background font-sans antialiased">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem('phos-theme');var d=t==='dark'||((t!=='light')&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.add(d?'dark':'light')}catch(e){}`,
+          }}
+        />
+      </head>
+      <body className="bg-background min-h-screen font-sans antialiased">
         <ServiceWorkerRegistration />
         <StorageBootstrap />
         <ThemeProvider defaultTheme="system">

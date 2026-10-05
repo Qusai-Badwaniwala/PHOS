@@ -1,89 +1,97 @@
 "use client";
-
 import React from "react";
-import { cn } from "@/lib/utils";
+import { useReducedMotion } from "motion/react";
+import { Pause, Play } from "lucide-react";
 import { inspirationalAyahs } from "@/lib/constants/ayahs";
-import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useSettings } from "@/providers/settings-provider";
+import { cn } from "@/lib/utils";
 
-interface InspirationalAyahProps {
-  className?: string;
-}
-
-export function InspirationalAyah({ className }: InspirationalAyahProps) {
+export function InspirationalAyah({ className }: { className?: string }) {
+  const { settings } = useSettings();
+  const reduced = useReducedMotion() || settings.appearance.reducedMotion;
   const [index, setIndex] = React.useState(0);
-  const ayah = inspirationalAyahs[index];
-
-  const next = () => setIndex((i) => (i + 1) % inspirationalAyahs.length);
-  const prev = () =>
-    setIndex((i) => (i - 1 + inspirationalAyahs.length) % inspirationalAyahs.length);
-
-  // `index` is always kept within bounds by next()/prev(), so this is
-  // unreachable in practice; it satisfies the compiler without
-  // suppressing the check, and degrades safely if the ayah list is ever
-  // empty.
-  if (!ayah) return null;
-
+  const [paused, setPaused] = React.useState(false);
+  const [visible, setVisible] = React.useState(true);
+  const [onScreen, setOnScreen] = React.useState(true);
+  const [phase, setPhase] = React.useState("in");
+  const root = React.useRef<HTMLElement>(null);
+  React.useEffect(() => {
+    const visibility = () => setVisible(document.visibilityState !== "hidden");
+    document.addEventListener("visibilitychange", visibility);
+    visibility();
+    const observer =
+      typeof IntersectionObserver === "undefined"
+        ? null
+        : new IntersectionObserver(([entry]) => setOnScreen(entry?.isIntersecting ?? false), {
+            threshold: 0.25,
+          });
+    if (root.current) observer?.observe(root.current);
+    return () => {
+      document.removeEventListener("visibilitychange", visibility);
+      observer?.disconnect();
+    };
+  }, []);
+  React.useEffect(() => {
+    if (paused || reduced || !visible || !onScreen) {
+      setPhase("in");
+      return;
+    }
+    let fade: ReturnType<typeof setTimeout>;
+    const dwell = setTimeout(() => {
+      setPhase("out");
+      fade = setTimeout(() => {
+        setIndex((i) => (i + 1) % inspirationalAyahs.length);
+        setPhase("in");
+      }, 400);
+    }, 8000);
+    return () => {
+      clearTimeout(dwell);
+      clearTimeout(fade);
+    };
+  }, [index, paused, reduced, visible, onScreen]);
   return (
     <figure
-      className={cn(
-        "relative rounded-xl border bg-card",
-        "px-6 py-8 text-center shadow-card md:px-10 md:py-10",
-        className,
-      )}
-      aria-label="Inspirational Ayah"
+      ref={root}
+      aria-label="A reminder from the Quran"
+      className={cn("folio-section text-center", className)}
     >
-      <div className="mx-auto max-w-3xl space-y-5">
-        {/* Arabic text */}
-        <blockquote>
-          <p
-            className="text-2xl font-medium leading-[2.5] text-foreground md:text-3xl"
-            dir="rtl"
-            lang="ar"
+      {/* All verses occupy the same grid cell, reserving the tallest one's height at every width. Hidden verses are absent from the accessibility tree. */}
+      <div className="ayah-stack mx-auto max-w-[600px]">
+        {inspirationalAyahs.map((ayah, i) => (
+          <div
+            key={ayah.id}
+            aria-hidden={i !== index}
+            className="py-3"
+            style={{
+              visibility: i === index ? "visible" : "hidden",
+              opacity: i === index && phase === "in" ? 1 : 0,
+              transition: reduced ? "none" : `opacity ${phase === "out" ? 400 : 450}ms ease-in-out`,
+            }}
           >
-            {ayah.arabic}
-          </p>
-        </blockquote>
-
-        {/* Translation */}
-        <p className="mx-auto max-w-2xl text-sm leading-relaxed text-muted-foreground md:text-base">
-          {ayah.translation}
-        </p>
-
-        {/* Reference */}
-        <figcaption className="text-xs font-medium tracking-wide text-muted-foreground/70">
-          {ayah.surah} · {ayah.reference}
-        </figcaption>
+            <blockquote lang="ar" dir="rtl" className="text-[25px] leading-[2] md:text-[28px]">
+              {ayah.arabic}
+            </blockquote>
+            <p className="text-muted-foreground mx-auto mt-4 max-w-lg text-sm leading-relaxed">
+              {ayah.translation}
+            </p>
+            <p className="text-muted-foreground mt-3 text-xs">
+              {ayah.surah} · {ayah.reference}
+            </p>
+          </div>
+        ))}
       </div>
-
-      {/* Navigation */}
-      <div
-        className="mt-6 flex items-center justify-center gap-2"
-        role="navigation"
-        aria-label="Ayah navigation"
-      >
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-foreground"
-          onClick={prev}
-          aria-label="Previous ayah"
+      {!reduced && (
+        <button
+          type="button"
+          aria-label={paused ? "Resume changing reminders" : "Pause changing reminders"}
+          aria-pressed={paused}
+          onClick={() => setPaused((p) => !p)}
+          className="text-muted-foreground mx-auto flex min-h-11 items-center gap-2 px-3 text-xs"
         >
-          <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-        </Button>
-        <span className="w-12 text-center text-xs tabular-nums text-muted-foreground">
-          {index + 1} / {inspirationalAyahs.length}
-        </span>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-foreground"
-          onClick={next}
-          aria-label="Next ayah"
-        >
-          <ChevronRight className="h-4 w-4" aria-hidden="true" />
-        </Button>
-      </div>
+          {paused ? <Play size={12} /> : <Pause size={12} />}
+          <span>{paused ? "Reminders paused" : "A moment to reflect"}</span>
+        </button>
+      )}
     </figure>
   );
 }

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ReportingPeriod, WorkloadCategory } from "@/shared/types";
+import { ReportingPeriod, WorkloadCategory, SessionType } from "@/shared/types";
 import {
   dailyPlan,
   dashboardMetrics,
@@ -433,7 +433,7 @@ describe("the goal card", () => {
 });
 
 describe("the weekly review", () => {
-  it("reports the week from the engine's own figures", async () => {
+  it("reports new pages separately from repeated revision pages", async () => {
     ops.getDashboard.mockResolvedValue(
       dashboardMetrics({
         weeklyProgress: {
@@ -446,10 +446,16 @@ describe("the weekly review", () => {
       }),
     );
 
+    ops.getHistoricalReport.mockResolvedValue(
+      historicalReport([
+        sessionStatistics({ sessionType: SessionType.Sabaq, pagesCompleted: 2 }),
+        sessionStatistics({ sessionType: SessionType.Sabqi, pagesCompleted: 10 }),
+      ]),
+    );
     const review = (await getDashboardData()).weeklyReview;
 
     expect(review).toMatchObject({
-      pagesCompleted: 12,
+      pagesCompleted: 2,
       sessionsCompleted: 5,
       recallsRecorded: 63,
       recallTrend: "Steady",

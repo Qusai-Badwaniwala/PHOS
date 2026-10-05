@@ -29,7 +29,48 @@ import { container } from "../container";
 export async function getActiveSession(): Promise<ActiveSessionDTO | null> {
   const active = await container.learningEngine.findActiveSession();
   if (!active) return null;
-  return toActiveSessionDTO(active.session, active.completedPageIds);
+  return {
+    ...toActiveSessionDTO(active.session, active.completedPageIds),
+    studyDraft: active.session.studyDraft,
+  };
+}
+
+export async function saveStudyFeedback(
+  sessionId: string,
+  weakPageIds: string[],
+  paused: boolean,
+): Promise<void> {
+  const session = await container.sessionRepository.findById(sessionId);
+  if (!session || !session.studyDraft)
+    throw new Error("The saved study assignment could not be read.");
+  if (weakPageIds.some((id) => !session.studyDraft!.pageIds.includes(id)))
+    throw new Error("A flagged page is outside this assignment.");
+  await container.sessionRepository.saveStudyDraft(sessionId, {
+    ...session.studyDraft,
+    weakPageIds,
+    paused,
+  });
+}
+
+export async function getStudyReceipt(
+  sessionId: string,
+): Promise<SessionSummaryDTO & { weakPages: number }> {
+  validateIdentifier(sessionId, "sessionId", generateCorrelationId());
+  const session = await container.sessionRepository.findById(sessionId);
+  if (!session?.completedAt) throw new Error("This study record has not been saved yet.");
+  const [items, recalls] = await Promise.all([
+    container.sessionRepository.findSessionItems(sessionId),
+    container.recallEventRepository.findBySession(sessionId),
+  ]);
+  return {
+    sessionId,
+    sessionType: session.sessionType,
+    pagesCompleted: items.length,
+    totalRecallEvents: recalls.length,
+    durationSeconds: session.durationSeconds ?? 0,
+    completedAt: session.completedAt.toISOString(),
+    weakPages: recalls.filter((recall) => !recall.successfulRecall).length,
+  };
 }
 
 /**
@@ -40,7 +81,10 @@ export async function getActiveSession(): Promise<ActiveSessionDTO | null> {
  * stored settings, so a corrupted or hand-edited value would otherwise
  * reach the Adaptive Engine as a study budget of `NaN`.
  */
-export async function getTodayPlan(availableStudyMinutes: number): Promise<DailyStudyPlanDTO> {
+export async function getTodayPlan(
+  availableStudyMinutes: number,
+  extraNewMemorization = false,
+): Promise<DailyStudyPlanDTO> {
   const correlationId = generateCorrelationId();
   const minutes = validateNumericRange(
     availableStudyMinutes,
@@ -49,12 +93,15 @@ export async function getTodayPlan(availableStudyMinutes: number): Promise<Daily
     correlationId,
   );
 
-  return toDailyStudyPlanDTO(await container.adaptiveEngine.generateDailyPlan(minutes));
+  return toDailyStudyPlanDTO(
+    await container.adaptiveEngine.generateDailyPlan(minutes, { extraNewMemorization }),
+  );
 }
 
 export async function startSession(
   sessionType: SessionType,
   availableStudyMinutes: number,
+  extraNewMemorization = false,
 ): Promise<SessionStartResponseDTO> {
   const correlationId = generateCorrelationId();
   const minutes = validateNumericRange(
@@ -65,7 +112,7 @@ export async function startSession(
   );
 
   const session = await container.learningEngine.startSession(sessionType);
-  const plan = await container.learningEngine.loadDailyPlan(minutes);
+  const plan = await container.learningEngine.loadDailyPlan(minutes, { extraNewMemorization });
 
   return toSessionStartResponseDTO(session, plan);
 }

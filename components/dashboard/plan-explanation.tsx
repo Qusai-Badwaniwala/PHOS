@@ -28,13 +28,13 @@ export function PlanExplanationCard({ explanation, className }: PlanExplanationC
   return (
     <ContentCard className={cn(className)}>
       <div className="flex gap-3">
-        <Lightbulb className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <Lightbulb className="text-muted-foreground mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
         <div className="space-y-2">
           <p className="text-sm font-medium">{explanation.headline}</p>
           {explanation.details.length > 0 && (
             <ul className="space-y-1.5">
               {explanation.details.map((detail) => (
-                <li key={detail} className="text-sm leading-relaxed text-muted-foreground">
+                <li key={detail} className="text-muted-foreground text-sm leading-relaxed">
                   {detail}
                 </li>
               ))}

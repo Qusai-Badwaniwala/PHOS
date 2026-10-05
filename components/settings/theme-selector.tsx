@@ -24,28 +24,31 @@ export function ThemeSelector({ className }: ThemeSelectorProps) {
         variant={theme === "light" ? "secondary" : "outline"}
         size="sm"
         onClick={() => setTheme("light")}
+        aria-pressed={theme === "light"}
         className="gap-2"
       >
         <Sun className="h-4 w-4" />
-        <span className="hidden sm:inline">Light</span>
+        <span>Light</span>
       </Button>
       <Button
         variant={theme === "dark" ? "secondary" : "outline"}
         size="sm"
         onClick={() => setTheme("dark")}
+        aria-pressed={theme === "dark"}
         className="gap-2"
       >
         <Moon className="h-4 w-4" />
-        <span className="hidden sm:inline">Dark</span>
+        <span>Dark</span>
       </Button>
       <Button
         variant={theme === "system" ? "secondary" : "outline"}
         size="sm"
         onClick={() => setTheme("system")}
+        aria-pressed={theme === "system"}
         className="gap-2"
       >
         <Laptop className="h-4 w-4" />
-        <span className="hidden sm:inline">System</span>
+        <span>System</span>
       </Button>
     </div>
   );

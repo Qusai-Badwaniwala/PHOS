@@ -1,4 +1,6 @@
 import { generateCorrelationId } from "@/shared/utils";
+import { MemoryState } from "@/shared/types";
+import { getDatabase } from "@/repositories/browser";
 import { canReadFormat, EXPORT_FORMAT_VERSION, TOTAL_MUSHAF_PAGES } from "@/shared/constants";
 import type {
   BackupCreationResult,
@@ -23,6 +25,7 @@ import {
   byteLength,
   computeChecksum,
   serializeSnapshot,
+  readSnapshot,
   writeSnapshot,
   type StoredBackup,
 } from "@/repositories/browser";
@@ -36,6 +39,7 @@ import {
 import { EPOCH_START, FAR_FUTURE } from "../constants";
 import type { BackupVerificationResult, PhosExportData } from "../models";
 import type { BrowserExportResult, IBrowserPersistenceEngine } from "./IBrowserPersistenceEngine";
+import { preparePortableRestore } from "./portable";
 
 export interface BrowserPersistenceEngineDependencies {
   readonly pageRepository: IPageRepository;
@@ -262,7 +266,10 @@ export class BrowserPersistenceEngine implements IBrowserPersistenceEngine {
       );
 
       const exportedAt = new Date();
+      const snapshot = await readSnapshot();
       const content: PhosExportData = {
+        snapshot,
+        checksum: await computeChecksum(serializeSnapshot(snapshot)),
         applicationVersion: this.deps.applicationVersion,
         formatVersion: EXPORT_FORMAT_VERSION,
         exportedAt: exportedAt.toISOString(),
@@ -286,128 +293,29 @@ export class BrowserPersistenceEngine implements IBrowserPersistenceEngine {
     }
   }
 
-  /**
-   * Imports a previously exported PHOS data file, given its contents.
-   *
-   * Known limitations, documented rather than silently assumed — both
-   * carried over unchanged from the SQL implementation, because they
-   * come from SDS Part 9's repository contracts rather than from the
-   * storage engine:
-   * - No cross-repository transaction wrapper exists, so the apply step
-   *   is best-effort sequential rather than atomically all-or-nothing.
-   * - Sessions, SessionItems and RecallEvents are recreated fresh, so
-   *   importing the same file twice duplicates historical records.
-   */
+  /** Full file restore: validate, verify a safety copy, replace atomically. */
   async importData(fileContents: string): Promise<ImportResult> {
     const correlationId = generateCorrelationId();
-    const validationErrors: string[] = [];
-
-    let parsed: unknown;
+    const prepared = await preparePortableRestore(fileContents);
+    if (!prepared.snapshot)
+      return { success: false, validationErrors: prepared.errors, importedAt: null };
+    const safetyBackup = await this.createBackup();
     try {
-      parsed = JSON.parse(fileContents);
-    } catch {
-      return { success: false, validationErrors: ["File is not valid JSON."], importedAt: null };
-    }
-
-    const candidate = parsed as Partial<PhosExportData>;
-    if (typeof candidate.applicationVersion !== "string") {
-      validationErrors.push('Missing or invalid "applicationVersion".');
-    }
-    // See `restoreBackup()`: compatibility is a property of the data
-    // format, and files older than this field are all format 1.
-    if (!canReadFormat(candidate.formatVersion)) {
-      validationErrors.push(
-        `This file was written in data format ${candidate.formatVersion}, which this version of PHOS (format ${EXPORT_FORMAT_VERSION}) cannot read. Update PHOS and try again.`,
-      );
-    }
-    if (!Array.isArray(candidate.pages)) validationErrors.push('Missing or invalid "pages".');
-    if (!Array.isArray(candidate.sessions)) validationErrors.push('Missing or invalid "sessions".');
-    if (!Array.isArray(candidate.sessionItems)) {
-      validationErrors.push('Missing or invalid "sessionItems".');
-    }
-    if (!Array.isArray(candidate.recallEvents)) {
-      validationErrors.push('Missing or invalid "recallEvents".');
-    }
-    if (!candidate.settings || typeof candidate.settings !== "object") {
-      validationErrors.push('Missing or invalid "settings".');
-    }
-
-    // Invalid imports fail before modifying the existing database.
-    if (validationErrors.length > 0) {
-      return { success: false, validationErrors, importedAt: null };
-    }
-
-    const data = candidate as PhosExportData;
-
-    try {
-      for (const page of data.pages) {
-        const existing = await this.deps.pageRepository.findByPageNumber(page.pageNumber);
-        if (!existing) continue;
-
-        await this.deps.pageRepository.updateMemoryState(existing.id, page.memoryState);
-        await this.deps.pageRepository.updateMemoryVariables(existing.id, {
-          memoryStrength: page.memoryStrength,
-          memoryStability: page.memoryStability,
-          difficulty: page.difficulty,
-        });
-        if (page.lastReviewedAt) {
-          await this.deps.pageRepository.updateReviewTimestamps(existing.id, {
-            lastReviewedAt: new Date(page.lastReviewedAt),
-            ...(page.lastSuccessfulRecallAt
-              ? { lastSuccessfulRecallAt: new Date(page.lastSuccessfulRecallAt) }
-              : {}),
-          });
-        }
-      }
-
-      const sessionIdRemap = new Map<string, string>();
-      for (const session of data.sessions) {
-        const created = await this.deps.sessionRepository.create({
-          sessionType: session.sessionType,
-        });
-        sessionIdRemap.set(session.id, created.id);
-        if (session.completedAt) {
-          await this.deps.sessionRepository.complete(created.id);
-        }
-      }
-
-      for (const item of data.sessionItems) {
-        const remappedSessionId = sessionIdRemap.get(item.sessionId);
-        if (!remappedSessionId) continue;
-        await this.deps.sessionRepository.addSessionItem({
-          sessionId: remappedSessionId,
-          pageId: item.pageId,
-          order: item.order,
-        });
-      }
-
-      for (const event of data.recallEvents) {
-        const remappedSessionId = sessionIdRemap.get(event.sessionId) ?? event.sessionId;
-        await this.deps.recallEventRepository.create({
-          pageId: event.pageId,
-          sessionId: remappedSessionId,
-          timestamp: new Date(event.timestamp),
-          successfulRecall: event.successfulRecall,
-          confidence: event.confidence,
-          durationSeconds: event.durationSeconds,
-        });
-      }
-
-      await this.deps.settingsRepository.updatePersonalization({
-        theme: data.settings.theme,
-        ayahRotationFrequency: data.settings.ayahRotationFrequency,
-      });
-
-      return { success: true, validationErrors: [], importedAt: new Date() };
+      await writeSnapshot(prepared.snapshot);
+      return {
+        success: true,
+        validationErrors: [],
+        importedAt: new Date(),
+        safetyBackupId: safetyBackup.metadata.id,
+      };
     } catch (error) {
       throw new ImportValidationError(
-        "Import validation passed but applying the data failed.",
+        "Restore failed. The replacement transaction was rolled back; your safety copy remains available.",
         correlationId,
-        { cause: describeError(error) },
+        { cause: describeError(error), safetyBackupId: safetyBackup.metadata.id },
       );
     }
   }
-
   async verifyBackup(backupId: string): Promise<BackupVerificationResult> {
     const record = await this.deps.backupRepository.findRecord(backupId);
     if (!record) {
@@ -508,11 +416,53 @@ export class BrowserPersistenceEngine implements IBrowserPersistenceEngine {
    */
   async resetAllData(): Promise<DataResetResult> {
     const safetyBackup = await this.createBackup();
-
-    const deletedRecallEvents = await this.deps.recallEventRepository.deleteAll();
-    const deletedSessions = await this.deps.sessionRepository.deleteAllSessions();
-    const resetPages = await this.deps.pageRepository.resetAllProgress();
-    const deletedExams = (await this.deps.examRepository?.deleteAll()) ?? 0;
+    // Reset uses the same page defaults as PageRepository.resetAllProgress.
+    // Recovery is an all-or-nothing record operation, as snapshot restore is.
+    const db = await getDatabase();
+    const tx = db.transaction(
+      ["pages", "sessions", "sessionItems", "recallEvents", "exams"],
+      "readwrite",
+    );
+    void tx.done.catch(() => undefined);
+    let deletedRecallEvents = 0,
+      deletedSessions = 0,
+      deletedExams = 0,
+      resetPages = 0;
+    try {
+      const pages = await tx.objectStore("pages").getAll();
+      deletedRecallEvents = await tx.objectStore("recallEvents").count();
+      deletedSessions = await tx.objectStore("sessions").count();
+      deletedExams = await tx.objectStore("exams").count();
+      resetPages = pages.length;
+      const updatedAt = new Date().toISOString();
+      await Promise.all([
+        ...(["recallEvents", "sessionItems", "sessions", "exams"] as const).map(async (store) =>
+          tx.objectStore(store).clear(),
+        ),
+        ...pages.map(async (page) =>
+          tx.objectStore("pages").put({
+            ...page,
+            memoryState: MemoryState.Unseen,
+            memoryStrength: 0,
+            memoryStability: 0,
+            difficulty: 0,
+            firstStudiedAt: null,
+            lastReviewedAt: null,
+            lastSuccessfulRecallAt: null,
+            updatedAt,
+          }),
+        ),
+      ]);
+      await tx.done;
+    } catch (error) {
+      try {
+        tx.abort();
+      } catch {
+        /* Already aborted. */
+      }
+      await tx.done.catch(() => undefined);
+      throw error;
+    }
 
     return {
       safetyBackupId: safetyBackup.metadata.id,

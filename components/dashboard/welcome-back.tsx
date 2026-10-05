@@ -23,9 +23,9 @@ export function WelcomeBack({ message, className }: WelcomeBackProps) {
   return (
     <div
       role="status"
-      className={cn("flex gap-3 rounded-lg border border-primary/25 bg-primary/5 p-4", className)}
+      className={cn("border-primary/25 bg-primary/5 flex gap-3 rounded-lg border p-4", className)}
     >
-      <HandHeart className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+      <HandHeart className="text-primary mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
       <p className="text-sm leading-relaxed">{message}</p>
     </div>
   );

@@ -14,16 +14,16 @@ export function StatCard({ title, value, description, trend, className }: StatCa
   return (
     <div
       className={cn(
-        "rounded-lg border bg-card text-card-foreground shadow-card",
+        "bg-card text-card-foreground shadow-card rounded-lg border",
         "flex flex-col gap-1 p-5 md:p-6",
         className,
       )}
       role="group"
       aria-label={`${title}: ${value}`}
     >
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{title}</p>
+      <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">{title}</p>
       <div className="mt-1 flex items-baseline gap-2">
-        <span className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+        <span className="text-foreground text-2xl font-bold tracking-tight md:text-3xl">
           {value}
         </span>
         {trend && (
@@ -43,7 +43,7 @@ export function StatCard({ title, value, description, trend, className }: StatCa
         )}
       </div>
       {description && (
-        <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{description}</p>
+        <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">{description}</p>
       )}
     </div>
   );

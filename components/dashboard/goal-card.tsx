@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { ContentCard } from "@/components/shared/content-card";
+
 import { ProgressBar } from "@/components/shared/progress-bar";
 import { Target } from "lucide-react";
 import type { GoalCardDTO } from "@/types/dto";
@@ -26,33 +26,33 @@ interface GoalCardProps {
 export function GoalCard({ goal, className }: GoalCardProps) {
   if (!goal) {
     return (
-      <ContentCard className={cn(className)}>
+      <section aria-label="Your goal" className={cn("folio-section", className)}>
         <div className="flex gap-3">
-          <Target className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <Target className="text-muted-foreground mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
           <div>
             <h3 className="text-sm font-medium">Set a goal, if you want one</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="text-muted-foreground mt-1 text-sm">
               Tell PHOS how many pages you want memorized and by when, and it will tell you where
               your real pace is heading.{" "}
-              <Link href="/settings#goal" className="font-medium text-primary hover:underline">
+              <Link href="/settings#goal" className="text-primary font-medium hover:underline">
                 Set a goal
               </Link>
             </p>
           </div>
         </div>
-      </ContentCard>
+      </section>
     );
   }
 
   return (
-    <ContentCard className={cn(className)}>
+    <section aria-label="Your goal" className={cn("folio-section", className)}>
       <div className="mb-3 flex items-center gap-2">
-        <Target className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+        <Target className="text-muted-foreground h-5 w-5" aria-hidden="true" />
         <h3 className="font-semibold">Your goal</h3>
       </div>
 
       <div className="space-y-3">
-        <p className="text-sm leading-relaxed text-foreground">{goal.summary}</p>
+        <p className="text-foreground text-sm leading-relaxed">{goal.summary}</p>
 
         <ProgressBar
           value={goal.pagesMemorized}
@@ -61,7 +61,7 @@ export function GoalCard({ goal, className }: GoalCardProps) {
           size="sm"
         />
 
-        <p className="text-xs text-muted-foreground">
+        <p className="text-muted-foreground text-xs">
           Goal: {goal.targetPages} pages by {goal.targetDate}
         </p>
 
@@ -71,11 +71,11 @@ export function GoalCard({ goal, className }: GoalCardProps) {
           than the summary on purpose — it is context, not a warning.
         */}
         {goal.note && (
-          <p className="border-l-2 border-border pl-3 text-xs leading-relaxed text-muted-foreground">
+          <p className="border-border text-muted-foreground border-l-2 pl-3 text-xs leading-relaxed">
             {goal.note}
           </p>
         )}
       </div>
-    </ContentCard>
+    </section>
   );
 }

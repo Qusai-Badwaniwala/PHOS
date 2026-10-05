@@ -1,25 +1,32 @@
-# Development Workflow
+# Development workflow
 
-This document details the day-to-day workflow for building and testing PHOS.
+Read [HANDOFF.md](HANDOFF.md) and [REIMAGINED.md](REIMAGINED.md) first.
+Work in an isolated branch/worktree for significant changes. Never clear a user's
+browser record to get a clean test fixture; use a new preview port.
 
-## Local Development
+```bash
+npm install
+npm run dev
+npm run format
+npm run gate
+```
 
-_(To be populated in Sprint 1 when Next.js is configured and bootstrap scripts are created.)_
+`gate` covers formatting, lint, types, Vitest, Jest, production build, and precache
+verification. Add a meaningful regression for data integrity or state-transition
+repairs. Verify failure before correction where feasible. Avoid tests that merely
+repeat presentation implementation. Use real-browser complete journeys in the
+production export; `next dev` cannot prove offline behavior or update safety.
 
-## Testing Philosophy
+```bash
+npm run build
+npm run preview
+```
 
-Tests in PHOS are intended to provide confidence without adding excessive complexity.
+Validate 320px and 390px phone widths, tablet and desktop adaptations, both themes,
+keyboard/focus, reduced motion, reload, export/restore, and waiting updates when
+changes affect them. Physical-device claims require physical-device evidence.
 
-- **Unit Tests:** Should cover pure functions in the engines.
-- **Integration Tests:** Should verify database interactions (Prisma/SQLite) without touching the UI.
-- **UI Tests:** Minimal tests ensuring correct rendering.
-
-_(Test framework configuration will be added in Sprint 2)._
-
-## Code Quality Checks
-
-Before committing code, ensure:
-
-1. Formatting is compliant (`npm run format` - _coming soon_)
-2. Linting passes (`npm run lint` - _coming soon_)
-3. Tests pass (`npm run test` - _coming soon_)
+For `/PHOS` deployment, set `PHOS_BASE_PATH=/PHOS` while building and running
+`scripts/verify-base-path.mjs`. Rebuild without it before serving a root preview.
+Do not force dependency downgrades to hide an advisory. Keep durable documentation
+aligned with the implementation and state any unresolved validation boundary.

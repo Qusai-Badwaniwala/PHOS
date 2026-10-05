@@ -303,6 +303,32 @@ export async function getDashboardData(): Promise<DashboardDTO> {
   return {
     session,
     revision,
+    revisionAssignments: [SessionType.Recovery, SessionType.Sabqi, SessionType.Manzil].flatMap(
+      (type) => {
+        const items = allRevisionItems.filter((item) =>
+          SESSION_TYPE_WORKLOAD_CATEGORIES[type].some(
+            (category) => category === item.workloadCategory,
+          ),
+        );
+        if (!items.length) return [];
+        return [
+          {
+            id: items[0]!.pageId,
+            status: "not_started" as const,
+            assignment: {
+              type: toRevisionType(items[0]!.workloadCategory),
+              pages: items.map((item) => `Page ${item.pageNumber}`),
+              totalPages: items.length,
+              juzCovered: [...new Set(items.map((item) => item.juzNumber))].sort((a, b) => a - b),
+            },
+            progress: { current: 0, total: items.length },
+            estimatedTime: formatEstimatedTime(
+              items.reduce((sum, item) => sum + item.estimatedDuration, 0),
+            ),
+          },
+        ];
+      },
+    ),
     stats: {
       memorizedPages: dashboard.dashboardStatistics.totalPagesMemorized,
       // All revision work scheduled today, across every category — this
@@ -342,7 +368,9 @@ export async function getDashboardData(): Promise<DashboardDTO> {
      * unverified account of the user's progress is worse than none.
      */
     weeklyReview: {
-      pagesCompleted: dashboard.weeklyProgress.completedPages,
+      pagesCompleted: weekHistory.sessions
+        .filter((session) => session.sessionType === SessionType.Sabaq)
+        .reduce((sum, session) => sum + session.pagesCompleted, 0),
       sessionsCompleted: dashboard.weeklyProgress.completedSessions,
       recallsRecorded: dashboard.weeklyProgress.recallEvents,
       recallTrend: weekTrend.trendDirection,

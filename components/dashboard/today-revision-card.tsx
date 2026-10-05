@@ -24,7 +24,7 @@ export function TodayRevisionCard({
   return (
     <article
       className={cn(
-        "rounded-xl border bg-card text-card-foreground shadow-card",
+        "bg-card text-card-foreground shadow-card rounded-xl border",
         "flex h-full flex-col gap-5 p-5 md:p-6",
         className,
       )}
@@ -33,12 +33,12 @@ export function TodayRevisionCard({
       {/* Card Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary">
-            <RotateCcw className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+          <div className="bg-secondary flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
+            <RotateCcw className="text-muted-foreground h-5 w-5" aria-hidden="true" />
           </div>
           <div>
-            <h3 className="text-base font-semibold text-foreground">Revision</h3>
-            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            <h3 className="text-foreground text-base font-semibold">Revision</h3>
+            <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
               Dhor &amp; Sabqi
             </p>
           </div>
@@ -50,14 +50,14 @@ export function TodayRevisionCard({
 
       {/* Assignment */}
       <div className="flex-1 space-y-1.5">
-        <p className="text-xs font-medium text-muted-foreground">Today&apos;s Queue</p>
-        <p className="text-lg font-semibold leading-snug text-foreground">
+        <p className="text-muted-foreground text-xs font-medium">Today&apos;s Queue</p>
+        <p className="text-foreground text-lg leading-snug font-semibold">
           {hasAssignment
             ? `${revision!.assignment!.totalPages ?? revision!.assignment!.pages?.length ?? 0} pages scheduled`
             : "No pages scheduled"}
         </p>
         {revision?.assignment?.type && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             <span className="capitalize">{revision.assignment.type.replace("_", " ")}</span>
             {/*
               `surah` and `juzNumber` are present only when the pages are

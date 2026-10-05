@@ -43,11 +43,11 @@ export function StorageNotice() {
   return (
     <ContentCard as="section">
       <div className="flex gap-3">
-        <HardDrive className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <HardDrive className="text-muted-foreground mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
         <div className="min-w-0 flex-1 space-y-3">
           <div>
             <h2 className="text-sm font-medium">Where your progress is kept</h2>
-            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+            <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
               Everything PHOS knows about your Hifz is stored in this browser, on this device. It is
               never sent anywhere, and no account exists that could reach it — which also means
               clearing this browser&apos;s data for PHOS would erase it, and nobody could restore it
@@ -58,9 +58,9 @@ export function StorageNotice() {
           {report && report.persistence !== "unsupported" && (
             <div className="flex items-start gap-2 text-sm">
               {persistent ? (
-                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden="true" />
+                <ShieldCheck className="text-success mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
               ) : (
-                <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-gold" aria-hidden="true" />
+                <ShieldAlert className="text-gold mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
               )}
               <p className="text-muted-foreground">
                 {persistent

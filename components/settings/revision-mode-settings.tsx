@@ -90,7 +90,7 @@ export function RevisionModeSettings({ className }: RevisionModeSettingsProps) {
         <fieldset className="space-y-3">
           <legend className="sr-only">Revision scheduling</legend>
 
-          <label className="flex gap-3 rounded-md border border-border p-3 text-sm">
+          <label className="border-border flex gap-3 rounded-md border p-3 text-sm">
             <input
               type="radio"
               name="revision-mode"
@@ -106,14 +106,14 @@ export function RevisionModeSettings({ className }: RevisionModeSettingsProps) {
             />
             <span>
               <span className="font-medium">PHOS decides (recommended)</span>
-              <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
+              <span className="text-muted-foreground mt-0.5 block text-xs leading-relaxed">
                 Revises whatever is closest to being forgotten. Fewer pages a day for the same
                 retention, because the effort follows what your recall actually shows.
               </span>
             </span>
           </label>
 
-          <label className="flex gap-3 rounded-md border border-border p-3 text-sm">
+          <label className="border-border flex gap-3 rounded-md border p-3 text-sm">
             <input
               type="radio"
               name="revision-mode"
@@ -133,7 +133,7 @@ export function RevisionModeSettings({ className }: RevisionModeSettingsProps) {
             />
             <span>
               <span className="font-medium">A fixed cycle</span>
-              <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
+              <span className="text-muted-foreground mt-0.5 block text-xs leading-relaxed">
                 Rotates through everything you have memorized, in your own order, on a repeating
                 schedule — the way most Hifz institutions teach. Choose this if your teacher sets a
                 cycle, or if a predictable daily portion suits you better.
@@ -143,7 +143,7 @@ export function RevisionModeSettings({ className }: RevisionModeSettingsProps) {
         </fieldset>
 
         {isTraditional && (
-          <div className="space-y-4 border-l-2 border-border pl-4">
+          <div className="border-border space-y-4 border-l-2 pl-4">
             <div className="space-y-2">
               <label htmlFor="cycle-length" className="text-sm font-medium">
                 Days for a full pass
@@ -184,7 +184,7 @@ export function RevisionModeSettings({ className }: RevisionModeSettingsProps) {
                 <p className="font-medium">
                   Day {cycle.dayOfCycle} of {cycle.cycleLengthDays}
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-muted-foreground text-xs">
                   {cycle.pagesInCycle} pages memorized, about {cycle.pagesPerDay} a day.
                   {cycle.passesCompleted > 0 &&
                     ` ${cycle.passesCompleted} full ${cycle.passesCompleted === 1 ? "pass" : "passes"} so far.`}
@@ -197,7 +197,7 @@ export function RevisionModeSettings({ className }: RevisionModeSettingsProps) {
                   problem.
                 */}
                 {cycle.exceedsDailyBudget && (
-                  <p className="text-xs leading-relaxed text-muted-foreground">
+                  <p className="text-muted-foreground text-xs leading-relaxed">
                     That is roughly {cycle.estimatedMinutesPerDay} minutes a day, more than the time
                     you set aside.
                     {cycle.suggestedCycleLengthDays
@@ -226,19 +226,19 @@ export function RevisionModeSettings({ className }: RevisionModeSettingsProps) {
           memorization is the thing users most fear a "revision cycle"
           will silently switch off.
         */}
-        <p className="text-xs leading-relaxed text-muted-foreground">
+        <p className="text-muted-foreground text-xs leading-relaxed">
           Either way, new memorization is unaffected — PHOS keeps pacing it from what your recall
           shows. This changes only how revision is chosen. An exam, while one is scheduled, takes
           precedence over both.
         </p>
 
         {outcome && (
-          <p role="status" className="text-sm text-muted-foreground">
+          <p role="status" className="text-muted-foreground text-sm">
             {outcome}
           </p>
         )}
         {error && (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-destructive text-sm">
             {error}
           </p>
         )}

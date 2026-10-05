@@ -121,7 +121,7 @@ describe("while the action is running", () => {
     // The work continues whether or not the dialog is visible, so
     // hiding it mid-delete would leave the user with no idea whether
     // their data still exists.
-    await user.click(document.querySelector(".bg-black\\/80")!);
+    await user.click(document.querySelector(".dialog-scrim")!);
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
@@ -130,7 +130,7 @@ describe("while the action is running", () => {
     const user = userEvent.setup();
     render(<ControlledDialog />);
 
-    await user.click(document.querySelector(".bg-black\\/80")!);
+    await user.click(document.querySelector(".dialog-scrim")!);
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });

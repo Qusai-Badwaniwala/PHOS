@@ -74,3 +74,6 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Verify complete offline shell
+        run: node scripts/verify-precache.mjs

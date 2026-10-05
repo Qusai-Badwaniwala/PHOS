@@ -33,6 +33,7 @@ export type BackupEntryStatus = "success" | "failed";
 export interface DashboardDTO {
   session: TodaySessionDTO | null;
   revision: TodayRevisionDTO | null;
+  revisionAssignments?: TodayRevisionDTO[];
   stats: DashboardStatsDTO;
   memoryHealth?: number;
   retentionQuality?: number;
@@ -203,6 +204,9 @@ export interface StudyPageDTO {
 }
 
 export interface SessionDTO {
+  completedPageIds?: readonly string[];
+  weakPageIds?: string[];
+  startedAt?: string;
   id: string;
   status: SessionStatus;
   title: string;
@@ -228,6 +232,9 @@ export interface SessionDTO {
 // Revision
 // -----------------------------------------------------------
 export interface RevisionDTO {
+  completedPageIds?: readonly string[];
+  weakPageIds?: string[];
+  startedAt?: string;
   id: string;
   status: RevisionStatus;
   title: string;
@@ -255,6 +262,9 @@ export interface RevisionDTO {
 // Analytics
 // -----------------------------------------------------------
 export interface AnalyticsDTO {
+  memoryHealth?: number;
+  retentionQuality?: number;
+  trendSummary?: string;
   summary: AnalyticsSummaryDTO;
   progressOverTime: ChartDataDTO[];
   revisionActivity: ChartDataDTO[];
@@ -281,6 +291,8 @@ export interface ChartDataDTO {
 }
 
 export interface TimelineEntryDTO {
+  durationSeconds?: number;
+  weakPages?: number;
   id: string;
   type: ActivityType;
   title: string;

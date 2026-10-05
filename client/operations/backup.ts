@@ -84,6 +84,7 @@ export interface ImportOutcome {
   readonly success: boolean;
   readonly validationErrors: readonly string[];
   readonly importedAt: string | null;
+  readonly safetyBackupId?: string;
 }
 
 /**
@@ -106,6 +107,7 @@ export async function importData(fileContents: string): Promise<ImportOutcome> {
     success: result.success,
     validationErrors: result.validationErrors,
     importedAt: result.importedAt ? result.importedAt.toISOString() : null,
+    safetyBackupId: result.safetyBackupId,
   };
 }
 

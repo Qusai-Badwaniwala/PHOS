@@ -130,6 +130,7 @@ export interface ProgressReport {
  * (SDS Part 16 "TrendAnalysisDTO").
  */
 export interface TrendAnalysis {
+  readonly canCompare?: boolean;
   readonly period: ReportingPeriod;
   readonly trendDirection: TrendDirection;
   readonly trendStrength: number;

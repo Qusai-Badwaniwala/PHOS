@@ -99,7 +99,7 @@ export function RevisionControls({
           size="lg"
           onClick={onComplete}
           disabled={pending}
-          className="flex-1 bg-success text-success-foreground hover:bg-success/90 sm:flex-none"
+          className="bg-success text-success-foreground hover:bg-success/90 flex-1 sm:flex-none"
         >
           {pending ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -129,7 +129,7 @@ export function RevisionControls({
       )}
 
       {pending && pendingLabel && (
-        <span className="text-sm text-muted-foreground" role="status" aria-live="polite">
+        <span className="text-muted-foreground text-sm" role="status" aria-live="polite">
           {pendingLabel}
         </span>
       )}

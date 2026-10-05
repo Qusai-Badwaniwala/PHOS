@@ -47,7 +47,7 @@ beforeEach(() => {
 });
 
 async function chooseBackup(user: ReturnType<typeof userEvent.setup>, label: string) {
-  await user.click(screen.getByRole("button", { name: /Choose a backup/ }));
+  await user.click(screen.getByRole("combobox"));
   await user.click(screen.getByRole("option", { name: label }));
 }
 

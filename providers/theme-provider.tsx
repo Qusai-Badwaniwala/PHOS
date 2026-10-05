@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import type { Theme } from "@/types";
 
 type ThemeProviderProps = {
@@ -28,9 +28,11 @@ export function ThemeProvider({
 
   useEffect(() => {
     setMounted(true);
-    const stored = localStorage.getItem(storageKey) as Theme | null;
-    if (stored) {
-      setThemeState(stored);
+    try {
+      const stored = localStorage.getItem(storageKey) as Theme | null;
+      if (stored && ["light", "dark", "system"].includes(stored)) setThemeState(stored);
+    } catch {
+      /* The saved database theme still works when local storage is unavailable. */
     }
   }, [storageKey]);
 
@@ -49,6 +51,10 @@ export function ThemeProvider({
 
     root.classList.add(resolved);
     setResolvedTheme(resolved);
+    document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
+      meta.removeAttribute("media");
+      meta.setAttribute("content", resolved === "dark" ? "#161418" : "#F4F1EB");
+    });
   }, [theme, mounted]);
 
   useEffect(() => {
@@ -61,16 +67,27 @@ export function ThemeProvider({
         root.classList.remove("light", "dark");
         root.classList.add(resolved);
         setResolvedTheme(resolved);
+        document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
+          meta.removeAttribute("media");
+          meta.setAttribute("content", resolved === "dark" ? "#161418" : "#F4F1EB");
+        });
       }
     };
     media.addEventListener("change", handler);
     return () => media.removeEventListener("change", handler);
   }, [theme, mounted]);
 
-  const setTheme = (newTheme: Theme) => {
-    localStorage.setItem(storageKey, newTheme);
-    setThemeState(newTheme);
-  };
+  const setTheme = useCallback(
+    (newTheme: Theme) => {
+      try {
+        localStorage.setItem(storageKey, newTheme);
+      } catch {
+        /* Optional pre-paint cache. */
+      }
+      setThemeState(newTheme);
+    },
+    [storageKey],
+  );
 
   return (
     <ThemeProviderContext.Provider value={{ theme, setTheme, resolvedTheme }}>

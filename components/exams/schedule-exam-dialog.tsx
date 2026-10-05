@@ -105,8 +105,20 @@ export function ScheduleExamDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+    <Dialog
+      open={open}
+      onOpenChange={(value) => {
+        if (!pending) onOpenChange(value);
+      }}
+    >
+      <DialogContent
+        onEscapeKeyDown={(event) => {
+          if (pending) event.preventDefault();
+        }}
+        onPointerDownOutside={(event) => {
+          if (pending) event.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{isSelfExam ? "Set your own exam" : `Schedule ${stage.label}`}</DialogTitle>
           <DialogDescription>
@@ -124,7 +136,7 @@ export function ScheduleExamDialog({
               <div
                 role="group"
                 aria-labelledby="self-exam-juz-label"
-                className="grid grid-cols-6 gap-1.5 sm:grid-cols-10"
+                className="grid grid-cols-5 gap-2 sm:grid-cols-6"
               >
                 {Array.from({ length: TOTAL_JUZ }, (_, index) => index + 1).map((juz) => {
                   const selected = selectedJuz.includes(juz);
@@ -137,8 +149,8 @@ export function ScheduleExamDialog({
                       onClick={() => toggleJuz(juz)}
                       className={
                         selected
-                          ? "rounded-md border border-primary bg-primary py-1.5 text-xs font-medium text-primary-foreground"
-                          : "rounded-md border border-input bg-background py-1.5 text-xs hover:bg-accent"
+                          ? "border-primary bg-primary text-primary-foreground min-h-11 rounded-md border py-2 text-sm font-medium"
+                          : "border-input bg-background hover:bg-accent min-h-11 rounded-md border py-2 text-sm"
                       }
                     >
                       {juz}
@@ -147,7 +159,7 @@ export function ScheduleExamDialog({
                 })}
               </div>
               {selectedJuz.length > 0 && (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-muted-foreground text-xs">
                   {selectedJuz.length} {selectedJuz.length === 1 ? "Juz" : "Juz"} selected
                 </p>
               )}
@@ -171,7 +183,7 @@ export function ScheduleExamDialog({
 
           <fieldset className="space-y-2">
             <legend className="text-sm font-medium">During the run-up</legend>
-            <label className="flex gap-2 text-sm">
+            <label className="flex min-h-12 items-start gap-3 py-2 text-sm">
               <input
                 type="radio"
                 name="include-new"
@@ -182,12 +194,12 @@ export function ScheduleExamDialog({
               />
               <span>
                 Keep memorizing new pages
-                <span className="block text-xs text-muted-foreground">
+                <span className="text-muted-foreground block text-xs">
                   Usual choice when the exam covers material you finished a while ago.
                 </span>
               </span>
             </label>
-            <label className="flex gap-2 text-sm">
+            <label className="flex min-h-12 items-start gap-3 py-2 text-sm">
               <input
                 type="radio"
                 name="include-new"
@@ -198,7 +210,7 @@ export function ScheduleExamDialog({
               />
               <span>
                 Revision only
-                <span className="block text-xs text-muted-foreground">
+                <span className="text-muted-foreground block text-xs">
                   Usual choice when the exam covers what you have just finished.
                 </span>
               </span>
@@ -209,14 +221,14 @@ export function ScheduleExamDialog({
             Said before booking, not after. Somebody who would rather
             keep their normal revision needs to know that now.
           */}
-          <p className="border-l-2 border-border pl-3 text-xs leading-relaxed text-muted-foreground">
+          <p className="border-border text-muted-foreground border-l-2 pl-3 text-xs leading-relaxed">
             While this exam is scheduled, PHOS pauses revision outside its scope — including pages
             it would normally flag as weak — so nothing competes for your attention. It will tell
             you what fell behind once you mark the exam passed.
           </p>
 
           {error && (
-            <p role="alert" className="text-sm text-destructive">
+            <p role="alert" className="text-destructive text-sm">
               {error}
             </p>
           )}

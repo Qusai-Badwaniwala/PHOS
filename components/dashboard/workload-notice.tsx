@@ -27,10 +27,10 @@ export function WorkloadNotice({ message, className }: WorkloadNoticeProps) {
   return (
     <div
       role="status"
-      className={cn("flex gap-3 rounded-lg border border-border bg-muted/50 p-4", className)}
+      className={cn("border-border bg-muted/50 flex gap-3 rounded-lg border p-4", className)}
     >
-      <Scale className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-      <p className="text-sm leading-relaxed text-muted-foreground">{message}</p>
+      <Scale className="text-muted-foreground mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+      <p className="text-muted-foreground text-sm leading-relaxed">{message}</p>
     </div>
   );
 }

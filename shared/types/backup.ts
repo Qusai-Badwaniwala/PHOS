@@ -52,6 +52,7 @@ export interface ImportResult {
   readonly success: boolean;
   readonly validationErrors: readonly string[];
   readonly importedAt: Date | null;
+  readonly safetyBackupId?: string;
 }
 
 /**

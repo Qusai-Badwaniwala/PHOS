@@ -20,8 +20,8 @@ export default function ExamsPage() {
   return (
     <PageContent>
       <PageHeader
-        title="Exams"
-        description="A roadmap of the usual Hifz exam stages, and a run-up schedule that covers the whole syllabus before the day."
+        title="Prepare with intention"
+        description="Your next exam, its complete coverage, and the record of what you have passed."
       />
       <ExamSection />
     </PageContent>

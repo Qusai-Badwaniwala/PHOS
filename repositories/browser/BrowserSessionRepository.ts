@@ -4,10 +4,55 @@ import type {
   CreateSessionItemInput,
   ISessionRepository,
 } from "../interfaces/ISessionRepository";
-import { generateId, getDatabase, type StoredSession, type StoredSessionItem } from "./database";
+import {
+  generateId,
+  getDatabase,
+  type StoredSession,
+  type StoredSessionItem,
+  type StudyTransaction,
+} from "./database";
 
 /** IndexedDB implementation of `ISessionRepository`. Owns Session and SessionItem, as in SQL. */
 export class BrowserSessionRepository implements ISessionRepository {
+  constructor(private readonly transaction?: StudyTransaction) {}
+  async createActive(session: CreateSessionInput): Promise<Session> {
+    const db = await getDatabase();
+    const tx = db.transaction("sessions", "readwrite");
+    const existing = (await tx.store.getAll()).find((row) => row.completedAt === null);
+    if (existing) {
+      await tx.done;
+      throw new Error(
+        "A study session is already open. Resume or finish it before beginning another.",
+      );
+    }
+    const now = new Date().toISOString();
+    const record: StoredSession = {
+      id: generateId(),
+      sessionType: session.sessionType,
+      startedAt: now,
+      completedAt: null,
+      durationSeconds: null,
+      createdAt: now,
+    };
+    await tx.store.add(record);
+    await tx.done;
+    return toDomainSession(record);
+  }
+
+  async saveStudyDraft(
+    sessionId: string,
+    draft: import("@/shared/types").StudyDraft,
+  ): Promise<void> {
+    const db = await getDatabase();
+    const tx = db.transaction("sessions", "readwrite");
+    const record = await tx.store.get(sessionId);
+    if (!record || record.completedAt) {
+      await tx.done;
+      throw new Error("This study session is no longer open.");
+    }
+    await tx.store.put({ ...record, studyDraft: draft });
+    await tx.done;
+  }
   async create(session: CreateSessionInput): Promise<Session> {
     const db = await getDatabase();
     const now = new Date().toISOString();
@@ -31,6 +76,12 @@ export class BrowserSessionRepository implements ISessionRepository {
     if (!record) {
       await tx.done;
       throw new Error(`No session found with id "${sessionId}".`);
+    }
+
+    // Another tab may have finished this session. Keep the first receipt intact.
+    if (record.completedAt !== null) {
+      await tx.done;
+      return toDomainSession(record);
     }
 
     const completedAt = new Date();
@@ -95,16 +146,21 @@ export class BrowserSessionRepository implements ISessionRepository {
   }
 
   async addSessionItem(item: CreateSessionItemInput): Promise<SessionItem> {
-    const db = await getDatabase();
-
     // The SQL schema declares `@@unique([sessionId, pageId])`.
     // IndexedDB cannot express a composite unique constraint, so the
     // invariant is upheld here instead: adding a page already in the
     // session returns the existing row rather than duplicating it.
-    const existing = (await db.getAllFromIndex("sessionItems", "sessionId", item.sessionId)).find(
+    const owned = this.transaction
+      ? null
+      : (await getDatabase()).transaction("sessionItems", "readwrite");
+    const store = this.transaction ? this.transaction.objectStore("sessionItems") : owned!.store;
+    const existing = (await store.index("sessionId").getAll(item.sessionId)).find(
       (candidate) => candidate.pageId === item.pageId,
     );
-    if (existing) return toDomainSessionItem(existing);
+    if (existing) {
+      if (owned) await owned.done;
+      return toDomainSessionItem(existing);
+    }
 
     const record: StoredSessionItem = {
       id: generateId(),
@@ -112,7 +168,8 @@ export class BrowserSessionRepository implements ISessionRepository {
       pageId: item.pageId,
       order: item.order,
     };
-    await db.add("sessionItems", record);
+    await store.add(record);
+    if (owned) await owned.done;
     return toDomainSessionItem(record);
   }
 
@@ -154,6 +211,7 @@ function toDomainSession(record: StoredSession): Session {
     completedAt: record.completedAt ? new Date(record.completedAt) : null,
     durationSeconds: record.durationSeconds,
     createdAt: new Date(record.createdAt),
+    studyDraft: record.studyDraft,
   };
 }
 

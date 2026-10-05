@@ -14,13 +14,7 @@ import {
   TOTAL_MUSHAF_PAGES,
 } from "@/shared/constants";
 import { generateCorrelationId } from "@/shared/utils";
-import {
-  ValidationError,
-  validateBoolean,
-  validateEnum,
-  validateNumericRange,
-  validateString,
-} from "@/validators";
+import { ValidationError, validateBoolean, validateEnum, validateNumericRange } from "@/validators";
 import { PRIOR_MEMORIZATION_DIFFICULTY } from "@/engines/memory";
 import type { PreferencesUpdate } from "@/repositories";
 import { toRoadmapDTO, toSettingsDTO } from "@/shared/mappers";
@@ -46,7 +40,7 @@ export async function getSettings(): Promise<SettingsDTO> {
 
 export async function updateTheme(theme: string): Promise<SettingsDTO> {
   const correlationId = generateCorrelationId();
-  const validated = validateString(theme, "theme", { minLength: 1, maxLength: 50 }, correlationId);
+  const validated = validateEnum(theme, ["system", "light", "dark"], "theme", correlationId);
   return toSettingsDTO(await container.settingsRepository.updateAppearance(validated));
 }
 
@@ -544,9 +538,13 @@ export interface GoalPosition {
  * drifts.
  */
 export async function getGoalPosition(): Promise<GoalPosition> {
-  const sequence = await container.adaptiveEngine.getMemorizationSequence();
+  const [sequence, allPages] = await Promise.all([
+    container.adaptiveEngine.getMemorizationSequence(),
+    container.pageRepository.findAll(),
+  ]);
 
-  const pagesMemorized = sequence.filter((page) => page.memoryState !== MemoryState.Unseen).length;
+  // Pausing changes new-study eligibility, never the amount already held.
+  const pagesMemorized = allPages.filter((page) => page.memoryState !== MemoryState.Unseen).length;
   const nextUnstudied = sequence.find((page) => page.memoryState === MemoryState.Unseen);
 
   const milestones: GoalMilestone[] = [];
@@ -625,6 +623,19 @@ export interface RoadmapUpdate {
  */
 export async function updateRoadmap(update: RoadmapUpdate): Promise<RoadmapDTO> {
   const correlationId = generateCorrelationId();
+  // Validate the entire command before any preference or sequence is changed.
+  if (update.order !== undefined)
+    validateEnum(update.order, Object.values(MemorizationOrder), "order", correlationId);
+  if (update.juzSequence !== undefined) validateJuzSequence(update.juzSequence, correlationId);
+  if (update.juzNumber !== undefined) {
+    validateNumericRange(
+      update.juzNumber,
+      "juzNumber",
+      { min: 1, max: TOTAL_JUZ, integer: true },
+      correlationId,
+    );
+    validateBoolean(update.paused, "paused", correlationId);
+  }
 
   if (update.order !== undefined) {
     const order = validateEnum(

@@ -21,19 +21,19 @@ export function RevisionSummary({
   return (
     <ContentCard className={cn("border-success/20 bg-success-muted/50", className)}>
       <div className="flex flex-col items-center gap-4 py-4 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-success-muted">
-          <CheckCircle className="h-6 w-6 text-success" aria-hidden="true" />
+        <div className="bg-success-muted flex h-12 w-12 items-center justify-center rounded-full">
+          <CheckCircle className="text-success h-6 w-6" aria-hidden="true" />
         </div>
 
         <div className="space-y-1">
           <h3 className="text-lg font-semibold">Revision Complete</h3>
-          <p className="text-sm text-muted-foreground">Your revision progress has been recorded.</p>
+          <p className="text-muted-foreground text-sm">Your revision progress has been recorded.</p>
         </div>
 
         <div className="grid w-full max-w-sm grid-cols-2 gap-4">
           {duration && (
-            <div className="rounded-lg border bg-background p-3">
-              <div className="mb-1 flex items-center justify-center gap-1 text-muted-foreground">
+            <div className="bg-background rounded-lg border p-3">
+              <div className="text-muted-foreground mb-1 flex items-center justify-center gap-1">
                 <Clock className="h-3.5 w-3.5" />
                 <span className="text-xs">Duration</span>
               </div>
@@ -41,8 +41,8 @@ export function RevisionSummary({
             </div>
           )}
           {pagesRevised !== undefined && (
-            <div className="rounded-lg border bg-background p-3">
-              <div className="mb-1 flex items-center justify-center gap-1 text-muted-foreground">
+            <div className="bg-background rounded-lg border p-3">
+              <div className="text-muted-foreground mb-1 flex items-center justify-center gap-1">
                 <RotateCcw className="h-3.5 w-3.5" />
                 <span className="text-xs">Pages</span>
               </div>
@@ -51,8 +51,8 @@ export function RevisionSummary({
           )}
         </div>
 
-        <div className="w-full max-w-sm rounded-lg border bg-background p-3">
-          <p className="mb-1 text-xs text-muted-foreground">Recommended Next Step</p>
+        <div className="bg-background w-full max-w-sm rounded-lg border p-3">
+          <p className="text-muted-foreground mb-1 text-xs">Recommended Next Step</p>
           <p className="text-sm font-medium">{nextStep}</p>
         </div>
 

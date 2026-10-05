@@ -21,6 +21,7 @@ export interface ProgressReportDTO {
 }
 
 export interface TrendAnalysisDTO {
+  readonly canCompare?: boolean;
   readonly period: string;
   readonly trendDirection: string;
   readonly trendStrength: number;

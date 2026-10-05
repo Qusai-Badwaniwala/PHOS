@@ -1,4 +1,4 @@
-import { openDB, type DBSchema, type IDBPDatabase } from "idb";
+import { openDB, type DBSchema, type IDBPDatabase, type IDBPTransaction } from "idb";
 import { juzNumberForPage, TOTAL_MUSHAF_PAGES } from "@/shared/constants";
 
 /**
@@ -71,6 +71,8 @@ export interface StoredSession {
   completedAt: string | null;
   durationSeconds: number | null;
   createdAt: string;
+  /** Additive presentation state; the engines still own progression and recall. */
+  studyDraft?: import("@/shared/types").StudyDraft;
 }
 
 export interface StoredSessionItem {
@@ -252,7 +254,7 @@ export interface PhosSnapshot {
   exams?: StoredExam[];
 }
 
-interface PhosDB extends DBSchema {
+export interface PhosDB extends DBSchema {
   pages: {
     key: string;
     value: StoredPage;
@@ -291,6 +293,11 @@ interface PhosDB extends DBSchema {
   };
 }
 
+export type StudyTransaction = IDBPTransaction<
+  PhosDB,
+  ["pages", "sessions", "recallEvents", "sessionItems"],
+  "readwrite"
+>;
 let databasePromise: Promise<IDBPDatabase<PhosDB>> | null = null;
 
 /**
@@ -309,10 +316,15 @@ let databasePromise: Promise<IDBPDatabase<PhosDB>> | null = null;
  * five engines starting at once would otherwise race.
  */
 export function getDatabase(): Promise<IDBPDatabase<PhosDB>> {
-  databasePromise ??= openDatabase().then(async (db) => {
-    await seed(db);
-    return db;
-  });
+  databasePromise ??= openDatabase()
+    .then(async (db) => {
+      await seed(db);
+      return db;
+    })
+    .catch((error) => {
+      databasePromise = null;
+      throw error;
+    });
 
   return databasePromise;
 }
@@ -524,17 +536,22 @@ export async function computeChecksum(serialized: string): Promise<string> {
 /** Reads every store into one object. Used by backup and export. */
 export async function readSnapshot(): Promise<PhosSnapshot> {
   const db = await getDatabase();
+  const tx = db.transaction(
+    ["pages", "sessions", "sessionItems", "recallEvents", "settings", "roadmapEntries", "exams"],
+    "readonly",
+  );
   const [pages, sessions, sessionItems, recallEvents, settings, roadmapEntries, exams] =
     await Promise.all([
-      db.getAll("pages"),
-      db.getAll("sessions"),
-      db.getAll("sessionItems"),
-      db.getAll("recallEvents"),
-      db.getAll("settings"),
-      db.getAll("roadmapEntries"),
-      db.getAll("exams"),
+      tx.objectStore("pages").getAll(),
+      tx.objectStore("sessions").getAll(),
+      tx.objectStore("sessionItems").getAll(),
+      tx.objectStore("recallEvents").getAll(),
+      tx.objectStore("settings").getAll(),
+      tx.objectStore("roadmapEntries").getAll(),
+      tx.objectStore("exams").getAll(),
     ]);
 
+  await tx.done;
   return {
     pages,
     sessions,
@@ -569,19 +586,32 @@ export async function writeSnapshot(snapshot: PhosSnapshot): Promise<void> {
   ] as const;
 
   const tx = db.transaction(stores, "readwrite");
-  await Promise.all(stores.map((store) => tx.objectStore(store).clear()));
+  void tx.done.catch(() => undefined);
+  try {
+    await Promise.all(stores.map(async (store) => tx.objectStore(store).clear()));
 
-  await Promise.all([
-    ...snapshot.pages.map((row) => tx.objectStore("pages").add(row)),
-    ...snapshot.sessions.map((row) => tx.objectStore("sessions").add(row)),
-    ...snapshot.sessionItems.map((row) => tx.objectStore("sessionItems").add(row)),
-    ...snapshot.recallEvents.map((row) => tx.objectStore("recallEvents").add(row)),
-    ...snapshot.roadmapEntries.map((row) => tx.objectStore("roadmapEntries").add(row)),
-    // A file written before Phase 11 has no `exams` key. Restoring it
-    // must leave the store empty rather than throw on `undefined`.
-    ...(snapshot.exams ?? []).map((row) => tx.objectStore("exams").add(row)),
-    ...(snapshot.settings ? [tx.objectStore("settings").add(snapshot.settings)] : []),
-  ]);
+    await Promise.all([
+      ...snapshot.pages.map(async (row) => tx.objectStore("pages").add(row)),
+      ...snapshot.sessions.map(async (row) => tx.objectStore("sessions").add(row)),
+      ...snapshot.sessionItems.map(async (row) => tx.objectStore("sessionItems").add(row)),
+      ...snapshot.recallEvents.map(async (row) => tx.objectStore("recallEvents").add(row)),
+      ...snapshot.roadmapEntries.map(async (row) => tx.objectStore("roadmapEntries").add(row)),
+      // A file written before Phase 11 has no `exams` key. Restoring it
+      // must leave the store empty rather than throw on `undefined`.
+      ...(snapshot.exams ?? []).map(async (row) => tx.objectStore("exams").add(row)),
+      ...(snapshot.settings
+        ? [Promise.resolve().then(() => tx.objectStore("settings").add(snapshot.settings!))]
+        : []),
+    ]);
 
-  await tx.done;
+    await tx.done;
+  } catch (error) {
+    try {
+      tx.abort();
+    } catch {
+      /* Already aborted. */
+    }
+    await tx.done.catch(() => undefined);
+    throw error;
+  }
 }

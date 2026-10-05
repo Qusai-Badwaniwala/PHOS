@@ -31,6 +31,9 @@ export interface BackupVerificationResult {
  * domain data — never transient runtime state.
  */
 export interface PhosExportData {
+  /** Complete browser record; old top-level fields remain readable by legacy tools. */
+  readonly snapshot?: import("@/repositories/browser").PhosSnapshot;
+  readonly checksum?: string;
   readonly applicationVersion: string;
   /**
    * The data format this file is written in — the thing import actually

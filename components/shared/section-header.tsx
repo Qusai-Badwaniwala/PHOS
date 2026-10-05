@@ -11,7 +11,7 @@ export function SectionHeader({ title, description, className }: SectionHeaderPr
   return (
     <div className={cn("mb-4", className)}>
       <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
-      {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+      {description && <p className="text-muted-foreground mt-1 text-sm">{description}</p>}
     </div>
   );
 }

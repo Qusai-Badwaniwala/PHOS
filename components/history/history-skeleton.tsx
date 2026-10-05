@@ -11,7 +11,7 @@ export function HistorySkeleton({ className }: HistorySkeletonProps) {
     <div className={cn("space-y-6", className)}>
       <div className="space-y-2">
         <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-4 w-72" />
+        <Skeleton className="h-4 w-full max-w-72" />
       </div>
 
       <div className="flex gap-2">

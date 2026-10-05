@@ -2,92 +2,89 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>This page isn't available offline</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Return to PHOS</title>
     <style>
       :root {
         color-scheme: light dark;
       }
+      * {
+        box-sizing: border-box;
+      }
       body {
         margin: 0;
-        min-height: 100vh;
+        min-height: 100dvh;
         display: grid;
-        place-items: center;
-        padding: 2rem;
-        background: #f5f1eb;
-        color: #2b2422;
-        font-family:
-          ui-sans-serif,
-          system-ui,
-          -apple-system,
-          "Segoe UI",
+        align-items: center;
+        padding: max(24px, env(safe-area-inset-top)) 24px;
+        background: #f4f1eb;
+        color: #29242a;
+        font:
+          16px/1.6 system-ui,
           sans-serif;
-        line-height: 1.6;
-      }
-      @media (prefers-color-scheme: dark) {
-        body {
-          background: #1a1614;
-          color: #efe9e1;
-        }
       }
       main {
         max-width: 32rem;
-        text-align: center;
+        margin: auto;
       }
       img {
-        width: 88px;
-        height: 88px;
-        margin-bottom: 1.5rem;
+        width: 80px;
+        height: 80px;
+        border-radius: 12px;
       }
       h1 {
-        font-size: 1.35rem;
-        font-weight: 600;
-        margin: 0 0 0.75rem;
+        font:
+          normal 30px/1.2 Georgia,
+          serif;
+        letter-spacing: -0.02em;
+        margin: 28px 0 16px;
       }
       p {
-        margin: 0 0 0.75rem;
-        opacity: 0.85;
+        color: #68616a;
       }
-      code {
-        background: rgba(128, 110, 100, 0.18);
-        padding: 0.15rem 0.4rem;
-        border-radius: 0.25rem;
-        font-size: 0.9em;
+      a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 48px;
+        margin-top: 20px;
+        padding: 8px 22px;
+        border-radius: 8px;
+        background: #733d4b;
+        color: #fff9f2;
+        text-decoration: none;
+      }
+      a:focus-visible {
+        outline: 2px solid currentColor;
+        outline-offset: 4px;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: #161418;
+          color: #eae4de;
+        }
+        p {
+          color: #b0a5af;
+        }
+        a {
+          background: #d2a2b0;
+          color: #21151b;
+        }
       }
     </style>
   </head>
   <body>
-    <!--
-      The last resort when a navigation fails offline.
-
-      REWRITTEN IN PHASE 9. This page used to say "PHOS is not running"
-      and tell the reader to run `npm start`, because PHOS's data then
-      lived in a SQLite database behind a local Node process. None of
-      that is true any more: the engines and the database run in the
-      browser, so PHOS works with no network at all and the service
-      worker precaches every screen.
-
-      Reaching this page therefore means something narrow — a route that
-      was never visited and never cached — not that PHOS is unavailable.
-      The old wording would have sent someone to restart a server that
-      does not exist.
-
-      The image path is relative, not "/icons/...". This file is copied
-      verbatim into the build, so Next never rewrites it; served from
-      /PHOS/ on GitHub Pages an absolute path resolves to the domain
-      root and 404s.
-    -->
     <main>
-      <img src="icons/icon-192.png" alt="" />
-      <h1>This page isn't available offline</h1>
+      <img src="icons/icon-192.png" alt="PHOS" />
+      <h1>Return to your Hifz.</h1>
       <p>
-        PHOS works without an internet connection, but this particular screen hasn't been opened on
-        this device yet, so there was no copy of it saved.
+        This address is not part of the saved PHOS application. Your memorization record stays on
+        this device.
       </p>
-      <p>Go back, or reconnect briefly and open it once — after that it will work offline too.</p>
-      <p style="margin-top: 1.5rem; font-size: 0.9rem; opacity: 0.7">
-        Nothing has been lost. Your memorization progress is stored on this device and is untouched.
+      <p>
+        The installed app includes Today, study, history, exams, settings, and recovery for offline
+        use.
       </p>
+      <a href="dashboard/">Open Today</a>
     </main>
   </body>
 </html>

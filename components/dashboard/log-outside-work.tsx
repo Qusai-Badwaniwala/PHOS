@@ -1,42 +1,38 @@
 "use client";
-
 import React from "react";
 import { cn } from "@/lib/utils";
-import { ContentCard } from "@/components/shared/content-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { logMemorizedOutside } from "@/lib/api/pages";
 import { NotebookPen } from "lucide-react";
-
-interface LogOutsideWorkProps {
+export function LogOutsideWork({
+  onLogged,
+  className,
+}: {
   onLogged: () => void;
   className?: string;
-}
-
-/**
- * Records memorization done away from PHOS
- * (PRODUCT_REQUIREMENTS Requirement 9, "Logging memorization completed
- * outside PHOS").
- *
- * The framing matters as much as the feature. Requirement 9 states
- * "The user always has final authority. PHOS recommends. The user
- * decides." — so this is presented as PHOS catching up with the user,
- * never as the user justifying a deviation. There is no warning, no
- * confirmation, and nothing that treats working ahead as a problem.
- */
-export function LogOutsideWork({ onLogged, className }: LogOutsideWorkProps) {
+}) {
   const [open, setOpen] = React.useState(false);
-  const [count, setCount] = React.useState(1);
+  const [count, setCount] = React.useState("1");
   const [pending, setPending] = React.useState(false);
   const [outcome, setOutcome] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
-
-  const submit = async () => {
+  const valid = Number.isInteger(Number(count)) && Number(count) >= 1 && Number(count) <= 604;
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!valid || pending) return;
     setPending(true);
     setError(null);
-    setOutcome(null);
     try {
-      const result = await logMemorizedOutside({ count });
+      const result = await logMemorizedOutside({ count: Number(count) });
       setOutcome(
         result.loggedPages === 0
           ? "Those pages were already being tracked, so nothing changed."
@@ -44,75 +40,100 @@ export function LogOutsideWork({ onLogged, className }: LogOutsideWorkProps) {
       );
       setOpen(false);
       onLogged();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not record those pages.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not record those pages.");
     } finally {
       setPending(false);
     }
   };
-
   return (
-    <ContentCard className={cn(className)}>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex gap-3">
-          <NotebookPen
-            className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground"
-            aria-hidden="true"
-          />
-          <div>
-            <p className="text-sm font-medium">Memorized something away from PHOS?</p>
-            <p className="text-xs text-muted-foreground">
-              Record it here and PHOS will fold it into your revision schedule.
-            </p>
-          </div>
-        </div>
-
-        {!open && (
-          <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
-            Log pages
-          </Button>
-        )}
-      </div>
-
-      {open && (
-        <div className="mt-4 flex flex-wrap items-end gap-3">
-          <div className="space-y-1">
-            <label htmlFor="outside-page-count" className="text-xs text-muted-foreground">
-              Pages memorized
-            </label>
-            <Input
-              id="outside-page-count"
-              type="number"
-              min={1}
-              max={604}
-              className="w-28"
-              value={count}
-              onChange={(event) => setCount(Math.max(1, Number(event.target.value) || 1))}
-            />
-          </div>
-          <Button onClick={submit} disabled={pending}>
-            {pending ? "Recording…" : "Record"}
-          </Button>
-          <Button variant="ghost" onClick={() => setOpen(false)} disabled={pending}>
-            Cancel
-          </Button>
-          <p className="w-full text-xs text-muted-foreground">
-            These are taken as the next {count} page{count === 1 ? "" : "s"} in your memorization
-            order. Pages PHOS already tracks are left exactly as they are.
+    <section className={cn("folio-section", className)}>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <NotebookPen size={18} className="text-muted-foreground mb-3" aria-hidden="true" />
+          <h2 className="text-base font-semibold">Study away from PHOS</h2>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Bring your record up to date with what you have learned.
           </p>
         </div>
-      )}
-
+        <Button
+          variant="outline"
+          size="sm"
+          className="shrink-0"
+          onClick={() => {
+            setError(null);
+            setOpen(true);
+          }}
+        >
+          Log pages
+        </Button>
+      </div>
       {outcome && (
-        <p role="status" className="mt-3 text-sm text-muted-foreground">
+        <p role="status" className="text-muted-foreground mt-3 text-sm">
           {outcome}
         </p>
       )}
-      {error && (
-        <p role="alert" className="mt-3 text-sm text-destructive">
-          {error}
-        </p>
-      )}
-    </ContentCard>
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          if (!pending) setOpen(next);
+        }}
+      >
+        <DialogContent
+          onEscapeKeyDown={(event) => {
+            if (pending) event.preventDefault();
+          }}
+          onPointerDownOutside={(event) => {
+            if (pending) event.preventDefault();
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Memorized away from PHOS</DialogTitle>
+            <DialogDescription>
+              PHOS recommends. You decide. Record your next pages so they can join your revision
+              schedule.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={submit} className="space-y-5">
+            <label className="block space-y-2 text-sm">
+              <span>Pages memorized</span>
+              <Input
+                type="number"
+                min={1}
+                max={604}
+                step={1}
+                className="h-12"
+                value={count}
+                onChange={(e) => setCount(e.target.value)}
+                required
+                disabled={pending}
+              />
+            </label>
+            <p className="text-muted-foreground text-sm">
+              These are the next {valid ? count : "selected"} pages in your memorization order.
+              Pages already tracked keep their memory record.
+            </p>
+            {error && (
+              <p role="alert" className="text-destructive text-sm">
+                {error}
+              </p>
+            )}
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={pending}
+                onClick={() => setOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={pending || !valid}>
+                {pending ? "Recording…" : "Record pages"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </section>
   );
 }

@@ -99,7 +99,9 @@ describe("Backup page", () => {
     const { container } = render(<BackupPage />);
 
     expect(container).not.toBeEmptyDOMElement();
-    expect(screen.queryByRole("heading", { name: "Backup & Restore" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Protect your Hifz record" }),
+    ).not.toBeInTheDocument();
   });
 
   it("offers a retry when the list cannot be read", async () => {
@@ -116,12 +118,12 @@ describe("Backup page", () => {
   it("tells the user where their data lives, alongside the tools that protect it", async () => {
     render(<BackupPage />);
 
-    expect(screen.getByRole("heading", { name: "Backup & Restore" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Protect your Hifz record" })).toBeInTheDocument();
     // The limitation is stated on the screen where the user is already
     // thinking about losing data, not only in the guide.
-    expect(await screen.findByText(/stored in this browser, on this device/)).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Export" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Import" })).toBeInTheDocument();
+    expect(await screen.findByText(/PHOS stores your record in this browser/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Keep a copy outside PHOS" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Restore an exported file" })).toBeInTheDocument();
   });
 
   it("renders with no backups yet, without pretending one exists", () => {
@@ -146,15 +148,15 @@ describe("Settings page", () => {
 
     render(<SettingsPage />);
 
-    expect(screen.queryByRole("heading", { name: "Settings" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Make PHOS yours" })).not.toBeInTheDocument();
     expect(screen.queryByText("Danger Zone")).not.toBeInTheDocument();
   });
 
   it("renders every section once settings have loaded", () => {
     render(<SettingsPage />);
 
-    expect(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument();
-    for (const section of ["Appearance", "Session", "Revision", "Danger Zone"]) {
+    expect(screen.getByRole("heading", { name: "Make PHOS yours" })).toBeInTheDocument();
+    for (const section of ["Appearance", "Study controls", "Revision", "Reset & recovery"]) {
       expect(screen.getAllByText(section).length).toBeGreaterThan(0);
     }
   });
@@ -165,6 +167,7 @@ describe("Settings page", () => {
     useSettings.mockReturnValue({ ...readySettings(), updatePreferences });
 
     render(<SettingsPage />);
+    await user.click(screen.getByRole("button", { name: "Appearance" }));
     await user.click(screen.getByRole("switch", { name: /reduced motion/i }));
 
     // Sent as a patch of one field, so two quick changes cannot clobber
@@ -177,9 +180,9 @@ describe("About page", () => {
   it("renders the guide, the credit and the install section", () => {
     render(<AboutPage />);
 
-    expect(screen.getByRole("heading", { name: "About PHOS" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "A companion to your Hifz" })).toBeInTheDocument();
     expect(screen.getAllByText(/By Qusai/).length).toBeGreaterThan(0);
-    expect(screen.getByRole("heading", { name: "Using PHOS as an app" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Keep PHOS close" })).toBeInTheDocument();
   });
 
   it("still states plainly where the data lives and what erases it", () => {
@@ -194,6 +197,6 @@ describe("About page", () => {
   it("keeps the first-run expectations reachable, as Requirement 6 asks", () => {
     render(<AboutPage />);
 
-    expect(screen.getByRole("heading", { name: /What PHOS is — and isn't/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "What PHOS can help with" })).toBeInTheDocument();
   });
 });

@@ -13,7 +13,7 @@ const customJestConfig = {
     "^@/(.*)$": "<rootDir>/$1",
   },
   // Scoped to frontend .test.tsx files only. Backend .test.ts files run
-  // under Vitest instead (see vitest.config.ts) — the original pattern
+  // under Vitest instead (see vitest.config.mts) — the original pattern
   // here (`**/*.test.(ts|tsx)`) also matched those Vitest-authored
   // files, which import from the "vitest" package and would fail under
   // Jest's runner. Narrowed to .tsx so the two test runners never

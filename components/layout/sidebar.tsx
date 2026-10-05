@@ -37,7 +37,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   const pathname = usePathname();
 
   return (
-    <div className="flex h-full flex-col border-r bg-card">
+    <div className="bg-card flex h-full flex-col border-r">
       {/* Logo */}
       <div className="flex h-16 shrink-0 items-center border-b px-5">
         <Link
@@ -46,12 +46,12 @@ export function Sidebar({ onNavigate }: SidebarProps) {
           onClick={onNavigate}
           aria-label="PHOS — Go to Dashboard"
         >
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10 transition-colors group-hover:bg-primary/15">
-            <BookOpen className="h-4.5 w-4.5 text-primary" aria-hidden="true" />
+          <div className="bg-primary/10 group-hover:bg-primary/15 flex h-8 w-8 items-center justify-center rounded-md transition-colors">
+            <BookOpen className="text-primary h-4.5 w-4.5" aria-hidden="true" />
           </div>
           <div className="flex flex-col leading-none">
-            <span className="text-base font-semibold tracking-tight text-foreground">PHOS</span>
-            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            <span className="text-foreground text-base font-semibold tracking-tight">PHOS</span>
+            <span className="text-muted-foreground text-[10px] font-medium tracking-wider uppercase">
               Hifz System
             </span>
           </div>
@@ -71,13 +71,13 @@ export function Sidebar({ onNavigate }: SidebarProps) {
         one size — "By" and the name read as a single phrase.
       */}
       <div className="shrink-0 border-b px-5 py-3">
-        <p className="phos-shimmer text-center text-sm font-semibold uppercase tracking-[0.2em]">
+        <p className="phos-shimmer text-center text-sm font-semibold tracking-[0.2em] uppercase">
           By {AUTHOR}
         </p>
       </div>
 
       {/* Navigation */}
-      <nav className="scrollbar-thin flex-1 overflow-y-auto px-3 py-4" aria-label="Main navigation">
+      <nav className="flex-1 scrollbar-thin overflow-y-auto px-3 py-4" aria-label="Main navigation">
         <ul role="list" className="space-y-0.5">
           {navigation.map((item) => {
             const isActive = isCurrentPath(pathname, item.href);
@@ -113,7 +113,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
 
       {/* Footer */}
       <div className="shrink-0 border-t px-5 py-4">
-        <p className="text-center text-[11px] leading-relaxed text-muted-foreground/70">
+        <p className="text-muted-foreground/70 text-center text-[11px] leading-relaxed">
           Personal Hifz Operating System
         </p>
       </div>

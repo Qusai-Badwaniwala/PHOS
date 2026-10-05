@@ -12,7 +12,7 @@
  * bump in one place without the other fails the build rather than
  * silently making yesterday's backups unrestorable.
  */
-export const APPLICATION_VERSION = "0.3.0";
+export const APPLICATION_VERSION = "0.4.0";
 
 /**
  * The version of the *data format* an export or backup is written in —
@@ -63,5 +63,5 @@ export function canReadFormat(formatVersion: string | number | undefined): boole
   // "1"); exports gained it as a number in v0.3.0. Both are read here so
   // there is one rule rather than two that can drift apart.
   const written = formatVersion === undefined ? EXPORT_FORMAT_VERSION : Number(formatVersion);
-  return Number.isFinite(written) && written <= EXPORT_FORMAT_VERSION;
+  return Number.isInteger(written) && written >= 1 && written <= EXPORT_FORMAT_VERSION;
 }

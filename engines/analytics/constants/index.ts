@@ -22,6 +22,7 @@ export const TREND_WINDOW_DAYS: Readonly<Record<string, number>> = {
   Daily: 1,
   Weekly: 7,
   Monthly: 30,
+  Yearly: 365,
   Overall: 90,
 };
 

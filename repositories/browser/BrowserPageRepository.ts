@@ -4,7 +4,7 @@ import type {
   MemoryVariableUpdate,
   ReviewTimestampUpdate,
 } from "../interfaces/IPageRepository";
-import { getDatabase, type StoredPage } from "./database";
+import { getDatabase, type StoredPage, type StudyTransaction } from "./database";
 
 /**
  * IndexedDB implementation of `IPageRepository`.
@@ -19,9 +19,11 @@ import { getDatabase, type StoredPage } from "./database";
  * where the other produces Dates.
  */
 export class BrowserPageRepository implements IPageRepository {
+  constructor(private readonly transaction?: StudyTransaction) {}
   async findById(id: string): Promise<Page | null> {
-    const db = await getDatabase();
-    const record = await db.get("pages", id);
+    const record = this.transaction
+      ? await this.transaction.objectStore("pages").get(id)
+      : await (await getDatabase()).get("pages", id);
     return record ? toDomainPage(record) : null;
   }
 
@@ -125,18 +127,18 @@ export class BrowserPageRepository implements IPageRepository {
 
   /** Reads, applies a change, stamps `updatedAt`, and writes back in one transaction. */
   private async patch(pageId: string, change: (record: StoredPage) => StoredPage): Promise<Page> {
-    const db = await getDatabase();
-    const tx = db.transaction("pages", "readwrite");
-    const record = await tx.store.get(pageId);
+    const owned = this.transaction ? null : (await getDatabase()).transaction("pages", "readwrite");
+    const store = this.transaction ? this.transaction.objectStore("pages") : owned!.store;
+    const record = await store.get(pageId);
 
     if (!record) {
-      await tx.done;
+      if (owned) await owned.done;
       throw new Error(`No page found with id "${pageId}".`);
     }
 
     const updated = { ...change(record), updatedAt: new Date().toISOString() };
-    await tx.store.put(updated);
-    await tx.done;
+    await store.put(updated);
+    if (owned) await owned.done;
 
     return toDomainPage(updated);
   }

@@ -1,21 +1,23 @@
-# Infrastructure Architecture
+# Infrastructure architecture
 
-This document describes the philosophy and organization of the infrastructure surrounding the PHOS application.
+PHOS is a **static browser application**. Next 16 exports it to `out/`; React 19
+runs its frontend and five engines on the device. There are no API routes, cloud
+services, Prisma models, database URLs, or server secrets in the active runtime.
 
-## Engineering Boundaries
+Tailwind 4 defines the independently authored folio system. Radix provides dialog,
+select, and tab behavior. Motion provides restrained route continuity. Local font
+subsets are bundled into the complete offline cache.
 
-- **Claude (Backend/Logic):** Responsible for Prisma models, SQLite integration, API routes, and the Five Engines (Learning, Memory, Adaptive, Analytics, Persistence).
-- **Kimi / Future UI Engineer:** Responsible for React components, Tailwind styling, and shadcn/ui integration.
-- **AntiGravity (Infrastructure):** Responsible for bootstrap scripts, CI/CD, documentation, testing infrastructure, and repository management.
+IndexedDB version 2 has pages, sessions, session items, recall events, settings,
+roadmap entries, exams, and backups. Portable snapshots cover the seven record
+stores; backups are deliberately separate and survive a replacement. Transactional
+study composition uses the existing Memory Engine with transaction-bound repositories.
 
-## Automation Principles
+The build emits a content-derived precache manifest. The worker keeps an entire
+build together, supports the deployment scope, waits for explicit activation, and
+preserves one previous build for existing tabs. Applying an update checks for open
+study before reloading the requesting tab.
 
-- Automation scripts should be deterministic and idempotent.
-- Scripts must not perform silent destructive actions (e.g., deleting a database without warning).
-- Errors should be descriptive and provide actionable guidance.
-
-## Tooling
-
-- **Linting:** ESLint (Next.js Core Web Vitals)
-- **Formatting:** Prettier
-- **Editor Config:** `.editorconfig` enforcing LF line endings and 2-space indentation.
+ESLint flat config, Prettier, TypeScript, Vitest/fake-indexeddb, Jest/Testing Library,
+static build, and artifact verification run locally and in CI. GitHub Pages uses
+`PHOS_BASE_PATH` and `.nojekyll`. No deployment is implied by a local successful build.

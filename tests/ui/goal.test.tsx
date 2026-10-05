@@ -223,8 +223,8 @@ describe("GoalSettings", () => {
     await waitFor(() => expect(picker()).toBeEnabled());
 
     // 38 pages memorized covers Juz 30 (23) but not Juz 1 (44).
-    expect(screen.getAllByRole("option")[1]!.textContent).toMatch(/already memorized/);
-    expect(screen.getAllByRole("option")[2]!.textContent).not.toMatch(/already memorized/);
+    expect(screen.getAllByRole("option")[1]!.textContent).toMatch(/page target met/);
+    expect(screen.getAllByRole("option")[2]!.textContent).not.toMatch(/page target met/);
   });
 
   it("cannot be saved without a date", async () => {

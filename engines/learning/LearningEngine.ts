@@ -11,6 +11,7 @@ import type {
   SessionSummary,
   SessionType,
   StudyItem,
+  RecallOutcome,
 } from "@/shared/types";
 import {
   ConfidenceSubmissionError,
@@ -31,6 +32,8 @@ export interface LearningEngineDependencies {
   readonly sessionRepository: ISessionRepository;
   readonly recallEventRepository: IRecallEventRepository;
   readonly pageRepository: IPageRepository;
+  /** Browser composition can commit Memory Engine work and session progress together. */
+  readonly commitRecall?: (outcome: RecallOutcome) => Promise<MemoryUpdateResult>;
 }
 
 interface PendingRecall {
@@ -87,7 +90,9 @@ export class LearningEngine implements ILearningEngine {
       throw new SessionAlreadyActiveError(alreadyActive.id, correlationId);
     }
 
-    const session = await this.deps.sessionRepository.create({ sessionType });
+    const session = this.deps.sessionRepository.createActive
+      ? await this.deps.sessionRepository.createActive({ sessionType })
+      : await this.deps.sessionRepository.create({ sessionType });
     this.currentSession = session;
     this.currentPlan = null;
     this.currentItemIndex = 0;
@@ -95,13 +100,16 @@ export class LearningEngine implements ILearningEngine {
     return session;
   }
 
-  async loadDailyPlan(availableStudyMinutes: number): Promise<DailyStudyPlan> {
+  async loadDailyPlan(
+    availableStudyMinutes: number,
+    options: { extraNewMemorization?: boolean } = {},
+  ): Promise<DailyStudyPlan> {
     const correlationId = generateCorrelationId();
     this.requireActiveSession(correlationId);
 
     // Step 1 of SESSION ORCHESTRATION: request the Daily Study Plan
     // from the Adaptive Engine.
-    const plan = await this.deps.adaptiveEngine.generateDailyPlan(availableStudyMinutes);
+    const plan = await this.deps.adaptiveEngine.generateDailyPlan(availableStudyMinutes, options);
 
     // Step 2: narrow the day's combined plan to the work this session is
     // actually about.
@@ -121,6 +129,43 @@ export class LearningEngine implements ILearningEngine {
     // belong to the session now in progress). Relative priority order is
     // preserved; only out-of-scope items are removed.
     const scopedPlan = scopePlanToSessionType(plan, this.currentSessionTypeOrThrow(correlationId));
+
+    const committed = this.currentSession?.studyDraft;
+    if (committed?.items) {
+      const completed = new Set(
+        (
+          await this.deps.sessionRepository.findSessionItems(
+            this.currentSessionIdOrThrow(correlationId),
+          )
+        ).map((item) => item.pageId),
+      );
+      const remaining = committed.items
+        .filter((item) => !completed.has(item.pageId))
+        .map((item, index) => ({ ...item, recommendedOrder: index }));
+      this.currentPlan = {
+        ...scopedPlan,
+        studyItems: remaining,
+        estimatedTotalDurationSeconds: remaining.reduce(
+          (sum, item) => sum + item.estimatedDurationSeconds,
+          0,
+        ),
+      };
+      this.currentItemIndex = 0;
+      return this.currentPlan;
+    }
+    if (this.deps.sessionRepository.saveStudyDraft) {
+      const draft = {
+        pageIds: scopedPlan.studyItems.map((item) => item.pageId),
+        weakPageIds: [],
+        paused: false,
+        items: [...scopedPlan.studyItems],
+      };
+      await this.deps.sessionRepository.saveStudyDraft(
+        this.currentSessionIdOrThrow(correlationId),
+        draft,
+      );
+      if (this.currentSession) this.currentSession = { ...this.currentSession, studyDraft: draft };
+    }
 
     this.currentPlan = scopedPlan;
     this.currentItemIndex = 0;
@@ -191,7 +236,7 @@ export class LearningEngine implements ILearningEngine {
       // Steps 6-7 of SESSION ORCHESTRATION: invoke the Memory Engine
       // and let it persist the updated profile + RecallEvent. The
       // Learning Engine never bypasses the Memory Engine.
-      const result = await this.deps.memoryEngine.applyRecallResult({
+      const outcome: RecallOutcome = {
         pageId: pending.pageId,
         sessionId: this.currentSessionIdOrThrow(correlationId),
         successfulRecall: pending.successfulRecall,
@@ -199,10 +244,13 @@ export class LearningEngine implements ILearningEngine {
         durationSeconds: pending.durationSeconds,
         secondsSinceLastReview,
         timestamp: pending.timestamp,
-      });
+      };
+      const result = this.deps.commitRecall
+        ? await this.deps.commitRecall(outcome)
+        : await this.deps.memoryEngine.applyRecallResult(outcome);
 
       // Step 8: advance to next study item (records session progress).
-      await this.completeStudyItem(pending.pageId);
+      if (!this.deps.commitRecall) await this.completeStudyItem(pending.pageId);
       this.advanceSession();
 
       this.pendingRecall = null;

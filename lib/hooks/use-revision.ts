@@ -8,7 +8,7 @@ export interface UseRevisionReturn {
   data: RevisionDTO | null;
   loading: boolean;
   error: Error | null;
-  refetch: () => void;
+  refetch: () => Promise<void>;
 }
 
 export function useRevision(): UseRevisionReturn {

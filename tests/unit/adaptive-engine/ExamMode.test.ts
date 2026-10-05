@@ -43,7 +43,8 @@ function page(pageNumber: number, juzNumber: number, overrides: Partial<Page> = 
     memoryStrength: 0.7,
     memoryStability: 10,
     difficulty: 0.4,
-    firstStudiedAt: now,
+    // These are declared prior Hifz, not 44 pages newly learned today.
+    firstStudiedAt: null,
     lastReviewedAt: now,
     lastSuccessfulRecallAt: now,
     createdAt: now,

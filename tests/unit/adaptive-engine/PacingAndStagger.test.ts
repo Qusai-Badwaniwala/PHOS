@@ -108,13 +108,13 @@ describe("pacing new memorization below one page a day", () => {
     expect(await newPagesOffered(0.4, 3)).toBeGreaterThan(0);
   });
 
-  it("still offers a page every day at a pace of one", async () => {
-    expect(await newPagesOffered(1, 0)).toBe(1);
+  it("counts today's new page and offers the next one tomorrow at a pace of one", async () => {
+    expect(await newPagesOffered(1, 0)).toBe(0);
     expect(await newPagesOffered(1, 1)).toBe(1);
   });
 
   it("offers more than one a day above a pace of one", async () => {
-    expect(await newPagesOffered(2, 0)).toBe(2);
+    expect(await newPagesOffered(2, 0)).toBe(1);
   });
 
   it("never withholds revision — pacing applies to new work only", async () => {

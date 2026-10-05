@@ -2,6 +2,7 @@ import { backupOps, settingsOps } from "@/client/operations";
 import { formatDateTimePreferred } from "@/lib/format";
 import type { BackupMetadataDTO } from "@/shared/dto";
 import type { BackupEntryDTO, BackupStatusDTO } from "@/types/dto";
+import { preparePortableRestore } from "@/engines/persistence/browser/portable";
 
 type BackendBackupMetadata = BackupMetadataDTO;
 
@@ -97,6 +98,23 @@ export async function exportData(): Promise<backupOps.ExportOutcome> {
  */
 export async function importData(file: File): Promise<backupOps.ImportOutcome> {
   return backupOps.importData(await file.text());
+}
+
+/** Validate locally and expose a reviewable summary before full replacement. */
+export async function previewImport(file: File) {
+  const result = await preparePortableRestore(await file.text());
+  const snapshot = result.snapshot;
+  return {
+    valid: snapshot !== null,
+    errors: result.errors,
+    warnings: result.warnings,
+    exportedAt: result.exportedAt,
+    learnedPages: snapshot?.pages.filter((page) => page.memoryState !== "Unseen").length ?? 0,
+    sessions: snapshot?.sessions.length ?? 0,
+    recalls: snapshot?.recallEvents.length ?? 0,
+    exams: snapshot?.exams?.length ?? 0,
+    openSessions: snapshot?.sessions.filter((session) => session.completedAt === null).length ?? 0,
+  };
 }
 
 /**

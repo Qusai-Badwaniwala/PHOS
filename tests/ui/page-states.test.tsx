@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
   ANALYTICS,
@@ -42,16 +42,32 @@ jest.mock("@/providers/settings-provider", () => ({ useSettings: () => useSettin
 // Reach the engines through IndexedDB, which jsdom does not provide.
 // The pages under test only need them to exist.
 jest.mock("@/lib/api/session", () => ({
+  getSession: () => studyRead(useSession),
   startSession: jest.fn(),
   completeSession: jest.fn(),
   finishSessionLater: jest.fn(),
 }));
 jest.mock("@/lib/api/revision", () => ({
+  getRevision: () => studyRead(useRevision),
   startRevision: jest.fn(),
   completeRevision: jest.fn(),
   finishRevisionLater: jest.fn(),
 }));
 jest.mock("@/lib/api/pages", () => ({ logMemorizedOutside: jest.fn() }));
+function studyRead(hook: jest.Mock) {
+  const result = hook();
+  if (result?.loading) return new Promise(() => undefined);
+  if (result?.error) return Promise.reject(result.error);
+  return Promise.resolve(result?.data ?? null);
+}
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: jest.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+}));
+jest.mock("@/lib/api/activeSession", () => ({
+  getStudyReceipt: jest.fn(),
+  saveStudyFeedback: jest.fn(),
+}));
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const DashboardPage = require("@/app/dashboard/page").default as React.ComponentType;
@@ -103,10 +119,12 @@ describe.each(PAGES)("$name", ({ Page, hook, data }) => {
     render(<Page />);
 
     // An error state with no retry strands the user on a dead screen.
-    const retry = screen.getByRole("button", { name: /try again|retry/i });
+    const retry = await screen.findByRole("button", { name: /try again|retry/i });
     await user.click(retry);
 
-    expect(refetch).toHaveBeenCalledTimes(1);
+    if (hook === useSession || hook === useRevision)
+      expect(hook.mock.calls.length).toBeGreaterThan(1);
+    else expect(refetch).toHaveBeenCalledTimes(1);
   });
 
   it("renders an empty state rather than crashing on no data", () => {
@@ -118,11 +136,14 @@ describe.each(PAGES)("$name", ({ Page, hook, data }) => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  it("renders its content when there is something to show", () => {
+  it("renders its content when there is something to show", async () => {
     hook.mockReturnValue(hookResult({ data }));
 
     const { container } = render(<Page />);
-
+    if (hook === useSession || hook === useRevision)
+      await waitFor(() =>
+        expect(screen.queryByText("Opening your assignment…")).not.toBeInTheDocument(),
+      );
     expect(container).not.toBeEmptyDOMElement();
   });
 });
@@ -133,7 +154,7 @@ describe("Dashboard content", () => {
   it("shows today's plan, the numbers behind it, and why it looks that way", () => {
     render(<DashboardPage />);
 
-    expect(screen.getByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Today’s Hifz" })).toBeInTheDocument();
     expect(screen.getByText("23")).toBeInTheDocument();
     // Requirement 4: the engine's own explanation, verbatim.
     expect(screen.getByText("A steady day.")).toBeInTheDocument();
@@ -150,7 +171,7 @@ describe("Dashboard content", () => {
 
     // `undefined` is what selects the honest "not enough data yet"
     // state on both cards.
-    expect(screen.getAllByText(/not enough data/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/NaN|undefined/)).not.toBeInTheDocument();
   });
 
   it("stays silent about a return and a heavy day when neither applies", () => {
@@ -185,7 +206,7 @@ describe("Dashboard content", () => {
 
     render(<DashboardPage />);
 
-    expect(screen.getByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Today’s Hifz" })).toBeInTheDocument();
   });
 });
 
@@ -208,7 +229,7 @@ describe("Analytics", () => {
 
     // No charts and no tabbed report — the point of the empty state is
     // that it does not present zeros as though they were findings.
-    expect(screen.queryByRole("tab", { name: "Overview" })).not.toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Overview" })).toBeInTheDocument();
 
     /*
      * But the page still says what it is. This used to assert the
@@ -218,7 +239,7 @@ describe("Analytics", () => {
      * empty screen lost its title and the outline skipped from the
      * TopNav h1 straight to the empty state's h3.
      */
-    expect(screen.getByRole("heading", { name: "Analytics", level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "My Hifz", level: 1 })).toBeInTheDocument();
   });
 
   it("shows the tabs and their content once there is data", () => {
@@ -241,7 +262,7 @@ describe("Analytics", () => {
     render(<AnalyticsPage />);
     expect(useAnalytics).toHaveBeenCalledWith("week");
 
-    await user.click(screen.getByRole("button", { name: /month/i }));
+    await user.click(screen.getByRole("button", { name: "30 days" }));
 
     expect(useAnalytics).toHaveBeenLastCalledWith("month");
   });

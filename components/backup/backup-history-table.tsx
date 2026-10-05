@@ -1,88 +1,86 @@
 "use client";
-
-import { cn } from "@/lib/utils";
 import React from "react";
-import { EmptyState } from "@/components/shared/empty-state";
-import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Trash2 } from "lucide-react";
-
-interface BackupEntry {
-  id: string;
-  date: string;
-  type: "manual" | "auto";
-  size: string;
-  status: "success" | "failed";
-}
-
-interface BackupHistoryTableProps {
-  entries?: BackupEntry[];
-  onDelete: (backupId: string) => void;
-  /** Id of the backup currently being deleted, if any. */
-  deletingId?: string | null;
-  className?: string;
-}
-
+import type { BackupEntryDTO } from "@/types/dto";
 export function BackupHistoryTable({
   entries,
   onDelete,
   deletingId,
   className,
-}: BackupHistoryTableProps) {
-  if (!entries || entries.length === 0) {
-    return (
-      <div className={cn(className)}>
-        <h3 className="mb-4 text-lg font-semibold">Backup History</h3>
-        <EmptyState
-          title="No backups found"
-          description="Create your first backup to see it listed here."
-        />
-      </div>
-    );
-  }
-
+}: {
+  entries?: BackupEntryDTO[];
+  onDelete: (id: string) => void;
+  deletingId?: string | null;
+  className?: string;
+}) {
+  const [selected, setSelected] = React.useState<BackupEntryDTO | null>(null);
   return (
-    <div className={cn(className)}>
-      <h3 className="mb-4 text-lg font-semibold">Backup History</h3>
-      <div className="overflow-hidden rounded-lg border">
-        <table className="w-full text-sm">
-          <thead className="bg-muted">
-            <tr>
-              <th className="px-4 py-3 text-left font-medium">Date</th>
-              <th className="px-4 py-3 text-left font-medium">Type</th>
-              <th className="px-4 py-3 text-left font-medium">Size</th>
-              <th className="px-4 py-3 text-left font-medium">Status</th>
-              <th className="px-4 py-3 text-right font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {entries.map((entry) => (
-              <tr key={entry.id} className="transition-colors hover:bg-accent/50">
-                <td className="px-4 py-3 tabular-nums">{entry.date}</td>
-                <td className="px-4 py-3 capitalize">{entry.type}</td>
-                <td className="px-4 py-3 tabular-nums">{entry.size}</td>
-                <td className="px-4 py-3">
-                  <StatusBadge status={entry.status === "success" ? "success" : "error"}>
-                    {entry.status}
-                  </StatusBadge>
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    aria-label={`Delete backup from ${entry.date}`}
-                    disabled={deletingId === entry.id}
-                    onClick={() => onDelete(entry.id)}
-                  >
-                    <Trash2 className="h-4 w-4 text-muted-foreground" />
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <section className={className}>
+      <h2 className="font-serif text-2xl">Saved restore points</h2>
+      {!entries?.length ? (
+        <p className="text-muted-foreground mt-4 text-sm">
+          No restore points yet. Create one to keep a verified copy here.
+        </p>
+      ) : (
+        <ul className="mt-4 divide-y border-y">
+          {entries.map((entry) => (
+            <li key={entry.id} className="flex min-h-20 items-center justify-between gap-4 py-4">
+              <div>
+                <p className="font-medium">{entry.date}</p>
+                <p className="text-muted-foreground mt-1 text-sm">{entry.size} · Verified copy</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={`Delete backup from ${entry.date}`}
+                disabled={Boolean(deletingId)}
+                onClick={() => setSelected(entry)}
+              >
+                <Trash2 size={18} />
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <Dialog
+        open={selected !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelected(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove this restore point?</DialogTitle>
+            <DialogDescription>
+              The copy from {selected?.date} will be deleted. Your current Hifz record stays intact.
+              This copy cannot be recovered after removal.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSelected(null)}>
+              Keep restore point
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (selected) onDelete(selected.id);
+                setSelected(null);
+              }}
+            >
+              Remove restore point
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </section>
   );
 }

@@ -5,7 +5,7 @@ import {
   formatPageList,
   formatTimePreferred,
 } from "@/lib/format";
-import { ReportingPeriod } from "@/shared/types";
+import { ReportingPeriod, SessionType } from "@/shared/types";
 import type { HistoryDTO, HistoryFiltersDTO, TimelineEntryDTO } from "@/types/dto";
 
 /**
@@ -29,7 +29,9 @@ export async function getHistory(filters?: HistoryFiltersDTO): Promise<HistoryDT
       const pages = formatPageList(s.pageNumbers);
       return {
         id: s.sessionId,
-        type: "session",
+        type: s.sessionType === SessionType.Sabaq ? "session" : "revision",
+        durationSeconds: s.durationSeconds,
+        weakPages: s.recallCount - Math.round(s.recallCount * s.successRatio),
         title: s.completed ? `Completed ${kind.toLowerCase()}` : `${kind} in progress`,
         date: formatDatePreferred(sessionDate),
         time: formatTimePreferred(sessionDate),
@@ -53,7 +55,9 @@ export async function getHistory(filters?: HistoryFiltersDTO): Promise<HistoryDT
   }
 
   if (filters?.dateFrom) {
-    const from = new Date(filters.dateFrom);
+    const from = new Date(
+      filters.dateFrom.includes("T") ? filters.dateFrom : `${filters.dateFrom}T00:00:00`,
+    );
     entries = entries.filter((e) => {
       const d = sessionDateById.get(e.id);
       return d ? d.getTime() >= from.getTime() : true;
@@ -61,7 +65,9 @@ export async function getHistory(filters?: HistoryFiltersDTO): Promise<HistoryDT
   }
 
   if (filters?.dateTo) {
-    const to = new Date(filters.dateTo);
+    const to = new Date(
+      filters.dateTo.includes("T") ? filters.dateTo : `${filters.dateTo}T23:59:59.999`,
+    );
     entries = entries.filter((e) => {
       const d = sessionDateById.get(e.id);
       return d ? d.getTime() <= to.getTime() : true;

@@ -8,7 +8,7 @@ export interface UseSessionReturn {
   data: SessionDTO | null;
   loading: boolean;
   error: Error | null;
-  refetch: () => void;
+  refetch: () => Promise<void>;
 }
 
 export function useSession(): UseSessionReturn {

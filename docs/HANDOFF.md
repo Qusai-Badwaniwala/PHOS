@@ -1,351 +1,160 @@
 # PHOS — start here
 
-**If you are an AI assistant opening this project cold, read this file
-first and in full. It is the shortest path to being useful.**
+Read this file before changing PHOS. For the approved experience and implementation
+boundaries, read [REIMAGINED.md](REIMAGINED.md). For observed checks and remaining
+release boundaries, read [VERIFICATION.md](VERIFICATION.md).
 
----
+## Official working app and recoverable baseline
 
-## What PHOS is
+The owner adopted the complete **v0.4.0** frontend on 2026-10-05 and subsequently
+authorized its commit, push and GitHub Pages release. Development used
+the isolated `codex/phos-reimagined` worktree based on `d3fe97b`; the validated
+implementation is also adopted into the main project working tree. The previous
+implementation remains recoverable at `d3fe97b`. Release evidence is recorded in
+`VERIFICATION.md`; do not claim deployment until the workflow and live app agree.
 
-A Personal Hifz Operating System: a calm, offline-first companion for
-memorizing the Quran. It schedules new memorization and revision from
-evidence-based memory research, explains every decision it makes, and
-stores everything on the user's own device.
+On this machine:
 
-It is **not** a Quran reader. It never renders the Mushaf, and never
-provides a surface anyone could read from: no page images, no
-continuous text, no search, no ayah-by-ayah display of a passage being
-memorized. The user reads from their own physical Mushaf and PHOS only
-says which page to open.
+- Main app: `C:/Users/qusai/OneDrive/Desktop/PHOS-Claude/phos-handoff/phos-integrated`
+- Isolated implementation: `C:/Users/qusai/OneDrive/Desktop/PHOS-Claude/phos-reimagined`
+- Production-build preview: `http://127.0.0.1:4341/`
 
-The one deliberate exception, stated here because the rule as written
-did not survive contact with the build: **the Dashboard shows a single
-rotating ayah with its translation**, as a reminder rather than as
-reading material. It is never the page you are working on, it cannot be
-navigated, and nothing in PHOS will ever grow from it toward a reading
-surface. If you find yourself adding a second ayah, a next-ayah
-control, or the text of the page being memorized, you have crossed the
-line this paragraph exists to draw.
+The public app address is `https://qusai-badwaniwala.github.io/PHOS/`.
+The owner requested publishing the redesign first, then investigating shared-origin
+storage, adding a full return-to-onboarding reset and auditing the application's
+logic. That request supersedes the earlier hold on commits and deployment.
 
-It has no gamification, no streaks, no accounts and no social features.
-These are product constraints, not oversights; do not "helpfully" add
-any of them.
+## The product
 
-Author and product owner: **Qusai**.
+PHOS is Qusai's Personal Hifz Operating System. It plans memorization and retention
+for a physical **604-page Madinah / Misri Mushaf**. It is a completed, local-only PWA,
+not a prototype, a Quran reader, a habit game, or a generic productivity dashboard.
 
----
+Sabaq learns the next pages. Sabaqi revisits recent memorization. Manzil maintains
+established pages. Recovery gives weak pages priority. Exams deliberately replace
+ordinary revision with complete coverage of their scope. PHOS recommends; the user
+may record outside study or explicitly choose extra Sabaq.
 
-## Current state — v0.3.0, shipped and in use
+The five existing reminder ayahs are the deliberate reader-boundary exception:
+one reminder is visible at a time, dwelling for eight seconds, fading out then in.
+There is no next/previous navigation. This does not become a recitation surface.
+Reduced motion holds one reminder still; hidden/offscreen reminders pause.
 
-|               |                                                    |
-| ------------- | -------------------------------------------------- |
-| Live at       | https://qusai-badwaniwala.github.io/PHOS/          |
-| Repository    | https://github.com/Qusai-Badwaniwala/PHOS (public) |
-| Project root  | `phos-handoff/phos-integrated/`                    |
-| First shipped | 2026-08-04 (v0.1.0, phases 0–8)                    |
-| Current       | 2026-08-10 (v0.3.0, the scheduling-truth fixes)    |
-| Database      | version 2 · service worker cache `phos-v5`         |
+No accounts, server, synchronization, tracking, listening to recitation, Mushaf
+images, streaks, XP, or silently added capabilities.
 
-Twelve build phases complete. **PHOS has real users beyond Qusai**,
-which changes what is safe to do: see "If you change how stored data is
-produced" below.
+## Architecture and storage rules
 
-### What v0.3.0 fixed
-
-Five defects, all found by opening the app rather than by any test, and
-all of them variations on the same theme: **PHOS was telling users
-things that were not true.**
-
-- **Onboarding asked for the wrong unit.** It offered four choices
-  phrased in Juz, then demanded a page count — arithmetic the user had
-  to do unaided, since Juz are not a uniform length. It now asks for the
-  **order first**, then for Juz, and converts. "Three Juz" resolves
-  against the user's own order, so _Juz 30 first_ gives 64 pages and
-  _Standard_ gives something else. `pagesForJuzMemorized()` in
-  `client/operations/settings.ts` owns that rule, and both the preview
-  and the write call it.
-- **Seeding scheduled ~75% more revision per day than the clock could
-  fit.** Onboarding sized the cycle at `floor(minutes × 0.8)`, an
-  independent guess that a page costs a minute; the Adaptive Engine
-  charges 105 seconds for a seeded page. The overflow rolled forward as
-  overdue revision every single day.
-- **New memorization could be starved forever.** Overdue revision
-  outranks new work, and revision that does not fit only gets _more_
-  overdue — so once a user's revision filled their day they were never
-  offered another new page. `allocateStudyTime()` now admits one new
-  page by displacing the least urgent revision, never the last of it.
-- **The goal projection invented a pace.** Seeding stamped
-  `firstStudiedAt` on pages memorized before PHOS existed, so 304 of
-  them read as 304 pages memorized in three weeks. The Dashboard
-  announced "at about 16 pages a day" beside "nothing recorded in the
-  last seven days". Seeding no longer writes a date it does not know.
-- **"Memorized Pages" read 0** for a user who had just declared 300,
-  because it counted only `Stable`/`Mastered`.
-
-Plus: the `NumberStepper` buttons announced a bare "Increase"/"Decrease"
-with no field name, which only mattered once a screen had two of them.
-
-**One repair ships with this**, `repairEstimatedFirstStudiedDates()` —
-see the migration rules below, and note it is the first repair that
-deliberately _does_ change what the user sees.
-
-### What v0.2.0 added
-
-- **Goals** — a target chosen as a Juz along the user's own memorization
-  order, with a projection measured from real pace and withheld below
-  seven days of evidence.
-- **Exams** — `/exams`, its own route. A fixed eight-stage ladder, a
-  run-up schedule that divides the whole scope evenly across the days
-  remaining, Self Exams over any Juz, and a record of exams passed
-  before PHOS existed. Exam mode replaces the day's plan and sets aside
-  revision outside the scope until the exam is marked passed.
-- **A traditional revision cycle** — an optional fixed rotation through
-  everything memorized, in the user's own order, repeating. Only
-  revision changes; new memorization keeps its pacing. An exam takes
-  precedence over both.
-- **An exam-wise memorization order** — Juz 30 → 26, then 1 → 25.
-- **Blocked seeding**, plus a one-time device repair for anyone who
-  onboarded before it.
-
----
-
-## Architecture in one screen
-
-```
-app/**/page.tsx, components/, providers/     the screens
-        │
-lib/api/*                    engine DTOs → presentation DTOs
-        │
-client/operations/*          validate, call engines, map results
-        │
-client/container.ts          the composition root
-        │
-engines/{memory,adaptive,learning,analytics,persistence}
-        │
-repositories/interfaces → repositories/browser
-        │
-IndexedDB (via idb)
+```text
+app + components + providers
+  -> lib/api presentation adapters
+  -> client/operations validation and orchestration
+  -> client/container composition root
+  -> learning / memory / adaptive / analytics / persistence engines
+  -> repository interfaces and browser implementations
+  -> IndexedDB
 ```
 
-Rules that hold the design together, in order of importance:
+- Memory Engine owns memory calculations and transitions. Recall events remain
+  append-only during ordinary study. No component performs memory arithmetic.
+- Database version remains **2**, export format remains **1**. Application version
+  is independent of the data format. Older compatible exports are not rejected
+  because of their application version.
+- There are 604 unique page records and one settings row. Additive fields have
+  compatible absent-field behavior. Existing one-time repairs remain intact.
+- `client/commit-study.ts` composes Memory Engine with transaction-bound repositories:
+  memory update, recall append, and session item commit together. It does not replace
+  any Memory Engine algorithm.
+- One active session is enforced transactionally. Its saved assignment, weak flags,
+  pause state, and recorded items survive reload. Completion is idempotent.
+- Persistence may replace the record only for an explicit restore or reset. Validate
+  first, verify a safety copy, then use one replacement transaction. The `backups`
+  store is outside that replacement and survives it.
+- File restore is a **full restore**, not a merge. Portable snapshots include pages,
+  sessions, session items, recalls, settings, roadmap entries, and exams. Legacy
+  files display warnings for information they never contained.
+- Local restore points cannot survive clearing site data. An exported file kept
+  elsewhere can. Persistent storage is requested, not guaranteed by PHOS.
 
-1. **Engines own all business logic.** Never put a domain decision in a
-   component, a hook, an operation or a repository.
-2. **Engines depend on repository _interfaces_**, never on a concrete
-   class, and never construct one. The container injects them. This is
-   the single reason PHOS could move from SQLite to IndexedDB without
-   changing an engine or an engine test.
-3. **The Memory Engine is the only writer of `memoryState`.**
-4. **RecallEvents are append-only.** Exactly one Settings row exists.
-5. **Nothing is claimed in the UI that the build does not do.** The
-   guide, onboarding and README are held to the same accuracy standard
-   as the code. If a change makes a claim untrue, change the claim.
+## Frontend authority
 
----
+A quiet study folio, independently designed without a prescriptive design skill.
+Mineral ivory and ink-plum themes share restrained rose accents. Locally served
+Source Sans 3, Source Serif 4, and Noto Naskh Arabic. The existing book/arch identity
+and quiet author attribution remain.
 
-## Working on it
+Phone destinations: **Today, My Hifz, Exams, More**. Original routes remain valid.
+Study has a focused layout and reachable fixed actions; desktop uses a deliberate
+rail and bounded reading/work columns. Preserve every capability, including the
+full custom roadmap, paused Juz, optional goals, traditional revision, all exam
+forms, outside work, history views, preferences, export, restore, and reset.
+
+Motion communicates cause and continuity: short page settling, restrained sheets,
+press feedback, and sequential reminder fades. Native scrolling remains native.
+Respect both the operating system and the in-app reduced-motion preference.
+
+## Run and validate
+
+Use Node **24**, matching `.nvmrc`, and npm 11.
 
 ```bash
 npm install
-npm run dev            # http://localhost:3000
-```
-
-Nothing else to set up — no `.env`, no database, no migrations. The 604
-pages of the Mushaf are seeded into IndexedDB the first time the app
-opens.
-
-### The gate — everything must pass before committing
-
-```bash
-npm run format
-npm run lint
-npm run typecheck
-npm run test           # 591 engine + repository tests (Vitest)
-npm run test:ui        # 183 component + page + service-worker tests (Jest)
-npm run build          # static export into out/
-```
-
-### Seeing what actually ships
-
-```bash
+npm run dev
 npm run build
-npm run preview        # serves out/ at http://localhost:3000
+npm run preview
+npm run gate
 ```
 
-Use a **different port** to get a clean database — a different origin
-means a fresh IndexedDB, which is the quickest way to test a first-run
-experience without clearing browser storage.
+`gate` checks formatting, lint, TypeScript, Vitest, Jest, static export, and the
+complete offline resource manifest. Test the production export in a real browser;
+`next dev` does not exercise the production service worker. Use a new port for a
+fresh database instead of clearing someone's record.
 
-### Deploying
-
-Push to `main`. That is the whole process.
-`.github/workflows/deploy.yml` runs the gate, builds with
-`PHOS_BASE_PATH=/PHOS`, and publishes to GitHub Pages. A failing gate
-refuses to deploy rather than shipping something broken.
-
----
-
-## What experience has taught this project
-
-Read `docs/phase-progress.md` for the full record. The short version,
-because it will save you from repeating it:
-
-**Tests passing is not evidence that it works.** Nearly every serious
-defect in PHOS's history — a return allowance that was a no-op, a
-workload warning that was dead code, a 45% recall producing an
-_increase_, an unsatisfiable typed confirmation, a number field turning
-45 into 545, an onboarding preview that was never on screen, an offline
-route that died without its trailing slash, a passed Self Exam computed
-through four layers that no screen rendered, and the Dashboard's two
-primary buttons which were dead from the first commit — passed every
-test and every type check, and was found by a human opening the app.
-
-So: **run it, click it, and look.** Then write the test that would have
-caught it, and prove the test fails without the fix.
-
-**Verify a fix by restoring the defect.** Every regression test in this
-codebase was confirmed to fail against the original behaviour before
-being accepted. A test that has never failed is not yet a test.
-
-**Two modules agreeing on a value is not the same as sharing one.**
-The seeding path and the scheduler each held their own answer to "how
-long does a page take" — 60 seconds and 105 seconds. Neither was
-unreasonable alone; the bug lived entirely in the gap, and it
-compounded daily until PHOS stopped assigning new work. The fix was to
-make one ask the other. `tests/unit/operations/seedingCapacity.test.ts`
-now binds them: it asks the real duration calculator with the real
-config what a seeded page costs, then asserts the seeded cycle fits the
-day. Retuning `baseDurationSeconds` keeps it passing; reintroducing an
-independent guess of the per-page cost anywhere fails it.
-
-**A number PHOS derives from its own estimates is not evidence.**
-Seeding wrote `firstStudiedAt` because a date seemed better than none.
-Two features then read those dates as though the user had earned them,
-and the Dashboard told a brand-new user their pace was 16 pages a day
-while also telling them nothing had been recorded in seven days. When
-PHOS does not know something, the honest representation is `null`, and
-every consumer already handled `null` correctly.
-
-**Assert what a control _does_, not what it says.** "Start Session" and
-"Start Revision" rendered as a bare `<span>` — no href, no handler —
-from the first commit until v0.2.1. Both screens stayed reachable from
-the sidebar, so nothing was blocked and nobody noticed. Any test
-checking the label would have passed; the ones that catch it assert the
-`href`.
-
----
-
-## If you change how stored data is produced — read this first
-
-PHOS stores everything in the user's browser. **There is no server, no
-way to reach anyone, and no acceptable way to ask somebody to delete
-years of their own Hifz record.** Fixing a rule therefore does not fix
-the data that rule already produced.
-
-This is not theoretical. Seeding once spread prior memorization with
-`index % cycleDays`, handing one day pages 582, 585, 588, 591 — the
-right quantity of revision in an order nobody recites. The rule took
-twenty minutes to fix; reaching the people already carrying the old
-dates took a whole extra feature.
-
-Three rules, all of them load-bearing:
-
-1. **Schema upgrades may only add.** Guard each step by `oldVersion` in
-   `repositories/browser/database.ts`, and test the upgrade path
-   directly — `browserRepositories.test.ts` builds a real version 1
-   database, puts a page in it, upgrades, and asserts the record
-   survived.
-2. **A missing field resolves to the behaviour the user already had**,
-   never to the new default, and in exactly one place — the repository
-   boundary. See `revisionMode ?? RevisionMode.Adaptive` and the goal
-   fields in `BrowserSettingsRepository`.
-3. **A repair must not change what the user experiences —
-   _by way of workload_.** `MemoryEngine.reblockSeededRevision()`
-   recomputes nothing: it sorts the dates already stored and re-pairs
-   them with pages in order, so the number of pages due on any day is
-   arithmetically identical before and after. Repairs live in
-   `client/operations/migrations.ts` and run once from the storage
-   bootstrap.
-
-   **v0.3.0 narrowed this rule rather than bending it, and it is worth
-   knowing why.** `repairEstimatedFirstStudiedDates()` deliberately
-   changes what the user is _told_: their goal projection stops
-   claiming "about 16 pages a day" and says it needs a week of real
-   sessions first. The rule was written to stop a repair silently
-   moving somebody's daily load, and this moves none — `firstStudiedAt`
-   steers nothing that picks pages. Keeping a flattering wrong number
-   on screen in the name of stability would have inverted the point of
-   repairing it. The rule now says what it always meant: **a repair may
-   correct what PHOS claims; it may not change what PHOS asks of you.**
-
-   The identification test is worth copying if you write another
-   repair: a seeded page is one carrying `firstStudiedAt` with **no
-   recall event behind it**. That is exact rather than heuristic —
-   `firstStudiedAt` has only ever been written by `recordRecall()`,
-   which always creates an event, and by seeding, which never does.
-
-**Adding a store means wiring it into every path that crosses all
-stores** — reset, backup, export, import, restore. The `exams` store
-was added and missed from `resetAllData()`; a scheduled exam would have
-survived a full wipe and put the scheduler into exam mode over pages
-that were no longer memorized.
-
----
-
-## Known gaps, stated deliberately
-
-- **Never tested on a real phone.** The PWA install path is verified by
-  reading the manifest and the built output, not by installing on iOS
-  or Android.
-- **No React component tests for presentational components or the
-  data-fetching hooks.** `tests/ui/` covers the places where a defect
-  costs data or strands the user; the rest is manual.
-- **`client/operations/*` has no direct tests.** Covered indirectly —
-  engines and validators are tested, adapters are tested with the
-  operations mocked.
-- **Two `postcss` advisories** reached through `next`. Build-time only,
-  processing PHOS's own CSS; nothing ships to the browser. Assessed and
-  accepted. The fix is `next@16`, a two-major upgrade not attempted.
-- **CI installs with `npm install`, not `npm ci`.** Deliberate — see
-  the note in `.github/workflows/ci.yml` for what that trades away and
-  why.
-- **The scheduling constants are engineering judgement.** Built on
-  published memory research, but the specific decay rates and
-  thresholds were chosen and sanity-checked, never validated against
-  real Hifz outcome data. "Scientifically informed" is the honest
-  phrase.
-
----
-
-## Where the documents are
-
-| File                                                 | What it holds                                                                        |
-| ---------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `docs/phase-progress.md`                             | The full build record, every phase, every defect and why each decision was made      |
-| `docs/phase-9-static-pwa-plan.md`                    | Why and how PHOS moved into the browser                                              |
-| `client/operations/README.md`                        | Endpoint-by-endpoint account of what replaced the API routes                         |
-| `README.md`                                          | Architecture, scripts, known gaps                                                    |
-| `docs/merge-report.md`, `docs/integration-review.md` | History from before the app ran. Useful for architectural intent, **not** for status |
-
-The governing documents live one level above the project root:
-`CLAUDE_OPERATING_MANUAL_V1.txt` (highest priority — it defines
-required engineering behaviour), `PRODUCT_REQUIREMENTS_V1.txt`, and
-`IMPLEMENTATION_ORDER_V1.txt`.
-
----
-
-## First thing to do in a new session
+For deployment-path verification:
 
 ```bash
-npm install
-npm run format && npm run lint && npm run typecheck && npm run test && npm run test:ui && npm run build
+PHOS_BASE_PATH=/PHOS npm run build
+PHOS_BASE_PATH=/PHOS node scripts/verify-base-path.mjs
 ```
 
-Expected: **0 errors, 0 warnings, 591 + 183 tests passing, build
-succeeds.** If that is not what you see, fix it before changing
-anything else — you have found drift, and it is now the most
-interesting thing in the repository.
+PowerShell: set `$env:PHOS_BASE_PATH = '/PHOS'`, run the two commands, then remove
+that environment variable and rebuild for a root preview.
 
-(This line said "309 + 107" from v0.1.0 until v0.3.0, long after both
-numbers were wrong. If you change the counts, change them here too —
-a baseline nobody can verify is not a baseline.)
+Next 16's version-matched documentation is bundled in `node_modules/next/dist/docs`.
+Read the relevant guide before changing framework behavior. The production build
+uses Webpack explicitly. No runtime environment secrets or database URL are needed.
+
+## PWA release behavior
+
+The build creates `out/precache-manifest.js` from every exported application file,
+including all routes, route payloads, JavaScript, CSS, icons, and three local fonts.
+`verify-precache.mjs` validates the artifact. The worker's cache key includes its
+scope and a content-derived build identifier. Installation is atomic; errors never
+become cached app pages. Activation cleans only PHOS caches for this scope and keeps
+one prior build for already-open tabs.
+
+New workers wait. Check on launch, foreground return, restored connection and every
+ten minutes while visible. Apply update checks the live active session before activation.
+An open study blocks the update and offers Resume. Only the tab requesting the
+update reloads. Apply/Later and offline-setup retry are explicit user actions.
+
+CI and Pages deploy run frontend tests and offline artifact checks as well as
+engine tests. The owner authorized commit/push/deployment on 2026-10-05. Keep local
+records and the recoverable prior implementation intact throughout publication.
+
+## Verification boundaries
+
+See [VERIFICATION.md](VERIFICATION.md) for actual evidence, not historical counts.
+Desktop phone emulation cannot establish physical Android/iOS installation, launcher
+appearance, TalkBack/VoiceOver, real-device latency, or Safari-specific keyboard behavior.
+The scheduling coefficients are scientifically informed engineering judgement, not
+validated against a Hifz outcome study.
+
+Production dependency audit reports zero known vulnerabilities. Five high advisories
+remain in the developer ESLint glob chain (`braces` through Next lint tooling); no
+compatible patch was offered. That chain does not ship in the static browser app.
+Do not use an unsafe forced downgrade to make the audit count look better.
+
+Historical build decisions and defects remain in [phase-progress.md](phase-progress.md)
+and the phase documents. Their old framework versions, phase tasks, and test counts
+are history, not current instructions.

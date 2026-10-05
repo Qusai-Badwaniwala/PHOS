@@ -3,7 +3,7 @@ import type {
   CreateRecallEventInput,
   IRecallEventRepository,
 } from "../interfaces/IRecallEventRepository";
-import { generateId, getDatabase, type StoredRecallEvent } from "./database";
+import { generateId, getDatabase, type StoredRecallEvent, type StudyTransaction } from "./database";
 
 /**
  * IndexedDB implementation of `IRecallEventRepository`.
@@ -15,6 +15,7 @@ import { generateId, getDatabase, type StoredRecallEvent } from "./database";
  * serve an explicit "delete everything" request, after a backup.
  */
 export class BrowserRecallEventRepository implements IRecallEventRepository {
+  constructor(private readonly transaction?: StudyTransaction) {}
   async create(event: CreateRecallEventInput): Promise<RecallEvent> {
     const db = await getDatabase();
     const record: StoredRecallEvent = {
@@ -26,7 +27,8 @@ export class BrowserRecallEventRepository implements IRecallEventRepository {
       confidence: event.confidence,
       durationSeconds: event.durationSeconds,
     };
-    await db.add("recallEvents", record);
+    if (this.transaction) await this.transaction.objectStore("recallEvents").add(record);
+    else await db.add("recallEvents", record);
     return toDomainRecallEvent(record);
   }
 

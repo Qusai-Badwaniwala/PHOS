@@ -1,27 +1,22 @@
-# Developer Onboarding
+# Contributor onboarding
 
-Welcome to the PHOS engineering team. This document will guide you through setting up the repository and beginning your development workflow.
+Read [HANDOFF.md](HANDOFF.md), [REIMAGINED.md](REIMAGINED.md), and [VERIFICATION.md](VERIFICATION.md).
+The product is complete; this branch is a functioning alternative frontend awaiting
+adoption, not a set of unfinished bootstrap sprints.
 
-## 1. Prerequisites
-
-- Node.js (v18 or higher)
-- npm or pnpm
-- Git
-- VS Code (recommended)
-
-## 2. Initial Setup
-
-Currently in Sprint 0, the project setup is fully manual. Once Sprint 1 (Bootstrap Automation) is complete, you will be able to run a single setup command.
-
-For now, simply clone the repository:
+Prerequisites: Git, Node 24 (see `.nvmrc`), npm 11.
 
 ```bash
-git clone <repository_url>
-cd mysterious-fermi
+npm install
+npm run dev
+npm run gate
 ```
 
-## 3. Recommended Workflow
+No environment secrets, Prisma setup, SQLite service, or database URL are needed.
+First launch seeds the browser record. Use a different preview port for a clean
+onboarding journey. Use `npm run build` and `npm run preview` for production PWA tests.
 
-- Read the [Infrastructure Architecture](infrastructure.md) to understand the boundary between AntiGravity (Infrastructure) and Claude (Business Logic).
-- Ensure your editor is configured to use the provided `.editorconfig`, `.prettierrc.json`, and `.eslintrc.json` files.
-- Before opening a PR, ensure you review the [Repository Conventions](conventions.md).
+The editor uses `.editorconfig`, Prettier, and `eslint.config.mjs`. Read the relevant
+version-matched Next guide from `node_modules/next/dist/docs` before framework changes.
+Business logic belongs to the five engines; components call adapters. Preserve data,
+old-compatible absent fields, and the working checkout when making changes.

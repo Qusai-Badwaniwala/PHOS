@@ -5,18 +5,18 @@ import { BookOpen } from "lucide-react";
 export default function NotFoundPage() {
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6 px-4 text-center">
-      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-        <BookOpen className="h-8 w-8 text-muted-foreground" />
+      <div className="bg-muted flex h-16 w-16 items-center justify-center rounded-full">
+        <BookOpen className="text-muted-foreground h-8 w-8" />
       </div>
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight">Page Not Found</h1>
-        <p className="max-w-sm text-sm text-muted-foreground">
-          The page you are looking for does not exist. Return to the Dashboard to continue your
-          memorization journey.
+        <h1 className="folio-title text-3xl">This page is not in PHOS</h1>
+        <p className="text-muted-foreground max-w-sm text-sm">
+          The page you are looking for does not exist. Return to Today to continue your memorization
+          journey.
         </p>
       </div>
       <Button asChild>
-        <Link href="/dashboard">Return to Dashboard</Link>
+        <Link href="/dashboard">Return to Today</Link>
       </Button>
     </div>
   );

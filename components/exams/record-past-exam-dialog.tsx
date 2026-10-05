@@ -98,8 +98,20 @@ export function RecordPastExamDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+    <Dialog
+      open={open}
+      onOpenChange={(value) => {
+        if (!pending) onOpenChange(value);
+      }}
+    >
+      <DialogContent
+        onEscapeKeyDown={(event) => {
+          if (pending) event.preventDefault();
+        }}
+        onPointerDownOutside={(event) => {
+          if (pending) event.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Record an exam you already passed</DialogTitle>
           <DialogDescription>
@@ -111,7 +123,7 @@ export function RecordPastExamDialog({
         <div className="space-y-5 py-2">
           <fieldset className="space-y-2">
             <legend className="text-sm font-medium">What did you pass?</legend>
-            <label className="flex gap-2 text-sm">
+            <label className="flex min-h-12 items-start gap-3 py-2 text-sm">
               <input
                 type="radio"
                 name="past-exam-mode"
@@ -122,7 +134,7 @@ export function RecordPastExamDialog({
               />
               <span>A stage from the roadmap</span>
             </label>
-            <label className="flex gap-2 text-sm">
+            <label className="flex min-h-12 items-start gap-3 py-2 text-sm">
               <input
                 type="radio"
                 name="past-exam-mode"
@@ -146,7 +158,7 @@ export function RecordPastExamDialog({
                 disabled={pending}
                 onChange={(event) => setStage(event.target.value)}
                 aria-label="Which stage"
-                className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                className="border-input bg-background ring-offset-background focus:ring-ring flex h-10 w-full items-center rounded-md border px-3 py-2 text-sm focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <option value="">Choose a stage</option>
                 {EXAM_LADDER.map((definition) => (
@@ -164,7 +176,7 @@ export function RecordPastExamDialog({
               <div
                 role="group"
                 aria-labelledby="past-exam-juz-label"
-                className="grid grid-cols-6 gap-1.5 sm:grid-cols-10"
+                className="grid grid-cols-5 gap-2 sm:grid-cols-6"
               >
                 {Array.from({ length: TOTAL_JUZ }, (_, index) => index + 1).map((juz) => {
                   const selected = selectedJuz.includes(juz);
@@ -178,8 +190,8 @@ export function RecordPastExamDialog({
                       onClick={() => toggleJuz(juz)}
                       className={
                         selected
-                          ? "rounded-md border border-primary bg-primary py-1.5 text-xs font-medium text-primary-foreground"
-                          : "rounded-md border border-input bg-background py-1.5 text-xs hover:bg-accent"
+                          ? "border-primary bg-primary text-primary-foreground min-h-11 rounded-md border py-2 text-sm font-medium"
+                          : "border-input bg-background hover:bg-accent min-h-11 rounded-md border py-2 text-sm"
                       }
                     >
                       {juz}
@@ -192,7 +204,7 @@ export function RecordPastExamDialog({
 
           <div className="space-y-2">
             <label htmlFor="past-exam-date" className="text-sm font-medium">
-              When, roughly <span className="font-normal text-muted-foreground">(optional)</span>
+              When, roughly <span className="text-muted-foreground font-normal">(optional)</span>
             </label>
             <Input
               id="past-exam-date"
@@ -203,14 +215,14 @@ export function RecordPastExamDialog({
               onChange={(event) => setExamDate(event.target.value)}
               aria-label="When, roughly"
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               Leave this empty if you do not remember. PHOS will simply record it as passed before
               you started.
             </p>
           </div>
 
           {error && (
-            <p role="alert" className="text-sm text-destructive">
+            <p role="alert" className="text-destructive text-sm">
               {error}
             </p>
           )}

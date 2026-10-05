@@ -120,7 +120,7 @@ export function NumberStepper({
           setDraft(null);
           commit(value - step);
         }}
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-input bg-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
+        className="border-input bg-background hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-md border transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40"
       >
         <Minus className="h-4 w-4" aria-hidden="true" />
       </button>
@@ -143,7 +143,7 @@ export function NumberStepper({
         {suffix && (
           <span
             aria-hidden="true"
-            className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-muted-foreground"
+            className="text-muted-foreground pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs"
           >
             {suffix}
           </span>
@@ -158,7 +158,7 @@ export function NumberStepper({
           setDraft(null);
           commit(value + step);
         }}
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-input bg-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
+        className="border-input bg-background hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-md border transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40"
       >
         <Plus className="h-4 w-4" aria-hidden="true" />
       </button>

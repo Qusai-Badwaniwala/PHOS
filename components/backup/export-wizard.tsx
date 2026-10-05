@@ -46,19 +46,20 @@ export function ExportWizard({ onExported, className }: ExportWizardProps) {
   return (
     <ContentCard className={cn(className)}>
       <div className="mb-4 flex items-center gap-2">
-        <FileDown className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
-        <h3 className="font-semibold">Export</h3>
+        <FileDown className="text-muted-foreground h-5 w-5" aria-hidden="true" />
+        <h2 className="font-serif text-2xl">Keep a copy outside PHOS</h2>
       </div>
 
       <div className="space-y-4">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Save a readable copy of your data as a file you keep. This is the only copy that survives
           clearing your browser, and the way to move PHOS to another device.
         </p>
 
-        <div className="rounded-md bg-muted p-3">
-          <p className="text-xs text-muted-foreground">
-            Export includes: page progress, sessions, recall history, and settings.
+        <div className="bg-muted rounded-md p-3">
+          <p className="text-muted-foreground text-xs">
+            Export includes: all page progress, sessions, recall history, exams, roadmap, and
+            preferences.
           </p>
         </div>
 
@@ -74,16 +75,16 @@ export function ExportWizard({ onExported, className }: ExportWizardProps) {
         */}
         <Button className="w-full" onClick={handleExport} disabled={pending}>
           <Download className="mr-2 h-4 w-4" />
-          {pending ? "Preparing export…" : "Export Data"}
+          {pending ? "Preparing export…" : "Export your complete record"}
         </Button>
 
         {outcome && (
-          <p role="status" className="text-sm text-muted-foreground">
+          <p role="status" className="text-muted-foreground text-sm">
             {outcome}
           </p>
         )}
         {error && (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-destructive text-sm">
             {error}
           </p>
         )}

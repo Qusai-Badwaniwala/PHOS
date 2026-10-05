@@ -1,12 +1,14 @@
 import { sessionOps } from "@/client/operations";
-import { surahsOnPage } from "@/shared/constants";
+import { surahsOnPage, juzNumberForPage } from "@/shared/constants";
 import { getDailyStudyMinutes } from "./settings";
 import type { BackendStudyItem } from "./wire";
 import {
   clearAssignment,
   fetchActiveSession,
   finishActiveSession,
-  readAssignment,
+  committedAssignment,
+  getStudyReceipt,
+  type StudyReceipt,
   submitRemainingPages,
   writeAssignment,
   REVISION_ASSIGNMENT_KEY,
@@ -130,11 +132,11 @@ async function fetchTodayRevisionAssignment(
  * completed session — matching `RevisionPage`'s existing `if (!data)
  * return <RevisionEmpty />` path.
  */
-export async function getRevision(): Promise<RevisionDTO | null> {
+export async function getRevision(ofSessionType?: SessionType): Promise<RevisionDTO | null> {
   const active = await fetchActiveSession();
 
   if (active && REVISION_SESSION_TYPES.includes(active.sessionType)) {
-    const cached = readAssignment(ASSIGNMENT_KEY);
+    const cached = committedAssignment(active, ASSIGNMENT_KEY);
     const studyPages =
       cached?.sessionId === active.sessionId
         ? cached.pageIds.map((pageId, index) => {
@@ -142,6 +144,7 @@ export async function getRevision(): Promise<RevisionDTO | null> {
             return {
               pageId,
               pageNumber,
+              juzNumber: juzNumberForPage(pageNumber),
               surahs: surahsOnPage(pageNumber).map((surah) => ({
                 name: surah.name,
                 arabicName: surah.arabicName,
@@ -157,7 +160,10 @@ export async function getRevision(): Promise<RevisionDTO | null> {
 
     return {
       id: active.sessionId,
-      status: "in_progress",
+      status: active.studyDraft?.paused ? "paused" : "in_progress",
+      weakPageIds: active.studyDraft?.weakPageIds ?? [],
+      completedPageIds: active.completedPageIds,
+      startedAt: active.startedAt,
       title: "Revision Session",
       assignment: {
         type: revisionTypeForSessionType(active.sessionType),
@@ -177,7 +183,7 @@ export async function getRevision(): Promise<RevisionDTO | null> {
   // rather than letting it strand the UI.
   clearAssignment(ASSIGNMENT_KEY);
 
-  const assignment = await fetchTodayRevisionAssignment();
+  const assignment = await fetchTodayRevisionAssignment(ofSessionType);
   if (!assignment) {
     return null;
   }
@@ -206,8 +212,8 @@ export async function getRevision(): Promise<RevisionDTO | null> {
 }
 
 /** Starts a session for today's revision assignment. */
-export async function startRevision(): Promise<void> {
-  const assignment = await fetchTodayRevisionAssignment();
+export async function startRevision(ofSessionType?: SessionType): Promise<void> {
+  const assignment = await fetchTodayRevisionAssignment(ofSessionType);
   if (!assignment || assignment.items.length === 0) {
     throw new Error("No revision is scheduled today.");
   }
@@ -230,14 +236,14 @@ export async function startRevision(): Promise<void> {
 export async function completeRevision(
   onProgress?: (progress: CompletionProgress) => void,
   weakPageIds: WeakPageIds = new Set(),
-): Promise<void> {
+): Promise<StudyReceipt> {
   const active = await fetchActiveSession();
   if (!active || !REVISION_SESSION_TYPES.includes(active.sessionType)) {
     clearAssignment(ASSIGNMENT_KEY);
     throw new Error("No revision session is currently in progress.");
   }
 
-  const cached = readAssignment(ASSIGNMENT_KEY);
+  const cached = committedAssignment(active, ASSIGNMENT_KEY);
   const pageIds =
     cached?.sessionId === active.sessionId
       ? cached.pageIds
@@ -254,6 +260,7 @@ export async function completeRevision(
   );
   await finishActiveSession(active.sessionId);
   clearAssignment(ASSIGNMENT_KEY);
+  return getStudyReceipt(active.sessionId);
 }
 
 /** Stops the revision now, keeping whatever was recorded. See `finishSessionLater()` in session.ts. */

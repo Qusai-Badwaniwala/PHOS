@@ -4,6 +4,7 @@ import {
   SURAHS,
   surahLabelForRange,
   surahsStartingOnPage,
+  surahsOnPage,
 } from "@/shared/constants";
 
 /**
@@ -75,6 +76,19 @@ describe("primarySurahForPage", () => {
 
   it("returns null below the first page rather than guessing", () => {
     expect(primarySurahForPage(0)).toBeNull();
+  });
+});
+
+describe("actual printed-page surah spans", () => {
+  // Quran.com chapter metadata for the same 604-page Madani layout.
+  it.each([
+    [2, [2]],
+    [50, [3]],
+    [106, [4, 5]],
+    [602, [106, 107, 108]],
+    [604, [112, 113, 114]],
+  ])("names only surahs actually present on page %s", (page, numbers) => {
+    expect(surahsOnPage(page).map((surah) => surah.number)).toEqual(numbers);
   });
 });
 

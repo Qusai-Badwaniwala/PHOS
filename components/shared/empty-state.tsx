@@ -25,11 +25,11 @@ export function EmptyState({
         className,
       )}
     >
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-        <Inbox className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
+      <div className="bg-muted flex h-12 w-12 items-center justify-center rounded-full">
+        <Inbox className="text-muted-foreground h-6 w-6" aria-hidden="true" />
       </div>
       <h3 className="mt-4 text-sm font-semibold">{title}</h3>
-      <p className="mt-1 max-w-sm text-sm text-muted-foreground">{description}</p>
+      <p className="text-muted-foreground mt-1 max-w-sm text-sm">{description}</p>
       {actionLabel && onAction && (
         <Button className="mt-4" onClick={onAction}>
           {actionLabel}

@@ -22,7 +22,10 @@ import type {
  * remaining methods are completed now, in MODULE 07.
  */
 export interface IAdaptiveEngine {
-  generateDailyPlan(availableStudyMinutes: number): Promise<DailyStudyPlan>;
+  generateDailyPlan(
+    availableStudyMinutes: number,
+    options?: { extraNewMemorization?: boolean },
+  ): Promise<DailyStudyPlan>;
 
   /** Priority Score for one page — an internal implementation detail, never persisted or exposed directly to the UI (SDS Part 11 "PRIORITY CALCULATION"). */
   calculatePriority(page: Page, referenceDate: Date): number;

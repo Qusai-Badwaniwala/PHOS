@@ -55,7 +55,7 @@ export function HistoryTable({ entries, onSelect, className }: HistoryTableProps
             <tr
               key={entry.id}
               onClick={() => onSelect?.(entry)}
-              className="cursor-pointer transition-colors hover:bg-accent/50"
+              className="hover:bg-accent/50 cursor-pointer transition-colors"
             >
               <td className="px-4 py-3">
                 <div className="flex items-center gap-2">
@@ -64,12 +64,26 @@ export function HistoryTable({ entries, onSelect, className }: HistoryTableProps
                 </div>
               </td>
               <td className="px-4 py-3">
-                <p className="font-medium">{entry.title}</p>
-                {entry.description && (
-                  <p className="hidden text-xs text-muted-foreground lg:block">
-                    {entry.description}
-                  </p>
-                )}
+                <button
+                  type="button"
+                  className="min-h-11 w-full rounded-sm py-1 text-left"
+                  aria-label={`Open ${entry.title}, ${entry.date}`}
+                  disabled={!onSelect}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onSelect?.(entry);
+                  }}
+                >
+                  <span className="block font-medium">{entry.title}</span>
+                  {entry.description && (
+                    <span className="text-muted-foreground mt-1 block text-xs">
+                      {entry.description}
+                    </span>
+                  )}
+                  <span className="text-muted-foreground mt-1 block text-xs sm:hidden">
+                    {entry.date} · {entry.time}
+                  </span>
+                </button>
               </td>
               <td className="hidden px-4 py-3 tabular-nums sm:table-cell">{entry.date}</td>
               <td className="hidden px-4 py-3 md:table-cell">

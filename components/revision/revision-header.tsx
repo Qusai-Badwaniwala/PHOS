@@ -69,7 +69,7 @@ export function RevisionHeader({
         <div className="flex items-center gap-3">
           <StatusBadge status={statusVariant(status)}>{statusLabel(status)}</StatusBadge>
           {estimatedTime && (
-            <span className="flex items-center gap-1 text-sm text-muted-foreground">
+            <span className="text-muted-foreground flex items-center gap-1 text-sm">
               <Clock className="h-3.5 w-3.5" aria-hidden="true" />~{estimatedTime}
             </span>
           )}

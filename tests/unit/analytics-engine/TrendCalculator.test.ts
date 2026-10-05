@@ -31,6 +31,18 @@ function buildEvents(successCount: number, failureCount: number): RecallEvent[] 
 }
 
 describe("calculateTrend", () => {
+  it.each(["current", "previous", "both"])(
+    "does not invent a comparison when %s evidence is absent",
+    (missing) => {
+      const result = calculateTrend(
+        ReportingPeriod.Weekly,
+        missing === "current" || missing === "both" ? [] : buildEvents(8, 1),
+        missing === "previous" || missing === "both" ? [] : buildEvents(2, 1),
+      );
+      expect(result.trendStrength).toBe(0);
+      expect(result.summary).toContain("needs recorded recall in both periods");
+    },
+  );
   it("reports Stable when there is no previous-period data to compare against", () => {
     const result = calculateTrend(ReportingPeriod.Weekly, buildEvents(5, 0), []);
     expect(result.trendDirection).toBe(TrendDirection.Stable);

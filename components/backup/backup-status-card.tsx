@@ -10,7 +10,7 @@ import type { BackupStatus } from "@/types/dto";
 
 interface BackupStatusCardProps {
   lastBackup?: string;
-  /** When a file was last exported. `undefined` means never. */
+  /** Export date in this record; older snapshots can have no export metadata. */
   lastExport?: string;
   status?: BackupStatus;
   onCreate: () => void;
@@ -31,24 +31,24 @@ export function BackupStatusCard({
   return (
     <ContentCard className={cn(className)}>
       <div className="mb-4 flex items-center gap-2">
-        <Database className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+        <Database className="text-muted-foreground h-5 w-5" aria-hidden="true" />
         <h3 className="font-semibold">Restore points</h3>
       </div>
 
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">Status</span>
+          <span className="text-muted-foreground text-sm">Status</span>
           {status === "up_to_date" && <StatusBadge status="success">Up to date</StatusBadge>}
           {status === "outdated" && <StatusBadge status="warning">Outdated</StatusBadge>}
           {status === "never" && <StatusBadge status="neutral">None yet</StatusBadge>}
         </div>
 
         <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">Last restore point</span>
+          <span className="text-muted-foreground text-sm">Last restore point</span>
           <span className="flex items-center gap-1 text-sm font-medium">
             {lastBackup ? (
               <>
-                <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                <Clock className="text-muted-foreground h-3.5 w-3.5" />
                 {lastBackup}
               </>
             ) : (
@@ -64,20 +64,20 @@ export function BackupStatusCard({
           about to be cleared.
         */}
         <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">Last exported file</span>
+          <span className="text-muted-foreground text-sm">Last exported file</span>
           <span className="flex items-center gap-1 text-sm font-medium">
             {lastExport ? (
               <>
-                <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                <Clock className="text-muted-foreground h-3.5 w-3.5" />
                 {lastExport}
               </>
             ) : (
-              <span className="text-warning">Never</span>
+              <span className="text-muted-foreground">Not recorded</span>
             )}
           </span>
         </div>
 
-        <p className="rounded-md bg-muted p-3 text-xs leading-relaxed text-muted-foreground">
+        <p className="bg-muted text-muted-foreground rounded-md p-3 text-xs leading-relaxed">
           A restore point is kept inside this browser, so it can undo an accidental reset — but it
           is erased along with everything else if this browser&apos;s data is cleared. Only an
           exported file survives that.
@@ -89,13 +89,13 @@ export function BackupStatusCard({
         </Button>
 
         {creating && (
-          <p aria-live="polite" className="text-xs text-muted-foreground">
+          <p aria-live="polite" className="text-muted-foreground text-xs">
             Copying and verifying the database…
           </p>
         )}
 
         {error && (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-destructive text-sm">
             {error}
           </p>
         )}

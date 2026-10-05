@@ -72,7 +72,7 @@ export function StudyLayout({
               {timerVisible && (
                 <InfoCard
                   title={timerLabel}
-                  icon={<Clock className="h-4 w-4 text-muted-foreground" />}
+                  icon={<Clock className="text-muted-foreground h-4 w-4" />}
                 >
                   <p className="font-mono text-3xl font-medium tabular-nums">{timerValue}</p>
                 </InfoCard>
@@ -86,7 +86,7 @@ export function StudyLayout({
 
               {statusVisible && (
                 <InfoCard title={statusLabel}>
-                  <p className="text-sm capitalize text-muted-foreground">
+                  <p className="text-muted-foreground text-sm capitalize">
                     {statusValue.replace("_", " ")}
                   </p>
                 </InfoCard>
@@ -94,7 +94,7 @@ export function StudyLayout({
 
               {goalContent && (
                 <InfoCard title="Today's Goal">
-                  <div className="text-sm text-muted-foreground">{goalContent}</div>
+                  <div className="text-muted-foreground text-sm">{goalContent}</div>
                 </InfoCard>
               )}
             </div>

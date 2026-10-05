@@ -122,6 +122,7 @@ export interface SessionFinishRequestDTO {
 
 /** `GET /session/active` — the session in progress according to persisted state. */
 export interface ActiveSessionDTO {
+  readonly studyDraft?: import("@/shared/types").StudyDraft;
   readonly sessionId: string;
   readonly sessionType: string;
   readonly startedAt: string;

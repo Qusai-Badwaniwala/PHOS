@@ -69,19 +69,19 @@ export function DangerZone({ className }: DangerZoneProps) {
     <div className={cn(className)}>
       <ContentCard className="border-destructive/50">
         <div className="mb-4 flex items-center gap-2">
-          <AlertCircle className="h-5 w-5 text-destructive" aria-hidden="true" />
-          <h3 className="text-lg font-semibold text-destructive">Danger Zone</h3>
+          <AlertCircle className="text-destructive h-5 w-5" aria-hidden="true" />
+          <h3 className="text-destructive text-lg font-semibold">Danger Zone</h3>
         </div>
-        <p className="mb-6 text-sm text-muted-foreground">
-          A backup is taken automatically before anything is deleted, so nothing here is truly
-          unrecoverable — but treat it as if it were.
+        <p className="text-muted-foreground mb-6 text-sm">
+          Deleting progress first creates a verified restore point in this browser. Export a file
+          too if you need a copy that survives clearing browser data.
         </p>
 
         <div className="space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-medium">Reset All Settings</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-muted-foreground text-xs">
                 Restore default configuration. Your memorization data is not affected.
               </p>
             </div>
@@ -93,7 +93,7 @@ export function DangerZone({ className }: DangerZoneProps) {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-medium">Delete Local Data</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-muted-foreground text-xs">
                 Erase every session, recall record and page of progress from this device.
               </p>
             </div>
@@ -106,9 +106,9 @@ export function DangerZone({ className }: DangerZoneProps) {
         {outcome && (
           <div
             role="status"
-            className="mt-6 flex gap-2 rounded-md border border-border bg-muted p-3 text-sm"
+            className="border-border bg-muted mt-6 flex gap-2 rounded-md border p-3 text-sm"
           >
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+            <CheckCircle2 className="text-muted-foreground mt-0.5 h-4 w-4 shrink-0" />
             <p className="text-muted-foreground">{outcome}</p>
           </div>
         )}

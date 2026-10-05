@@ -20,6 +20,15 @@ export function calculateTrend(
   currentWindowEvents: readonly RecallEvent[],
   previousWindowEvents: readonly RecallEvent[],
 ): TrendAnalysis {
+  if (currentWindowEvents.length === 0 || previousWindowEvents.length === 0) {
+    return {
+      period,
+      trendDirection: TrendDirection.Stable,
+      trendStrength: 0,
+      canCompare: false,
+      summary: "PHOS needs recorded recall in both periods before it can compare them.",
+    };
+  }
   const currentRatio = successRatio(currentWindowEvents);
   const previousRatio = successRatio(previousWindowEvents);
   const change = currentRatio - previousRatio;
@@ -41,5 +50,5 @@ export function calculateTrend(
         ? "Recall performance has improved compared to the previous period."
         : "Recall performance has declined compared to the previous period.";
 
-  return { period, trendDirection, trendStrength, summary };
+  return { period, trendDirection, trendStrength, summary, canCompare: true };
 }

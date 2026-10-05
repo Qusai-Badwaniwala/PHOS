@@ -1,160 +1,258 @@
 "use client";
-
+import Link from "next/link";
+import { ArrowUpRight, ArrowRight, Check } from "lucide-react";
 import { PageContent } from "@/components/shared/page-content";
 import { PageHeader } from "@/components/shared/page-header";
-import { StatCard } from "@/components/shared/stat-card";
-import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 import { InspirationalAyah } from "@/components/dashboard/inspirational-ayah";
-import { TodaySessionCard } from "@/components/dashboard/today-session-card";
-import { TodayRevisionCard } from "@/components/dashboard/today-revision-card";
-import { MemoryHealth } from "@/components/dashboard/memory-health";
-import { RetentionQuality } from "@/components/dashboard/retention-quality";
-import { WeeklyProgress } from "@/components/dashboard/weekly-progress";
-import { RecentActivity } from "@/components/dashboard/recent-activity";
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { DashboardError } from "@/components/dashboard/dashboard-error";
 import { DashboardEmpty } from "@/components/dashboard/dashboard-empty";
-import { PlanExplanationCard } from "@/components/dashboard/plan-explanation";
-import { WelcomeBack } from "@/components/dashboard/welcome-back";
-import { WorkloadNotice } from "@/components/dashboard/workload-notice";
 import { LogOutsideWork } from "@/components/dashboard/log-outside-work";
 import { GoalCard } from "@/components/dashboard/goal-card";
-import { WeeklyReviewCard } from "@/components/dashboard/weekly-review";
 import { ExamModeStrip } from "@/components/exams/exam-mode-strip";
 import { useDashboard } from "@/lib/hooks/use-dashboard";
+import { formatPageList } from "@/lib/format";
 
 export default function DashboardPage() {
   const { data, loading, error, refetch } = useDashboard();
-
   if (loading) return <DashboardSkeleton />;
   if (error) return <DashboardError onRetry={refetch} />;
   if (!data) return <DashboardEmpty />;
+  const revisions = data.revisionAssignments ?? (data.revision ? [data.revision] : []);
+  const revision = revisions[0] ?? null;
+  const sabaq = data.session;
+  const primary = revision
+    ? `/revision?kind=${revision.assignment?.type ?? "sabqi"}`
+    : sabaq
+      ? "/session"
+      : null;
+  const revisionTitle =
+    revision?.assignment?.type === "recovery"
+      ? "Recovery"
+      : revision?.assignment?.type === "manzil"
+        ? "Manzil"
+        : "Sabaqi";
 
+  const date = new Date().toLocaleDateString("en", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
   return (
     <PageContent>
-      {/* Page header — concise, no description needed: TopNav provides context */}
-      <PageHeader title="Dashboard" />
-
-      {/* Returning after a break — Requirement 5. Placed above
-          everything else so a returning user is greeted before they see
-          the work waiting for them. */}
-      <WelcomeBack message={data.welcomeBackMessage} />
-
-      {/*
-        Exams have their own screen, but exam mode replaces the day's
-        plan — ordinary revision disappears and weak pages stop being
-        surfaced. That has to be explained where it happens, so one
-        strip stays here while a run-up is active and renders nothing
-        the rest of the time.
-      */}
+      <div>
+        <p className="eyebrow mb-3">{date}</p>
+        <PageHeader
+          title="Today’s Hifz"
+          description={
+            data.stats.memorizedPages === 604
+              ? "A careful return to what you know."
+              : "A little new. A careful return to what you know."
+          }
+        />
+      </div>
+      {data.welcomeBackMessage && (
+        <p className="border-primary text-muted-foreground border-l-2 pl-4">
+          {data.welcomeBackMessage}
+        </p>
+      )}
       <ExamModeStrip />
-
-      {/* Inspirational Ayah — AD-17, always visible */}
-      <InspirationalAyah />
-
-      {/*
-        PRIMARY FOCUS: Today's Plan
-        These two cards are the most important element on the page.
-        They sit at the top, full-height, with visual elevation.
-      */}
-      <section aria-labelledby="todays-plan-heading">
-        <h2
-          id="todays-plan-heading"
-          className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground"
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+        <section
+          aria-labelledby="today-plan"
+          className="bg-card rounded-xl border px-5 pt-6 pb-5 md:px-7"
         >
-          Today&apos;s Plan
-        </h2>
-        {/*
-          Which card is filled follows the day, and is decided once here
-          so the two can never disagree.
-
-          Revision leads whenever any is outstanding, because that is
-          what PHOS actually asks of the user — "revision comes first so
-          what you already know stays secure" is printed a few lines
-          below, and it was previously contradicted by Session being
-          permanently the filled button. On a half-page-a-day plan there
-          is frequently no new page at all, and the emphatic control
-          still pointed at it.
-
-          Once revision is done, new memorization becomes the primary
-          thing left to do and takes the emphasis back.
-        */}
-        {(() => {
-          const revisionOutstanding = data.revision != null && data.revision.status !== "completed";
-          return (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <TodaySessionCard session={data.session} isPrimaryAction={!revisionOutstanding} />
-              <TodayRevisionCard revision={data.revision} isPrimaryAction={revisionOutstanding} />
+          <div className="mb-2 flex items-center justify-between">
+            <h2 id="today-plan" className="eyebrow">
+              Your work today
+            </h2>
+            <span className="text-muted-foreground text-xs">
+              {data.stats.revisionQueue} revision pages
+            </span>
+          </div>
+          {revisions.map((item, index) => {
+            const label =
+              item.assignment?.type === "recovery"
+                ? "Recovery"
+                : item.assignment?.type === "manzil"
+                  ? "Manzil"
+                  : "Sabaqi";
+            return (
+              <Link
+                key={item.id}
+                href={`/revision?kind=${item.assignment?.type ?? "sabqi"}`}
+                className="folio-row group"
+              >
+                <span className="text-muted-foreground text-xs tabular-nums">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-xl font-semibold">{label}</h3>
+                  <p className="text-muted-foreground mt-1 text-sm">
+                    {formatPageList(
+                      (item.assignment?.pages ?? []).map((page) => Number(page.replace(/\D/g, ""))),
+                    )}{" "}
+                    · {item.estimatedTime}
+                  </p>
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    {label === "Recovery"
+                      ? "A careful return to pages that felt shaky."
+                      : label === "Manzil"
+                        ? "Keep your established memorization close."
+                        : "Strengthen recent memorization."}
+                  </p>
+                </div>
+                <ArrowUpRight size={20} className="text-primary" />
+              </Link>
+            );
+          })}
+          {sabaq && (
+            <Link href="/session" className="folio-row group">
+              <span className="text-muted-foreground text-xs tabular-nums">
+                {String(revisions.length + 1).padStart(2, "0")}
+              </span>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-xl font-semibold">Sabaq</h3>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  {sabaq.assignment?.surah || "New memorization"} · {sabaq.estimatedTime}
+                </p>
+                <p className="text-muted-foreground mt-1 text-xs">
+                  Juz {sabaq.assignment?.juzNumber} ·{" "}
+                  {sabaq.assignment?.startPage === sabaq.assignment?.endPage
+                    ? `Page ${sabaq.assignment?.startPage}`
+                    : `Pages ${sabaq.assignment?.startPage}–${sabaq.assignment?.endPage}`}
+                </p>
+              </div>
+              <ArrowUpRight size={20} className="text-primary" />
+            </Link>
+          )}
+          {!primary && (
+            <div className="py-8">
+              <Check size={24} className="text-success mb-3" />
+              <h3 className="text-xl font-semibold">A quiet day</h3>
+              <p className="text-muted-foreground mt-2">
+                No further work is recommended today. Your pages will return when they need
+                attention.
+              </p>
+              {data.stats.memorizedPages < 604 && (
+                <Button asChild variant="outline" className="mt-5">
+                  <Link href="/session?extra=1">Choose extra Sabaq</Link>
+                </Button>
+              )}
             </div>
-          );
-        })()}
-
-        {/* Why the plan looks like this — Requirement 4. Directly
-            beneath the plan it explains, so the reasoning is read in
-            context rather than as a separate feature. */}
-        <PlanExplanationCard explanation={data.planExplanation} className="mt-4" />
-
-        {/* Requirement 7: a heavy day is named, never silently trimmed. */}
-        <WorkloadNotice message={data.workloadWarning} className="mt-4" />
-      </section>
-
-      {/* Requirement 9: the user is always free to work outside PHOS. */}
-      <LogOutsideWork onLogged={refetch} />
-
-      <Separator />
-
-      {/* Overview Statistics */}
-      <section aria-label="Overview Statistics">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            title="Memorized Pages"
-            value={data.stats.memorizedPages}
-            description="Total pages committed to memory"
-          />
-          <StatCard
-            title="Revision Queue"
-            value={data.stats.revisionQueue}
-            description="Pages scheduled for today"
-          />
-          <StatCard
-            title="Weekly Progress"
-            value={`${data.stats.weeklyProgress}%`}
-            trend="neutral"
-          />
-          <StatCard
-            title="Consistency"
-            value={data.stats.consistency ? `${data.stats.consistency}%` : "—"}
-            description={data.stats.consistency ? undefined : "Not enough data yet"}
-            trend={data.stats.consistency ? "up" : undefined}
-          />
+          )}
+          {primary && (
+            <Button asChild className="mt-5 w-full">
+              <Link href={primary}>
+                {primary.startsWith("/revision")
+                  ? `Begin ${revisionTitle.toLowerCase()}`
+                  : "Begin Sabaq"}
+                <ArrowRight size={18} className="ml-2" />
+              </Link>
+            </Button>
+          )}
+          {!sabaq && primary && data.stats.memorizedPages < 604 && (
+            <Link
+              href="/session?extra=1"
+              className="text-muted-foreground mt-2 flex min-h-11 items-center justify-center text-sm"
+            >
+              Choose extra Sabaq
+            </Link>
+          )}
+          <details className="mt-3">
+            <summary className="text-muted-foreground text-sm">Why this plan?</summary>
+            <p className="mb-2 text-sm font-medium">{data.planExplanation.headline}</p>
+            <ul className="text-muted-foreground space-y-2 pb-3 text-sm">
+              {data.planExplanation.details.map((detail) => (
+                <li key={detail}>{detail}</li>
+              ))}
+            </ul>
+          </details>
+          {data.workloadWarning && (
+            <p role="status" className="text-warning border-t pt-4 text-sm">
+              {data.workloadWarning}
+            </p>
+          )}
+        </section>
+        <div className="space-y-7">
+          <section aria-label="Your Hifz at a glance" className="pt-1">
+            <p className="eyebrow mb-3">Held in memory</p>
+            <p className="folio-title text-[42px] leading-none tabular-nums">
+              {data.stats.memorizedPages}
+              <span className="text-muted-foreground ml-2 text-base">of 604 pages</span>
+            </p>
+            <p className="text-muted-foreground mt-4 text-sm">
+              Memorized pages stay part of your revision. The work is to keep them.
+            </p>
+            <Link
+              href="/analytics"
+              className="text-primary mt-3 inline-flex min-h-11 items-center gap-2 text-sm"
+            >
+              See your Hifz
+              <ArrowRight size={16} />
+            </Link>
+          </section>
+          <section className="folio-section">
+            <h2 className="eyebrow">The last seven days</h2>
+            <div className="my-4 flex justify-between gap-2">
+              {data.weeklyProgress.map((day, i) => (
+                <div key={i} className="text-center">
+                  <span
+                    className={`mx-auto mb-2 flex h-8 w-8 items-center justify-center rounded-full ${day.completed ? "bg-primary text-primary-foreground" : "text-muted-foreground border"}`}
+                  >
+                    {day.completed ? (
+                      <Check size={14} aria-label="Studied" />
+                    ) : (
+                      <span aria-label="No completed study">·</span>
+                    )}
+                  </span>
+                  <span className="text-muted-foreground text-xs">{day.day}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-sm">
+              {data.weeklyReview.pagesCompleted} pages learned ·{" "}
+              {data.weeklyReview.sessionsCompleted} sessions
+            </p>
+            <p className="text-muted-foreground mt-2 text-sm">
+              {data.weeklyReview.recallsRecorded
+                ? data.weeklyReview.trendSummary
+                : "Your recall history begins with your first study."}
+            </p>
+          </section>
         </div>
+      </div>
+      <LogOutsideWork onLogged={refetch} />
+      <GoalCard goal={data.goal} />
+      <section className="folio-section">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Recently recorded</h2>
+          <Link
+            href="/history"
+            className="text-primary inline-flex min-h-11 items-center gap-1 text-sm"
+          >
+            History
+            <ArrowRight size={16} />
+          </Link>
+        </div>
+        {data.recentActivity.length ? (
+          data.recentActivity.slice(0, 3).map((activity) => (
+            <div key={activity.id} className="folio-row justify-between">
+              <div>
+                <p className="text-sm font-medium">{activity.title}</p>
+                <p className="text-muted-foreground text-sm">{activity.detail}</p>
+              </div>
+              <span className="text-muted-foreground text-xs">{activity.date}</span>
+            </div>
+          ))
+        ) : (
+          <p className="text-muted-foreground py-5 text-sm">
+            Your first study session will begin this record.
+          </p>
+        )}
       </section>
-
-      <Separator />
-
-      {/* Memory Health & Retention Quality */}
-      <section aria-label="Memory Analysis" className="grid gap-4 lg:grid-cols-2">
-        <MemoryHealth score={data.memoryHealth} />
-        <RetentionQuality score={data.retentionQuality} />
-      </section>
-
-      {/* Weekly Progress Chart */}
-      <WeeklyProgress days={data.weeklyProgress} />
-
-      {/*
-        Looking back rather than forward — the goal the user set, and
-        the week they actually had. Placed below today's plan on
-        purpose: what to do now is the point of this screen, and
-        progress tracking must never be the first thing competing for
-        attention.
-      */}
-      <section aria-label="Progress over time" className="grid gap-4 lg:grid-cols-2">
-        <GoalCard goal={data.goal} />
-        <WeeklyReviewCard review={data.weeklyReview} />
-      </section>
-
-      {/* Recent Activity */}
-      <RecentActivity activities={data.recentActivity} />
+      <InspirationalAyah />
     </PageContent>
   );
 }

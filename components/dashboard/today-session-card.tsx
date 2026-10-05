@@ -24,9 +24,9 @@ export function TodaySessionCard({
   return (
     <article
       className={cn(
-        "rounded-xl border bg-card text-card-foreground shadow-primary-card",
+        "bg-card text-card-foreground shadow-primary-card rounded-xl border",
         "flex h-full flex-col gap-5 p-5 md:p-6",
-        "ring-1 ring-primary/10",
+        "ring-primary/10 ring-1",
         className,
       )}
       aria-label="Today's Memorization Session"
@@ -34,12 +34,12 @@ export function TodaySessionCard({
       {/* Card Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-            <BookOpen className="h-5 w-5 text-primary" aria-hidden="true" />
+          <div className="bg-primary/10 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
+            <BookOpen className="text-primary h-5 w-5" aria-hidden="true" />
           </div>
           <div>
-            <h3 className="text-base font-semibold text-foreground">Sabaq</h3>
-            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            <h3 className="text-foreground text-base font-semibold">Sabaq</h3>
+            <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
               New Memorization
             </p>
           </div>
@@ -59,20 +59,20 @@ export function TodaySessionCard({
         most people actually know the surah by.
       */}
       <div className="flex-1 space-y-1.5">
-        <p className="text-xs font-medium text-muted-foreground">Current Assignment</p>
+        <p className="text-muted-foreground text-xs font-medium">Current Assignment</p>
         {hasAssignment ? (
           <>
             <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-              <p className="text-lg font-semibold leading-snug text-foreground">
+              <p className="text-foreground text-lg leading-snug font-semibold">
                 {session.assignment!.surah || session.assignment!.target || "Assignment ready"}
               </p>
               {session.assignment!.surahArabic && (
-                <p lang="ar" dir="rtl" className="text-lg leading-snug text-muted-foreground">
+                <p lang="ar" dir="rtl" className="text-muted-foreground text-lg leading-snug">
                   {session.assignment!.surahArabic}
                 </p>
               )}
             </div>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               {session.assignment!.startPage === session.assignment!.endPage
                 ? `Page ${session.assignment!.startPage}`
                 : `Pages ${session.assignment!.startPage} — ${session.assignment!.endPage}`}
@@ -80,7 +80,7 @@ export function TodaySessionCard({
             </p>
           </>
         ) : (
-          <p className="text-lg font-semibold leading-snug text-foreground">
+          <p className="text-foreground text-lg leading-snug font-semibold">
             No assignment scheduled
           </p>
         )}

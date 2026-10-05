@@ -26,11 +26,11 @@ export function ErrorState({
       )}
       role="alert"
     >
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
-        <AlertCircle className="h-6 w-6 text-destructive" aria-hidden="true" />
+      <div className="bg-destructive/10 flex h-12 w-12 items-center justify-center rounded-full">
+        <AlertCircle className="text-destructive h-6 w-6" aria-hidden="true" />
       </div>
       <h3 className="mt-4 text-sm font-semibold">{title}</h3>
-      <p className="mt-1 max-w-sm text-sm text-muted-foreground">{description}</p>
+      <p className="text-muted-foreground mt-1 max-w-sm text-sm">{description}</p>
       {onRetry && (
         <Button variant="outline" className="mt-4" onClick={onRetry}>
           {retryLabel}

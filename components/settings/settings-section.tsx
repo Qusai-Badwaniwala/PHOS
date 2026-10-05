@@ -1,6 +1,5 @@
 import { cn } from "@/lib/utils";
 import React from "react";
-import { ContentCard } from "@/components/shared/content-card";
 
 interface SettingsSectionProps {
   title: string;
@@ -23,12 +22,12 @@ export function SettingsSection({
   id,
 }: SettingsSectionProps) {
   return (
-    <ContentCard id={id} className={cn(className)}>
+    <section id={id} className={cn("min-w-0", className)}>
       <div className="mb-6">
-        <h3 className="text-lg font-semibold">{title}</h3>
-        {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+        <h2 className="font-serif text-2xl">{title}</h2>
+        {description && <p className="text-muted-foreground mt-1 text-sm">{description}</p>}
       </div>
-      <div className="space-y-6">{children}</div>
-    </ContentCard>
+      <div>{children}</div>
+    </section>
   );
 }

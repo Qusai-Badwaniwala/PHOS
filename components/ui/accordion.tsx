@@ -168,7 +168,7 @@ const AccordionContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<H
         className={cn("overflow-hidden text-sm", className)}
         {...props}
       >
-        <div className="pb-4 pt-0">{children}</div>
+        <div className="pt-0 pb-4">{children}</div>
       </div>
     );
   },

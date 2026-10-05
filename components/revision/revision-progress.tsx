@@ -23,12 +23,12 @@ export function RevisionProgress({
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold">{label}</h3>
-          <span className="text-sm tabular-nums text-muted-foreground">
+          <span className="text-muted-foreground text-sm tabular-nums">
             {current} / {total}
           </span>
         </div>
         <ProgressBar value={current} max={total} showPercentage={true} />
-        <p className="text-xs text-muted-foreground">
+        <p className="text-muted-foreground text-xs">
           {percentage === 0
             ? "Revision not started."
             : percentage === 100

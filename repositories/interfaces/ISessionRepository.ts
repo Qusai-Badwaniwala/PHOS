@@ -14,6 +14,9 @@ export type CreateSessionItemInput = Omit<SessionItem, "id">;
  * SessionItem").
  */
 export interface ISessionRepository {
+  /** Browser study continuity; optional for existing repository implementations. */
+  saveStudyDraft?(sessionId: string, draft: import("@/shared/types").StudyDraft): Promise<void>;
+  createActive?(session: CreateSessionInput): Promise<Session>;
   create(session: CreateSessionInput): Promise<Session>;
   /** Marks a session complete: sets `completedAt` to now and computes `durationSeconds` from `startedAt`. */
   complete(sessionId: string): Promise<Session>;

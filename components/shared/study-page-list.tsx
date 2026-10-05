@@ -30,18 +30,18 @@ export function StudyPageList({ pages, className }: StudyPageListProps) {
         return (
           <li
             key={page.pageId}
-            className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 rounded-md border border-border/60 px-3 py-2"
+            className="border-border/60 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 rounded-md border px-3 py-2"
           >
             <span className="text-sm font-medium tabular-nums">Page {page.pageNumber}</span>
             {page.juzNumber !== undefined && (
-              <span className="text-xs text-muted-foreground">Juz {page.juzNumber}</span>
+              <span className="text-muted-foreground text-xs">Juz {page.juzNumber}</span>
             )}
             {surahs.length > 0 && (
               <>
-                <span className="text-sm text-muted-foreground">
+                <span className="text-muted-foreground text-sm">
                   {surahs.map((surah) => surah.name).join(" · ")}
                 </span>
-                <span lang="ar" dir="rtl" className="text-sm text-muted-foreground">
+                <span lang="ar" dir="rtl" className="text-muted-foreground text-sm">
                   {surahs.map((surah) => surah.arabicName).join(" · ")}
                 </span>
               </>

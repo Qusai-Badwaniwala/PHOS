@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 
 /**
- * PHOS's dialog is hand-written rather than taken from a library, so
+ * PHOS composes Radix Dialog with its own reading focus and sheets, so
  * the accessibility behaviour a library would have supplied is this
  * component's own responsibility — and none of it is visible on screen.
  *
@@ -116,7 +116,7 @@ describe("dismissal", () => {
     const user = userEvent.setup();
     render(<Fixture />);
 
-    await user.click(document.querySelector(".bg-black\\/80")!);
+    await user.click(document.querySelector(".dialog-scrim")!);
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
@@ -139,7 +139,7 @@ describe("dismissal", () => {
     }
 
     render(<Guarded />);
-    await user.click(document.querySelector(".bg-black\\/80")!);
+    await user.click(document.querySelector(".dialog-scrim")!);
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });

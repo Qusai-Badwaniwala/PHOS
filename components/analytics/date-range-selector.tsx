@@ -13,10 +13,10 @@ interface DateRangeSelectorProps {
 }
 
 const ranges: { value: DateRange; label: string }[] = [
-  { value: "today", label: "Today" },
-  { value: "week", label: "This Week" },
-  { value: "month", label: "This Month" },
-  { value: "year", label: "This Year" },
+  { value: "today", label: "24 hours" },
+  { value: "week", label: "7 days" },
+  { value: "month", label: "30 days" },
+  { value: "year", label: "365 days" },
   { value: "all", label: "All Time" },
 ];
 
@@ -28,6 +28,7 @@ export function DateRangeSelector({ value, onChange, className }: DateRangeSelec
           key={range.value}
           variant={value === range.value ? "secondary" : "ghost"}
           size="sm"
+          aria-pressed={value === range.value}
           onClick={() => onChange(range.value)}
           className="text-xs"
         >

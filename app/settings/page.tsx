@@ -1,5 +1,4 @@
 "use client";
-
 import React from "react";
 import { PageContent } from "@/components/shared/page-content";
 import { PageHeader } from "@/components/shared/page-header";
@@ -20,199 +19,206 @@ import {
 } from "@/components/ui/select";
 import { useSettings } from "@/providers/settings-provider";
 import { SettingsSkeleton } from "@/components/settings/settings-skeleton";
-
 const SECTIONS = [
-  "General",
-  "Appearance",
-  "Roadmap",
-  "Goal",
-  "Session",
-  "Revision",
-  "Danger Zone",
+  ["general", "General"],
+  ["appearance", "Appearance"],
+  ["roadmap", "Roadmap"],
+  ["goal", "Goal"],
+  ["revision-mode", "Revision"],
+  ["session", "Study controls"],
+  ["danger-zone", "Reset & recovery"],
 ] as const;
-
+function Choice({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: readonly (readonly [string, string])[];
+}) {
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger aria-label={label} className="w-44">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map(([key, text]) => (
+          <SelectItem key={key} value={key}>
+            {text}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 export default function SettingsPage() {
-  const { settings, ready, updatePreferences } = useSettings();
-
-  // Settings are read from storage on mount. Rendering the controls
-  // before that resolves would briefly show defaults and then visibly
-  // flip to the user's saved values.
+  const { settings, ready, updatePreferences, error } = useSettings();
+  const [section, setSection] = React.useState<string>("general");
+  React.useEffect(() => {
+    const sync = () => {
+      const hash = window.location.hash.slice(1);
+      if (SECTIONS.some(([id]) => id === hash)) setSection(hash);
+    };
+    sync();
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
+  }, []);
+  const select = (id: string) => {
+    setSection(id);
+    window.history.replaceState(null, "", `#${id}`);
+  };
   if (!ready) return <SettingsSkeleton />;
-
   return (
     <PageContent>
-      <PageHeader title="Settings" description="Configure PHOS to suit your preferences." />
-
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="hidden space-y-1 lg:block">
-          <p className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Sections
+      <PageHeader
+        title="Make PHOS yours"
+        description="Your study, your order, your preferred way of working."
+      />
+      {error && (
+        <p role="alert" className="text-destructive">
+          {error}
+        </p>
+      )}
+      <div className="grid gap-8 lg:grid-cols-[180px_minmax(0,1fr)]">
+        <nav
+          aria-label="Settings sections"
+          className="flex flex-wrap gap-x-3 gap-y-1 border-b pb-3 lg:flex-col lg:border-r lg:border-b-0 lg:pr-5"
+        >
+          {SECTIONS.map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              aria-current={section === id ? "page" : undefined}
+              className={`min-h-11 rounded-md px-3 text-left text-sm transition-colors ${section === id ? "bg-accent text-primary font-medium" : "text-muted-foreground hover:bg-muted"}`}
+              onClick={() => select(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
+        <div className="tab-panel min-w-0" key={section}>
+          {section === "general" && (
+            <SettingsSection
+              id="general"
+              title="General"
+              description="English interface. Dates and times in the format you prefer."
+            >
+              <SettingsItem label="Language" description="English is available in this version.">
+                <span className="text-sm">English</span>
+              </SettingsItem>
+              <SettingsItem label="Date format" description="Used throughout your record.">
+                <Choice
+                  label="Date format"
+                  value={settings.general.dateFormat}
+                  onChange={(dateFormat) => updatePreferences({ dateFormat })}
+                  options={[
+                    ["mdy", "MM/DD/YYYY"],
+                    ["dmy", "DD/MM/YYYY"],
+                  ]}
+                />
+              </SettingsItem>
+              <SettingsItem label="Time format">
+                <Choice
+                  label="Time format"
+                  value={settings.general.timeFormat}
+                  onChange={(timeFormat) => updatePreferences({ timeFormat })}
+                  options={[
+                    ["12h", "12-hour"],
+                    ["24h", "24-hour"],
+                  ]}
+                />
+              </SettingsItem>
+            </SettingsSection>
+          )}
+          {section === "appearance" && (
+            <SettingsSection
+              id="appearance"
+              title="Appearance"
+              description="Two considered themes, with the option to follow your device."
+            >
+              <SettingsItem label="Theme">
+                <ThemeSelector />
+              </SettingsItem>
+              <SettingsItem
+                label="Reduced motion"
+                description="Keep transitions quiet and the reminder still."
+              >
+                <Switch
+                  checked={settings.appearance.reducedMotion}
+                  onCheckedChange={(reducedMotion) => updatePreferences({ reducedMotion })}
+                  aria-label="Reduced motion"
+                />
+              </SettingsItem>
+              <SettingsItem label="Compact mode" description="A closer spacing rhythm.">
+                <Switch
+                  checked={settings.appearance.compactMode}
+                  onCheckedChange={(compactMode) => updatePreferences({ compactMode })}
+                  aria-label="Compact mode"
+                />
+              </SettingsItem>
+            </SettingsSection>
+          )}
+          {section === "roadmap" && <RoadmapSettings />}
+          {section === "goal" && <GoalSettings />}
+          {section === "revision-mode" && <RevisionModeSettings />}
+          {section === "session" && (
+            <div className="space-y-8">
+              <SettingsSection
+                id="session"
+                title="Study controls"
+                description="Choose what is visible while you study."
+              >
+                <SettingsItem
+                  label="Show timer"
+                  description="Elapsed session time includes pauses."
+                >
+                  <Switch
+                    checked={settings.session.showTimer}
+                    onCheckedChange={(sessionShowTimer) => updatePreferences({ sessionShowTimer })}
+                    aria-label="Show session timer"
+                  />
+                </SettingsItem>
+                <SettingsItem label="Show Sabaq progress">
+                  <Switch
+                    checked={settings.session.showProgress}
+                    onCheckedChange={(sessionShowProgress) =>
+                      updatePreferences({ sessionShowProgress })
+                    }
+                    aria-label="Show session progress"
+                  />
+                </SettingsItem>
+                <SettingsItem
+                  label="Confirm Sabaq completion"
+                  description="Review the final action before recording new pages."
+                >
+                  <Switch
+                    checked={settings.session.confirmCompletion}
+                    onCheckedChange={(sessionConfirmCompletion) =>
+                      updatePreferences({ sessionConfirmCompletion })
+                    }
+                    aria-label="Confirm session completion"
+                  />
+                </SettingsItem>
+                <SettingsItem label="Show revision progress">
+                  <Switch
+                    checked={settings.revision.showProgress}
+                    onCheckedChange={(revisionShowProgress) =>
+                      updatePreferences({ revisionShowProgress })
+                    }
+                    aria-label="Show revision progress"
+                  />
+                </SettingsItem>
+              </SettingsSection>
+            </div>
+          )}
+          {section === "danger-zone" && <DangerZone />}
+          <p className="text-muted-foreground mt-8 text-sm">
+            Preferences save as you change them. Roadmap and goal changes keep your learned pages
+            and study history.
           </p>
-          <nav className="space-y-1">
-            {SECTIONS.map((section) => (
-              <a
-                key={section}
-                href={`#${section.toLowerCase().replace(" ", "-")}`}
-                className="block rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-              >
-                {section}
-              </a>
-            ))}
-          </nav>
-        </div>
-
-        <div className="space-y-6 lg:col-span-2">
-          <SettingsSection
-            id="general"
-            title="General"
-            description="Basic application preferences."
-          >
-            <SettingsItem
-              label="Language"
-              description="Interface language. Only English is available in this version."
-            >
-              <Select value={settings.general.language} disabled>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="English" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="en">English</SelectItem>
-                </SelectContent>
-              </Select>
-            </SettingsItem>
-
-            <SettingsItem label="Date Format" description="How dates are displayed.">
-              <Select
-                value={settings.general.dateFormat}
-                onValueChange={(dateFormat) => updatePreferences({ dateFormat })}
-              >
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="MM/DD/YYYY" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="mdy">MM/DD/YYYY</SelectItem>
-                  <SelectItem value="dmy">DD/MM/YYYY</SelectItem>
-                </SelectContent>
-              </Select>
-            </SettingsItem>
-
-            <SettingsItem label="Time Format" description="12-hour or 24-hour clock.">
-              <Select
-                value={settings.general.timeFormat}
-                onValueChange={(timeFormat) => updatePreferences({ timeFormat })}
-              >
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="12-hour" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="12h">12-hour</SelectItem>
-                  <SelectItem value="24h">24-hour</SelectItem>
-                </SelectContent>
-              </Select>
-            </SettingsItem>
-          </SettingsSection>
-
-          <SettingsSection
-            id="appearance"
-            title="Appearance"
-            description="Customize the visual experience."
-          >
-            <SettingsItem label="Theme" description="Choose your preferred color theme.">
-              <ThemeSelector />
-            </SettingsItem>
-
-            <SettingsItem
-              label="Reduced Motion"
-              description="Minimize animations throughout the interface."
-            >
-              <Switch
-                checked={settings.appearance.reducedMotion}
-                onCheckedChange={(reducedMotion) => updatePreferences({ reducedMotion })}
-                aria-label="Reduced motion"
-              />
-            </SettingsItem>
-
-            <SettingsItem label="Compact Mode" description="Reduce spacing for denser layouts.">
-              <Switch
-                checked={settings.appearance.compactMode}
-                onCheckedChange={(compactMode) => updatePreferences({ compactMode })}
-                aria-label="Compact mode"
-              />
-            </SettingsItem>
-          </SettingsSection>
-
-          <div id="roadmap">
-            <RoadmapSettings />
-
-            {/*
-            Placed after the roadmap: what you will memorize and in what
-            order comes before how fast you hope to get there.
-          */}
-            <GoalSettings />
-
-            {/*
-              And after the goal: how revision is chosen is a working
-              preference, not part of deciding what to memorize.
-            */}
-            <RevisionModeSettings />
-          </div>
-
-          <SettingsSection
-            id="session"
-            title="Session Preferences"
-            description="How sessions behave and display."
-          >
-            <SettingsItem label="Show Timer" description="Display elapsed time during sessions.">
-              <Switch
-                checked={settings.session.showTimer}
-                onCheckedChange={(showTimer) => updatePreferences({ sessionShowTimer: showTimer })}
-                aria-label="Show session timer"
-              />
-            </SettingsItem>
-
-            <SettingsItem label="Show Progress" description="Display progress bar during sessions.">
-              <Switch
-                checked={settings.session.showProgress}
-                onCheckedChange={(showProgress) =>
-                  updatePreferences({ sessionShowProgress: showProgress })
-                }
-                aria-label="Show session progress"
-              />
-            </SettingsItem>
-
-            <SettingsItem
-              label="Confirm Completion"
-              description="Ask for confirmation before marking complete."
-            >
-              <Switch
-                checked={settings.session.confirmCompletion}
-                onCheckedChange={(confirmCompletion) =>
-                  updatePreferences({ sessionConfirmCompletion: confirmCompletion })
-                }
-                aria-label="Confirm session completion"
-              />
-            </SettingsItem>
-          </SettingsSection>
-
-          <SettingsSection
-            id="revision"
-            title="Revision Preferences"
-            description="How revision sessions behave."
-          >
-            <SettingsItem label="Show Progress" description="Display progress during revision.">
-              <Switch
-                checked={settings.revision.showProgress}
-                onCheckedChange={(showProgress) =>
-                  updatePreferences({ revisionShowProgress: showProgress })
-                }
-                aria-label="Show revision progress"
-              />
-            </SettingsItem>
-          </SettingsSection>
-
-          <div id="danger-zone">
-            <DangerZone />
-          </div>
         </div>
       </div>
     </PageContent>

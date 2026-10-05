@@ -65,7 +65,7 @@ describe("moving through the steps", () => {
   it("opens on the expectations screen with nowhere to go back to", () => {
     render(<OnboardingWizard onComplete={onComplete} />);
 
-    expect(screen.getByText("Step 1 of 5 · Welcome")).toBeInTheDocument();
+    expect(screen.getByText("1 / 5 · Welcome")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Back/ })).toBeDisabled();
   });
 
@@ -84,12 +84,12 @@ describe("moving through the steps", () => {
     render(<OnboardingWizard onComplete={onComplete} />);
 
     await goToStep(user, ORDER_STEP);
-    expect(screen.getByText("Step 2 of 5 · Your order")).toBeInTheDocument();
-    expect(screen.getByText("In what order will you memorize?")).toBeInTheDocument();
+    expect(screen.getByText("2 / 5 · Your order")).toBeInTheDocument();
+    expect(screen.getByText("Where will you begin?")).toBeInTheDocument();
 
     await next(user);
-    expect(screen.getByText("Step 3 of 5 · Your Hifz")).toBeInTheDocument();
-    expect(screen.getByText("How much of that have you already done?")).toBeInTheDocument();
+    expect(screen.getByText("3 / 5 · Your Hifz")).toBeInTheDocument();
+    expect(screen.getByText("What do you already hold?")).toBeInTheDocument();
   });
 
   it("goes forward and back without losing an answer", async () => {
@@ -100,7 +100,7 @@ describe("moving through the steps", () => {
     await user.click(screen.getByRole("button", { name: "Increase Complete Juz memorized" }));
     await next(user);
 
-    expect(screen.getByText("Step 4 of 5 · Your pace")).toBeInTheDocument();
+    expect(screen.getByText("4 / 5 · Your pace")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /Back/ }));
 
@@ -136,8 +136,8 @@ describe("how much is already memorized", () => {
 
     // The user never has to work out that three Juz is 75 pages.
     expect(await screen.findByText(/75 pages/)).toBeInTheDocument();
-    expect(screen.getByText(/pages 1–52/)).toBeInTheDocument();
-    expect(screen.getByText(/page 53/)).toBeInTheDocument();
+    expect(screen.getByText(/Pages 1–52/)).toBeInTheDocument();
+    expect(screen.getByText(/Next new page: 53/)).toBeInTheDocument();
   });
 
   it("asks for the preview using the order and the Juz the user actually chose", async () => {

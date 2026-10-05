@@ -47,18 +47,18 @@ export function ExamModeStrip({ className }: ExamModeStripProps) {
     <Link
       href="/exams"
       className={cn(
-        "flex items-center gap-3 rounded-lg border border-primary/40 bg-primary/5 px-4 py-3 transition-colors hover:bg-primary/10",
+        "border-primary/40 bg-primary/5 hover:bg-primary/10 flex items-center gap-3 rounded-lg border px-4 py-3 transition-colors",
         className,
       )}
     >
-      <GraduationCap className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+      <GraduationCap className="text-primary h-5 w-5 shrink-0" aria-hidden="true" />
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium">Exam preparation · {runUp.summary}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">
+        <p className="text-muted-foreground mt-0.5 text-xs">
           Today: {runUp.todaysRange}. Revision outside this exam is paused until you mark it passed.
         </p>
       </div>
-      <span className="shrink-0 text-xs font-medium text-primary">View</span>
+      <span className="text-primary shrink-0 text-xs font-medium">View</span>
     </Link>
   );
 }

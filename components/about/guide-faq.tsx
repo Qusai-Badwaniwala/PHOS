@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ContentCard } from "@/components/shared/content-card";
+
 import {
   Accordion,
   AccordionContent,
@@ -20,20 +20,20 @@ import { FAQ } from "./guide-content";
  */
 export function GuideFaq() {
   return (
-    <ContentCard as="section" id="faq">
-      <h2 className="mb-1 text-lg font-semibold">Common questions</h2>
-      <p className="mb-2 text-sm text-muted-foreground">Select a question to see its answer.</p>
+    <section className="folio-section" id="faq">
+      <h2 className="mb-1 font-serif text-2xl">Common questions</h2>
+      <p className="text-muted-foreground mb-2 text-sm">Select a question to see its answer.</p>
 
       <Accordion type="single" collapsible>
         {FAQ.map((entry) => (
           <AccordionItem key={entry.id} value={entry.id}>
             <AccordionTrigger className="text-sm">{entry.question}</AccordionTrigger>
             <AccordionContent>
-              <p className="leading-relaxed text-muted-foreground">{entry.answer}</p>
+              <p className="text-muted-foreground leading-relaxed">{entry.answer}</p>
             </AccordionContent>
           </AccordionItem>
         ))}
       </Accordion>
-    </ContentCard>
+    </section>
   );
 }

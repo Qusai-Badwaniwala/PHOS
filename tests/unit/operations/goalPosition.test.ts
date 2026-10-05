@@ -9,7 +9,8 @@ import { MemoryState, type Page } from "@/shared/types";
  * one place the two units meet.
  */
 const adaptiveEngine = vi.hoisted(() => ({ getMemorizationSequence: vi.fn() }));
-vi.mock("@/client/container", () => ({ container: { adaptiveEngine } }));
+const pageRepository = vi.hoisted(() => ({ findAll: vi.fn() }));
+vi.mock("@/client/container", () => ({ container: { adaptiveEngine, pageRepository } }));
 
 const { getGoalPosition } = await import("@/client/operations/settings");
 
@@ -49,6 +50,7 @@ const JUZ_30_FIRST: [number, number][] = [
 
 beforeEach(() => {
   vi.clearAllMocks();
+  pageRepository.findAll.mockImplementation(() => adaptiveEngine.getMemorizationSequence());
 });
 
 describe("milestones along the user's own order", () => {
@@ -100,6 +102,21 @@ describe("milestones along the user's own order", () => {
 });
 
 describe("where the user currently is", () => {
+  it("still counts learned pages in paused Juz", async () => {
+    adaptiveEngine.getMemorizationSequence.mockResolvedValue(sequence([[2, 20]], 0));
+    pageRepository.findAll.mockResolvedValue(
+      sequence(
+        [
+          [1, 21],
+          [2, 20],
+        ],
+        21,
+      ),
+    );
+    const position = await getGoalPosition();
+    expect(position.pagesMemorized).toBe(21);
+    expect(position.currentJuz).toBe(2);
+  });
   it("reports the Juz holding their next unstudied page", async () => {
     adaptiveEngine.getMemorizationSequence.mockResolvedValue(sequence(JUZ_30_FIRST, 38));
 

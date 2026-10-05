@@ -24,7 +24,7 @@ export function SettingsSkeleton({ className }: SettingsSkeletonProps) {
 
         <div className="space-y-6 lg:col-span-2">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="space-y-6 rounded-lg border bg-card p-6">
+            <div key={i} className="bg-card space-y-6 rounded-lg border p-6">
               <Skeleton className="h-6 w-32" />
               <Skeleton className="h-4 w-48" />
               <div className="space-y-4">

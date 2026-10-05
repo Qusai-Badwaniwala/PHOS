@@ -30,7 +30,7 @@ export function WeeklyReviewCard({ review, className }: WeeklyReviewCardProps) {
   return (
     <ContentCard className={cn(className)} as="section">
       <div className="mb-3 flex items-center gap-2">
-        <CalendarDays className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+        <CalendarDays className="text-muted-foreground h-5 w-5" aria-hidden="true" />
         <h3 className="font-semibold">Your week</h3>
       </div>
 
@@ -40,7 +40,7 @@ export function WeeklyReviewCard({ review, className }: WeeklyReviewCardProps) {
           as a scoreboard; this reads as a fact, and a week away from
           PHOS is a normal part of a years-long journey.
         */
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Nothing recorded in the last seven days. Whenever you pick it back up, PHOS will start
           from where you actually are.
         </p>
@@ -54,13 +54,13 @@ export function WeeklyReviewCard({ review, className }: WeeklyReviewCardProps) {
             ].map((stat) => (
               <div key={stat.label}>
                 <dd className="text-2xl font-semibold tabular-nums">{stat.value}</dd>
-                <dt className="text-xs text-muted-foreground">{stat.label}</dt>
+                <dt className="text-muted-foreground text-xs">{stat.label}</dt>
               </div>
             ))}
           </dl>
 
           {review.trendSummary && (
-            <p className="mt-3 text-sm text-muted-foreground">{review.trendSummary}</p>
+            <p className="text-muted-foreground mt-3 text-sm">{review.trendSummary}</p>
           )}
         </>
       )}

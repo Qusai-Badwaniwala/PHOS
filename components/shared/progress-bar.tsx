@@ -26,9 +26,9 @@ export function ProgressBar({
     <div className={cn("w-full", className)}>
       {(label || showPercentage) && (
         <div className="mb-1.5 flex items-center justify-between">
-          {label && <span className="text-xs font-medium text-muted-foreground">{label}</span>}
+          {label && <span className="text-muted-foreground text-xs font-medium">{label}</span>}
           {showPercentage && (
-            <span className="ml-auto text-xs tabular-nums text-muted-foreground">
+            <span className="text-muted-foreground ml-auto text-xs tabular-nums">
               {roundedPct}%
             </span>
           )}
@@ -36,7 +36,7 @@ export function ProgressBar({
       )}
       <div
         className={cn(
-          "w-full overflow-hidden rounded-full bg-secondary",
+          "bg-secondary w-full overflow-hidden rounded-full",
           size === "sm" ? "h-1.5" : "h-2",
         )}
         role="progressbar"
@@ -46,7 +46,7 @@ export function ProgressBar({
         aria-label={label ? `${label}: ${roundedPct}%` : `Progress: ${roundedPct}%`}
       >
         <div
-          className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
+          className="bg-primary h-full rounded-full transition-all duration-500 ease-out"
           style={{ width: `${percentage}%` }}
         />
       </div>

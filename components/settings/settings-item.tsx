@@ -1,6 +1,5 @@
 import { cn } from "@/lib/utils";
 import React from "react";
-import { Separator } from "@/components/ui/separator";
 
 interface SettingsItemProps {
   label: string;
@@ -17,16 +16,24 @@ export function SettingsItem({
   className,
   showSeparator = true,
 }: SettingsItemProps) {
+  const id = React.useId();
+  const control =
+    React.isValidElement(children) && typeof children.type !== "string"
+      ? React.cloneElement(children as React.ReactElement<React.AriaAttributes>, {
+          "aria-labelledby": id,
+        })
+      : children;
   return (
-    <div className={cn("space-y-4", className)}>
-      <div className="flex items-center justify-between gap-4">
+    <div className={cn("py-4", showSeparator && "border-b", className)}>
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="space-y-0.5">
-          <label className="text-sm font-medium">{label}</label>
-          {description && <p className="text-xs text-muted-foreground">{description}</p>}
+          <p id={id} className="text-base font-medium">
+            {label}
+          </p>
+          {description && <p className="text-muted-foreground max-w-sm text-sm">{description}</p>}
         </div>
-        <div className="shrink-0">{children}</div>
+        <div className="max-w-full shrink-0">{control}</div>
       </div>
-      {showSeparator && <Separator />}
     </div>
   );
 }

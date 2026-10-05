@@ -15,7 +15,7 @@ export function HistorySearch({ value, onChange, className }: HistorySearchProps
   return (
     <div className={cn("relative", className)}>
       <Search
-        className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground"
+        className="text-muted-foreground absolute top-2.5 left-2.5 h-4 w-4"
         aria-hidden="true"
       />
       {/*

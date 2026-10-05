@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { getHistory } from "@/lib/api/history";
 import type { HistoryDTO, HistoryFiltersDTO } from "@/types/dto";
 
@@ -15,6 +15,7 @@ export function useHistory(filters?: HistoryFiltersDTO): UseHistoryReturn {
   const [data, setData] = useState<HistoryDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const request = useRef(0);
 
   // Depend on the filter *values*, not the object reference. A caller
   // that passes a new object literal on every render (easy to do by
@@ -27,21 +28,26 @@ export function useHistory(filters?: HistoryFiltersDTO): UseHistoryReturn {
   const filtersKey = useMemo(() => JSON.stringify(filters ?? {}), [filters]);
 
   const fetchData = useCallback(async () => {
+    const currentRequest = ++request.current;
     setLoading(true);
     setError(null);
     try {
       const result = await getHistory(filters);
-      setData(result);
+      if (currentRequest === request.current) setData(result);
     } catch (err) {
-      setError(err instanceof Error ? err : new Error("Failed to load history"));
+      if (currentRequest === request.current)
+        setError(err instanceof Error ? err : new Error("Failed to load history"));
     } finally {
-      setLoading(false);
+      if (currentRequest === request.current) setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- filtersKey is the intentional, value-based dependency; `filters` itself is read inside but must not gate this callback's identity.
   }, [filtersKey]);
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
+    return () => {
+      request.current += 1;
+    };
   }, [fetchData]);
 
   return { data, loading, error, refetch: fetchData };

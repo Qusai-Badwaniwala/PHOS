@@ -75,12 +75,12 @@ export function RestoreWizard({ entries, onRestored, className }: RestoreWizardP
   return (
     <ContentCard className={cn(className)}>
       <div className="mb-4 flex items-center gap-2">
-        <Upload className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+        <Upload className="text-muted-foreground h-5 w-5" aria-hidden="true" />
         <h3 className="font-semibold">Restore</h3>
       </div>
 
       <div className="space-y-4">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Return PHOS to the state it was in when one of your backups was taken.
         </p>
 
@@ -92,7 +92,7 @@ export function RestoreWizard({ entries, onRestored, className }: RestoreWizardP
         ) : (
           <>
             <Select value={selectedId} onValueChange={setSelectedId}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger aria-label="Choose a restore point" className="w-full">
                 <SelectValue placeholder="Choose a backup" />
               </SelectTrigger>
               <SelectContent>
@@ -105,9 +105,9 @@ export function RestoreWizard({ entries, onRestored, className }: RestoreWizardP
             </Select>
 
             {selectedId && (
-              <div className="flex gap-2 rounded-md border border-warning/30 bg-warning-muted p-3">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
-                <p className="text-xs text-warning">
+              <div className="border-warning/30 bg-warning-muted flex gap-2 rounded-md border p-3">
+                <AlertTriangle className="text-warning mt-0.5 h-4 w-4 shrink-0" />
+                <p className="text-warning text-xs">
                   Restoring replaces all current data with the backup contents. A safety copy of the
                   current database is taken first.
                 </p>
@@ -127,12 +127,12 @@ export function RestoreWizard({ entries, onRestored, className }: RestoreWizardP
         )}
 
         {outcome && (
-          <p role="status" className="text-sm text-muted-foreground">
+          <p role="status" className="text-muted-foreground text-sm">
             {outcome}
           </p>
         )}
         {error && !confirmOpen && (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-destructive text-sm">
             {error}
           </p>
         )}

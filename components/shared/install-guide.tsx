@@ -13,11 +13,9 @@ interface InstallGuideProps {
 /**
  * Per-browser installation steps.
  *
- * Firefox is listed as unsupported rather than omitted. A user who
- * cannot find a menu item everyone else is being told about will assume
- * they are doing it wrong; saying plainly that their browser does not
- * offer it respects their time. PHOS still works perfectly there — it
- * just stays a tab.
+ * Browser installation differs by platform. Mozilla's Android and
+ * Windows instructions were verified on 2026-10-05; do not describe
+ * Firefox as universally unsupported.
  */
 const MANUAL_STEPS: readonly { platform: string; steps: string }[] = [
   {
@@ -38,8 +36,13 @@ const MANUAL_STEPS: readonly { platform: string; steps: string }[] = [
     steps: "Tap ⋮, then Install app or Add to Home screen.",
   },
   {
-    platform: "Firefox",
-    steps: "Firefox does not offer app installation. PHOS still works normally in a tab.",
+    platform: "Firefox on Android",
+    steps: "Open the three-dot menu, tap Install, then add PHOS to your home screen.",
+  },
+  {
+    platform: "Firefox on Windows",
+    steps:
+      "Use the web apps button in the address bar when available. Other Firefox platforms can continue using PHOS in a tab.",
   },
 ];
 
@@ -73,11 +76,11 @@ export function InstallGuide({ className }: InstallGuideProps) {
     return (
       <div
         className={cn(
-          "flex gap-3 rounded-lg border border-border bg-muted/50 p-4 text-sm",
+          "border-border bg-muted/50 flex gap-3 rounded-lg border p-4 text-sm",
           className,
         )}
       >
-        <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" aria-hidden="true" />
+        <CheckCircle2 className="text-success mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
         <p className="text-muted-foreground">
           PHOS is installed and running as an app. Nothing else to do.
         </p>
@@ -86,20 +89,20 @@ export function InstallGuide({ className }: InstallGuideProps) {
   }
 
   return (
-    <div className={cn("rounded-lg border border-border bg-muted/40 p-4", className)}>
+    <div className={cn("border-border bg-muted/40 rounded-lg border p-4", className)}>
       <div className="flex gap-3">
         <MonitorSmartphone
-          className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground"
+          className="text-muted-foreground mt-0.5 h-5 w-5 shrink-0"
           aria-hidden="true"
         />
         <div className="min-w-0 flex-1 space-y-3">
           <div>
             <p className="text-sm font-medium">Install PHOS as an app</p>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="text-muted-foreground mt-1 text-sm">
               PHOS is best used installed. It opens in its own window — no tabs, no address bar,
-              nothing else competing for your attention — starts instantly, and works with no
-              internet connection at all. Installing also makes your browser more willing to keep
-              your data safe from being cleared automatically.
+              nothing else competing for your attention. Once its offline files have finished
+              saving, it works without a connection. Installing can also make your browser more
+              willing to retain your record; an exported file is still the copy to keep safe.
             </p>
           </div>
 
@@ -110,14 +113,14 @@ export function InstallGuide({ className }: InstallGuideProps) {
             </Button>
           ) : (
             <details className="group">
-              <summary className="cursor-pointer text-sm font-medium text-primary hover:underline">
+              <summary className="text-primary cursor-pointer text-sm font-medium hover:underline">
                 How to install it
               </summary>
               <ul className="mt-3 space-y-2.5">
                 {MANUAL_STEPS.map((entry) => (
                   <li key={entry.platform} className="text-sm">
                     <span className="font-medium">{entry.platform}</span>
-                    <span className="block text-muted-foreground">{entry.steps}</span>
+                    <span className="text-muted-foreground block">{entry.steps}</span>
                   </li>
                 ))}
               </ul>

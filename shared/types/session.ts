@@ -1,4 +1,11 @@
 import type { SessionType } from "./enums";
+import type { StudyItem } from "./adaptive";
+export interface StudyDraft {
+  pageIds: string[];
+  weakPageIds: string[];
+  paused: boolean;
+  items?: StudyItem[];
+}
 
 /**
  * Domain-safe representation of a persisted Session.
@@ -15,6 +22,7 @@ export interface Session {
   readonly completedAt: Date | null;
   readonly durationSeconds: number | null;
   readonly createdAt: Date;
+  readonly studyDraft?: StudyDraft;
 }
 
 /**

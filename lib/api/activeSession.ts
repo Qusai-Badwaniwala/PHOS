@@ -24,6 +24,7 @@ export interface ActiveSession {
   readonly startedAt: string;
   /** Pages already recorded against this session, so completion can resume rather than replay. */
   readonly completedPageIds: readonly string[];
+  readonly studyDraft?: import("@/shared/types").StudyDraft;
 }
 
 /** The assignment a client committed to. Cached locally; never authoritative. */
@@ -46,6 +47,7 @@ export async function fetchActiveSession(): Promise<ActiveSession | null> {
     sessionType: active.sessionType as SessionType,
     startedAt: active.startedAt,
     completedPageIds: active.completedPageIds,
+    studyDraft: active.studyDraft,
   };
 }
 
@@ -106,6 +108,20 @@ export function clearAllAssignments(): void {
 export interface CompletionProgress {
   readonly completed: number;
   readonly total: number;
+}
+
+export type StudyReceipt = import("@/shared/dto").SessionSummaryDTO & { weakPages: number };
+export async function getStudyReceipt(sessionId: string): Promise<StudyReceipt> {
+  return sessionOps.getStudyReceipt(sessionId);
+}
+export function committedAssignment(active: ActiveSession, key: string): AssignmentCache | null {
+  return active.studyDraft?.items
+    ? {
+        sessionId: active.sessionId,
+        pageIds: active.studyDraft.items.map((item) => item.pageId),
+        pageNumbers: active.studyDraft.items.map((item) => item.pageNumber),
+      }
+    : readAssignment(key);
 }
 
 /**
@@ -197,6 +213,16 @@ export async function submitRemainingPages(
  * Leaving the row open instead would strand it — it would keep counting
  * as the active session forever and block the next one from starting.
  */
-export async function finishActiveSession(sessionId: string): Promise<void> {
-  await sessionOps.finishSession(sessionId);
+export async function finishActiveSession(
+  sessionId: string,
+): Promise<import("@/shared/dto").SessionSummaryDTO> {
+  return sessionOps.finishSession(sessionId);
+}
+
+export async function saveStudyFeedback(
+  sessionId: string,
+  weakPageIds: ReadonlySet<string>,
+  paused: boolean,
+): Promise<void> {
+  return sessionOps.saveStudyFeedback(sessionId, [...weakPageIds], paused);
 }

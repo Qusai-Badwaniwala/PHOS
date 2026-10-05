@@ -2,8 +2,7 @@
 
 import { useEffect } from "react";
 import { ensurePersistentStorage } from "@/client/storage";
-import { seedIfEmpty } from "@/repositories/browser";
-import { migrationOps } from "@/client/operations";
+import { initializeRecord } from "@/client/initialize";
 
 /**
  * The two things PHOS has to do once, before the user's first action.
@@ -34,7 +33,7 @@ export function StorageBootstrap() {
     // Seeding first: a repair reads pages, so they must exist. Both are
     // idempotent and both swallow their own failures, so neither can
     // stop a screen rendering.
-    void seedIfEmpty().then(() => migrationOps.runPendingRepairs());
+    void initializeRecord().catch(() => undefined);
   }, []);
 
   return null;

@@ -1,146 +1,108 @@
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-
-/**
- * Import is the path a user takes when moving PHOS to a new device, and
- * the one place a file they did not create reaches their data.
- *
- * The promise the screen makes is specific: a rejected file changes
- * nothing. These tests hold that promise to the letter — a failed
- * import must leave the caches alone and must name every problem rather
- * than only the first.
- */
 const reload = jest.fn();
-jest.mock("@/providers/settings-provider", () => ({
-  useSettings: () => ({ reload }),
-}));
-
+const previewImport = jest.fn();
 const importData = jest.fn();
+const clearAllAssignments = jest.fn();
+const onImported = jest.fn();
+jest.mock("@/providers/settings-provider", () => ({ useSettings: () => ({ reload }) }));
 jest.mock("@/lib/api/backup", () => ({
+  previewImport: (...args: unknown[]) => previewImport(...args),
   importData: (...args: unknown[]) => importData(...args),
 }));
-
-const clearAllAssignments = jest.fn();
-jest.mock("@/lib/api/activeSession", () => ({
-  clearAllAssignments: () => clearAllAssignments(),
-}));
-
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { ImportWizard } = require("@/components/backup/import-wizard") as {
-  ImportWizard: React.ComponentType<{ onImported: () => void }>;
+jest.mock("@/lib/api/activeSession", () => ({ clearAllAssignments: () => clearAllAssignments() }));
+import { ImportWizard } from "@/components/backup/import-wizard";
+const valid = {
+  valid: true,
+  errors: [],
+  warnings: [],
+  exportedAt: null,
+  learnedPages: 23,
+  sessions: 2,
+  recalls: 16,
+  exams: 1,
+  openSessions: 0,
 };
-
-const onImported = jest.fn();
-
-function exportFile(name = "phos-export.json") {
-  return new File(['{"applicationVersion":"0.1.0"}'], name, { type: "application/json" });
-}
-
+const file = () => new File(["{}"], "phos-export.json", { type: "application/json" });
 beforeEach(() => {
   jest.clearAllMocks();
-  importData.mockResolvedValue({ success: true, validationErrors: [], importedAt: "now" });
+  previewImport.mockResolvedValue(valid);
+  importData.mockResolvedValue({ success: true, validationErrors: [], safetyBackupId: "safety-1" });
 });
-
-describe("choosing a file", () => {
-  it("keeps the import button disabled until one is chosen", async () => {
-    const user = userEvent.setup();
-    render(<ImportWizard onImported={onImported} />);
-
-    expect(screen.getByRole("button", { name: /Import Data/ })).toBeDisabled();
-
-    await user.upload(screen.getByLabelText("Choose a PHOS export file"), exportFile());
-
-    expect(screen.getByRole("button", { name: /Import Data/ })).toBeEnabled();
-  });
+async function choose(user: ReturnType<typeof userEvent.setup>) {
+  await user.upload(screen.getByLabelText("Choose a PHOS export file"), file());
+  await screen.findByRole("button", { name: "Review full restore" });
+}
+async function confirm(user: ReturnType<typeof userEvent.setup>) {
+  await choose(user);
+  await user.click(screen.getByRole("button", { name: "Review full restore" }));
+  await user.click(screen.getByRole("button", { name: "Restore this record" }));
+}
+it("offers no restore before the complete file has been checked", () => {
+  render(<ImportWizard onImported={onImported} />);
+  expect(screen.queryByRole("button", { name: "Review full restore" })).not.toBeInTheDocument();
 });
-
-describe("a successful import", () => {
-  it("hands the engine the file, then clears caches and reloads", async () => {
-    const user = userEvent.setup();
-    render(<ImportWizard onImported={onImported} />);
-
-    await user.upload(screen.getByLabelText("Choose a PHOS export file"), exportFile());
-    await user.click(screen.getByRole("button", { name: /Import Data/ }));
-
-    await waitFor(() => expect(importData).toHaveBeenCalledTimes(1));
-    expect((importData.mock.calls[0]![0] as File).name).toBe("phos-export.json");
-
-    // The imported rows describe different sessions than this browser
-    // has cached, so offering to resume one would strand the user.
-    await waitFor(() => expect(clearAllAssignments).toHaveBeenCalledTimes(1));
-    expect(reload).toHaveBeenCalledTimes(1);
-    expect(onImported).toHaveBeenCalledTimes(1);
-    expect(await screen.findByRole("status")).toHaveTextContent("Import complete.");
-  });
+it("previews the record and does not mutate it before explicit confirmation", async () => {
+  const user = userEvent.setup();
+  render(<ImportWizard onImported={onImported} />);
+  await choose(user);
+  expect(screen.getByText("23")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Review full restore" }));
+  expect(screen.getByRole("dialog")).toHaveTextContent("histories are not merged");
+  await user.click(screen.getByRole("button", { name: "Keep current record" }));
+  expect(importData).not.toHaveBeenCalled();
 });
-
-describe("a rejected import", () => {
-  it("lists every problem, not just the first", async () => {
-    const user = userEvent.setup();
-    importData.mockResolvedValue({
-      success: false,
-      validationErrors: ['Missing or invalid "pages".', 'Missing or invalid "sessions".'],
-      importedAt: null,
-    });
-    render(<ImportWizard onImported={onImported} />);
-
-    await user.upload(screen.getByLabelText("Choose a PHOS export file"), exportFile());
-    await user.click(screen.getByRole("button", { name: /Import Data/ }));
-
-    const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("This file was not imported. Nothing was changed.");
-    expect(alert).toHaveTextContent('Missing or invalid "pages".');
-    expect(alert).toHaveTextContent('Missing or invalid "sessions".');
+it("restores the chosen file, clears stale assignments and publishes the safety copy", async () => {
+  const user = userEvent.setup();
+  render(<ImportWizard onImported={onImported} />);
+  await confirm(user);
+  await waitFor(() =>
+    expect(importData).toHaveBeenCalledWith(expect.objectContaining({ name: "phos-export.json" })),
+  );
+  expect(clearAllAssignments).toHaveBeenCalledTimes(1);
+  expect(reload).toHaveBeenCalledTimes(1);
+  expect(onImported).toHaveBeenCalledTimes(1);
+  expect(await screen.findByRole("status")).toHaveTextContent("verified safety copy");
+});
+it("lists every preview problem without changing the record", async () => {
+  previewImport.mockResolvedValue({
+    ...valid,
+    valid: false,
+    errors: ["Missing pages", "Broken references"],
   });
-
-  it("changes nothing — no cache cleared, no reload, no callback", async () => {
-    const user = userEvent.setup();
-    importData.mockResolvedValue({
-      success: false,
-      validationErrors: ["File is not valid JSON."],
-      importedAt: null,
-    });
-    render(<ImportWizard onImported={onImported} />);
-
-    await user.upload(screen.getByLabelText("Choose a PHOS export file"), exportFile("junk.json"));
-    await user.click(screen.getByRole("button", { name: /Import Data/ }));
-
-    await screen.findByRole("alert");
-    expect(clearAllAssignments).not.toHaveBeenCalled();
-    expect(reload).not.toHaveBeenCalled();
-    expect(onImported).not.toHaveBeenCalled();
-  });
-
-  it("surfaces a thrown error rather than failing silently", async () => {
-    const user = userEvent.setup();
-    importData.mockRejectedValue(new Error("Applying the data failed."));
-    render(<ImportWizard onImported={onImported} />);
-
-    await user.upload(screen.getByLabelText("Choose a PHOS export file"), exportFile());
-    await user.click(screen.getByRole("button", { name: /Import Data/ }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent("Applying the data failed.");
-  });
-
-  it("clears stale errors when a different file is chosen", async () => {
-    const user = userEvent.setup();
-    importData.mockResolvedValue({
-      success: false,
-      validationErrors: ["File is not valid JSON."],
-      importedAt: null,
-    });
-    render(<ImportWizard onImported={onImported} />);
-
-    const input = screen.getByLabelText("Choose a PHOS export file");
-    await user.upload(input, exportFile("junk.json"));
-    await user.click(screen.getByRole("button", { name: /Import Data/ }));
-    await screen.findByRole("alert");
-
-    await user.upload(input, exportFile("good.json"));
-
-    // Leaving the old complaint on screen beside a newly chosen file
-    // reads as though the new file were the broken one.
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-  });
+  const user = userEvent.setup();
+  render(<ImportWizard onImported={onImported} />);
+  await user.upload(screen.getByLabelText("Choose a PHOS export file"), file());
+  expect(await screen.findByRole("alert")).toHaveTextContent("Missing pages");
+  expect(screen.getByRole("alert")).toHaveTextContent("Broken references");
+  expect(importData).not.toHaveBeenCalled();
+  expect(clearAllAssignments).not.toHaveBeenCalled();
+  expect(reload).not.toHaveBeenCalled();
+});
+it("reports a refused apply without clearing assignments or reloading", async () => {
+  importData.mockResolvedValue({ success: false, validationErrors: ["Checksum changed"] });
+  const user = userEvent.setup();
+  render(<ImportWizard onImported={onImported} />);
+  await confirm(user);
+  expect(await screen.findByRole("alert")).toHaveTextContent("Checksum changed");
+  expect(clearAllAssignments).not.toHaveBeenCalled();
+  expect(reload).not.toHaveBeenCalled();
+});
+it("surfaces a storage failure without a success message", async () => {
+  importData.mockRejectedValue(new Error("Storage full; replacement rolled back"));
+  const user = userEvent.setup();
+  render(<ImportWizard onImported={onImported} />);
+  await confirm(user);
+  expect(await screen.findByRole("alert")).toHaveTextContent("Storage full");
+  expect(onImported).not.toHaveBeenCalled();
+});
+it("clears a rejected preview when a different file is checked", async () => {
+  previewImport.mockResolvedValueOnce({ ...valid, valid: false, errors: ["Broken file"] });
+  const user = userEvent.setup();
+  render(<ImportWizard onImported={onImported} />);
+  await user.upload(screen.getByLabelText("Choose a PHOS export file"), file());
+  await screen.findByRole("alert");
+  await choose(user);
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 });

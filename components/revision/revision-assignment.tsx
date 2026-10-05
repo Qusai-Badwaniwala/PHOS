@@ -36,7 +36,7 @@ export function RevisionAssignment({
   return (
     <ContentCard className={cn("h-full", className)}>
       <div className="mb-4 flex items-center gap-2">
-        <RotateCcw className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+        <RotateCcw className="text-muted-foreground h-5 w-5" aria-hidden="true" />
         <h3 className="font-semibold">Assignment</h3>
       </div>
 
@@ -44,13 +44,13 @@ export function RevisionAssignment({
         <div className="space-y-3">
           {assignment.type && (
             <div>
-              <p className="text-xs uppercase tracking-wider text-muted-foreground">Type</p>
+              <p className="text-muted-foreground text-xs tracking-wider uppercase">Type</p>
               <p className="text-base font-medium">{typeLabel(assignment.type)}</p>
             </div>
           )}
           {studyPages.length > 0 ? (
             <div>
-              <p className="mb-1.5 text-xs uppercase tracking-wider text-muted-foreground">
+              <p className="text-muted-foreground mb-1.5 text-xs tracking-wider uppercase">
                 What to revise
               </p>
               <StudyPageList pages={studyPages} />
@@ -59,12 +59,12 @@ export function RevisionAssignment({
             assignment.pages &&
             assignment.pages.length > 0 && (
               <div>
-                <p className="text-xs uppercase tracking-wider text-muted-foreground">Pages</p>
+                <p className="text-muted-foreground text-xs tracking-wider uppercase">Pages</p>
                 <div className="mt-1 flex flex-wrap gap-1">
                   {assignment.pages.map((page) => (
                     <span
                       key={page}
-                      className="inline-flex items-center rounded-md bg-muted px-2 py-1 text-xs font-medium"
+                      className="bg-muted inline-flex items-center rounded-md px-2 py-1 text-xs font-medium"
                     >
                       {page}
                     </span>
@@ -75,13 +75,13 @@ export function RevisionAssignment({
           )}
           {assignment.totalPages !== undefined && (
             <div>
-              <p className="text-xs uppercase tracking-wider text-muted-foreground">Total</p>
+              <p className="text-muted-foreground text-xs tracking-wider uppercase">Total</p>
               <p className="text-base">{assignment.totalPages} pages</p>
             </div>
           )}
           {assignment.notes && (
-            <div className="rounded-md bg-muted p-3">
-              <p className="text-sm text-muted-foreground">{assignment.notes}</p>
+            <div className="bg-muted rounded-md p-3">
+              <p className="text-muted-foreground text-sm">{assignment.notes}</p>
             </div>
           )}
         </div>

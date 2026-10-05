@@ -220,9 +220,9 @@ export const FAQ: readonly FaqEntry[] = [
     id: "losing-data",
     question: "Could I lose my progress?",
     answer:
-      "Yes, in one specific way: PHOS lives in your browser's storage, so clearing your browsing data for this site — or uninstalling the app and choosing to remove its data — deletes it. Nothing else will. PHOS asks the browser to protect its storage, browsers honour that more readily once PHOS is installed, and normal use, updates and restarts are all safe. Keeping an exported file somewhere makes the question moot.",
+      "Yes. Clearing this site's browser data or choosing to remove its data when uninstalling erases the record and local restore points. PHOS requests persistent storage, but the browser decides whether to grant it; storage eviction, a lost device or a damaged browser profile can also lose data. Keep an exported file somewhere safe, and use it to restore your complete record on this or another device.",
   },
 ];
 
-/** Author attribution, given the gold treatment reserved for it. */
+/** Quiet author attribution retained with the original identity. */
 export const AUTHOR = "Qusai";
